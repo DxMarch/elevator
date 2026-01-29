@@ -1,0 +1,39 @@
+@startuml modules
+title Modules
+
+component Driver [
+    Driver
+    This is already implemented
+]
+
+component InfoGetter [
+    Info Getter
+    Polls button and floorsensor
+    Updates can cause state change
+]
+
+InfoGetter -> Driver : Read
+
+component StateM [
+    State Machine
+]
+
+StateM <-- InfoGetter 
+StateM -> Driver : Actions
+
+component Scoring [
+    Scoring
+]
+
+StateM -> Scoring : Query
+
+
+component Distributer [
+    Distribution
+    Sends and receives state
+    Can update state if newer version
+]
+
+Distributer -> StateM
+
+@enduml
