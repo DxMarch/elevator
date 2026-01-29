@@ -1,0 +1,35 @@
+@startuml HallButtonFSM
+title Hall Button — cyclic-counter consensus
+
+' States
+[*] --> Unknown : System start
+note right of Unknown
+Can go to any state by
+receiving from another node
+end note
+
+Idle: counter = 0
+Idle: entry/ Turn off light
+
+Pending: counter = 1
+Pending: entry/ calculate score
+Pending: list_nodes_in_pending
+
+Scoring: counter = 2
+Scoring: score_map
+
+Confirmed: counter = 2
+Confirmed: entry/ Turn on light
+' note left of Agreed
+' All nodes have been updated to decided
+' Largest score starts serving
+' end note
+
+' Transitions
+Unknown --> Pending : Button pressed
+Idle -down-> Pending : Button pressed
+Pending -down-> Scoring : Received from all
+Scoring -up-> Confirmed : Score map full
+Confirmed -right-> Idle : Arrived at floor 
+
+@enduml
