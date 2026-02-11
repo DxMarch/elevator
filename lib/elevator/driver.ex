@@ -141,6 +141,9 @@ defmodule Elevator.Driver do
       {:ok, [6, 0, 0, 0]} ->
         {:reply, :off, socket}
 
+      {:ok, _} ->
+        {:reply, {:error, :invalid_response}, socket}
+
       {:error, reason} ->
         {:reply, {:error, reason}, socket}
     end
@@ -153,6 +156,7 @@ defmodule Elevator.Driver do
     case :gen_tcp.recv(socket, 4, @call_timeout) do
       {:ok, [7, 0, _, 0]} -> {:reply, :between_floors, socket}
       {:ok, [7, 1, floor, 0]} -> {:reply, floor, socket}
+      {:ok, _} -> {:reply, {:error, :invalid_response}, socket}
       {:error, reason} -> {:reply, {:error, reason}, socket}
     end
   end
@@ -164,6 +168,7 @@ defmodule Elevator.Driver do
     case :gen_tcp.recv(socket, 4, @call_timeout) do
       {:ok, [8, 0, 0, 0]} -> {:reply, :inactive, socket}
       {:ok, [8, 1, 0, 0]} -> {:reply, :active, socket}
+      {:ok, _} -> {:reply, {:error, :invalid_response}, socket}
       {:error, reason} -> {:reply, {:error, reason}, socket}
     end
   end
@@ -175,6 +180,7 @@ defmodule Elevator.Driver do
     case :gen_tcp.recv(socket, 4, @call_timeout) do
       {:ok, [9, 0, 0, 0]} -> {:reply, :inactive, socket}
       {:ok, [9, 1, 0, 0]} -> {:reply, :active, socket}
+      {:ok, _} -> {:reply, {:error, :invalid_response}, socket}
       {:error, reason} -> {:reply, {:error, reason}, socket}
     end
   end
