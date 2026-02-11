@@ -84,8 +84,8 @@ defmodule Elevator.Driver do
   - button_type: :hall_up, :hall_down, or :cab
 
   ## Returns
-  - 1 if button is pressed
-  - 0 if button is not pressed
+  - :active if button is pressed
+  - :inactive if button is not pressed
   """
   def get_order_button_state(floor, button_type) do
     GenServer.call(__MODULE__, {:get_order_button_state, floor, button_type})
@@ -174,8 +174,14 @@ defmodule Elevator.Driver do
   @impl true
   def handle_call({:get_order_button_state, floor, order_type}, _from, socket) do
     :gen_tcp.send(socket, [6, @button_map[order_type], floor, 0])
-    {:ok, [6, state, 0, 0]} = :gen_tcp.recv(socket, 4, @call_timeout)
-    {:reply, state, socket}
+
+    button_state =
+      case :gen_tcp.recv(socket, 4, @call_timeout) do
+        {:ok, [6, 0, 0, 0]} -> :inactive
+        {:ok, [6, 1, 0, 0]} -> :active
+      end
+
+    {:reply, button_state, socket}
   end
 
   @impl true
