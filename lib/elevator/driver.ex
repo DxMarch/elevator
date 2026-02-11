@@ -182,39 +182,39 @@ defmodule Elevator.Driver do
   def handle_call(:get_floor_sensor_state, _from, socket) do
     :gen_tcp.send(socket, [7, 0, 0, 0])
 
-    button_state =
+    floor_state =
       case :gen_tcp.recv(socket, 4, @call_timeout) do
         {:ok, [7, 0, _, 0]} -> :between_floors
         {:ok, [7, 1, floor, 0]} -> floor
       end
 
-    {:reply, button_state, socket}
+    {:reply, floor_state, socket}
   end
 
   @impl true
   def handle_call(:get_stop_button_state, _from, socket) do
     :gen_tcp.send(socket, [8, 0, 0, 0])
 
-    button_state =
+    stop_state =
       case :gen_tcp.recv(socket, 4, @call_timeout) do
         {:ok, [8, 0, 0, 0]} -> :inactive
         {:ok, [8, 1, 0, 0]} -> :active
       end
 
-    {:reply, button_state, socket}
+    {:reply, stop_state, socket}
   end
 
   @impl true
   def handle_call(:get_obstruction_switch_state, _from, socket) do
     :gen_tcp.send(socket, [9, 0, 0, 0])
 
-    button_state =
+    obstruction_state =
       case :gen_tcp.recv(socket, 4, @call_timeout) do
         {:ok, [9, 0, 0, 0]} -> :inactive
         {:ok, [9, 1, 0, 0]} -> :active
       end
 
-    {:reply, button_state, socket}
+    {:reply, obstruction_state, socket}
   end
 
   @impl true
