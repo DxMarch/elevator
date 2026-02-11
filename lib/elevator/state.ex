@@ -1,17 +1,14 @@
 defmodule Elevator.State do
-  defstruct [:hall_orders, :cab_orders]
+  @moduledoc """
+  Struct representing the elevator GenServer state.
+  """
 
-  @type hall_order_map :: %{
-    {non_neg_integer(), :up} => Elevator.State.Hall.t(),
-    {non_neg_integer(), :down} => Elevator.State.Hall.t()
-  }
-
-  @type cab_order_map :: %{
-    node() => Elevator.State.Cab.t()
-  }
+  @enforce_keys [:direction, :floor, :behavior]
+  defstruct [:direction, :floor, :behavior]
 
   @type t :: %__MODULE__{
-    hall_orders: hall_order_map(),
-    cab_orders: cab_order_map()
+    direction: Elevator.Types.elev_dir(),
+    floor: :unknown | Elevator.Types.floor(),
+    behavior: Elevator.Types.elev_state(),
   }
 end
