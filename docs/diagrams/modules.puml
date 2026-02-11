@@ -1,39 +1,84 @@
 @startuml modules
 title Modules
+' Simple class diagram for the elevator modules
 
-component Driver [
-    Driver
-    This is already implemented
-]
+package SingleElevator {
+    interface Driver {
+        + motor
+        + lights
+        + buttons
+        + floor sensors
+    }
 
-component InfoGetter [
-    Info Getter
-    Polls button and floorsensor
-    Updates can cause state change
-]
+    class FSM {
+        - elev_state
+        - my_orders
+        + init()
+        + on_arrival(floor)
+        + on_door_timeout()feat: ping function and docs for each function
+        + on_request_button(button)
+    }
 
-InfoGetter -> Driver : Read
+    class Controller {
+        - button_poller()
+        - order_poller()
+        + read_floor_sensor()
+        + read_all_buttons()
+        + clear_all_lights()
+        + clear_light(button)
+        + open_door()
+    }
 
-component StateM [
-    State Machine
-]
+    class Requests {
+        + should_stop(elev_state, orders, floor)
+        + choose_direction(elev_state, orders)
+        + should_clear_immidiately(elev_state, floor)
+    }
 
-StateM <-- InfoGetter 
-StateM -> Driver : Actions
+    FSM --> Requests
+    FSM --> Controller
+    Controller --> Driver
+}
 
-component Scoring [
-    Scoring
-]
+class Communicator {
+    - broadcast_state()
+    - receive_state()
+    + who_is_alive()
+}
 
-StateM -> Scoring : Query
+class CabOrders {
+    - orders: map
+    - version: uint64
+    + cast: receive_state()
+    + cast: update_orders(newOrders, version)
+    + cast: clear_floor(floor)
+    + call: button_press(floor)
+    + call: get_orders()
+}
 
+class HallOrders {
+    - orders: map
+    - count: uint
+    - others
+    + cast: arrived_floor(floor, dir)
+    + cast: receive_state(orders)
+    + cast: btn_press(floor, dir)
+    + call: get_orders()
+    + call: get_my_orders()
+}
 
-component Distributer [
-    Distribution
-    Sends and receives state
-    Can update state if newer version
-]
+class Scoring {
+    + score_request(elevator_state, orders, new_request)
+}
 
-Distributer -> StateM
+Controller --> HallOrders
+Controller --> CabOrders
+
+Communicator <--> CabOrders
+
+HallOrders --> Scoring
+HallOrders --> CabOrders
+HallOrders <--> Communicator
+
 
 @enduml
