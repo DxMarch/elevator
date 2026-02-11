@@ -135,9 +135,11 @@ defmodule Elevator.Driver do
     :gen_tcp.send(socket, [6, @button_map[order_type], floor, 0])
 
     case :gen_tcp.recv(socket, 4, @call_timeout) do
-      {:ok, [6, state, 0, 0]} ->
-        button_state = if state == 1, do: :on, else: :off
-        {:reply, button_state, socket}
+      {:ok, [6, 1, 0, 0]} ->
+        {:reply, :on, socket}
+
+      {:ok, [6, 0, 0, 0]} ->
+        {:reply, :off, socket}
 
       {:error, reason} ->
         {:reply, {:error, reason}, socket}
