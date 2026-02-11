@@ -63,7 +63,7 @@ defmodule Elevator.Driver do
   end
 
   @doc """
-  returns :on/:off for the given button
+  returns :on/:off for the given button, or {:error, reason} on failure
   """
   def get_order_button_state(floor, button_type) do
     GenServer.call(__MODULE__, {:get_order_button_state, floor, button_type})
@@ -133,51 +133,56 @@ defmodule Elevator.Driver do
   @impl true
   def handle_call({:get_order_button_state, floor, order_type}, _from, socket) do
     :gen_tcp.send(socket, [6, @button_map[order_type], floor, 0])
-    {:ok, [6, state, 0, 0]} = :gen_tcp.recv(socket, 4, @call_timeout)
-    {:reply, state, socket}
+
+    case :gen_tcp.recv(socket, 4, @call_timeout) do
+      {:ok, [6, state, 0, 0]} ->
+        button_state = if state == 1, do: :on, else: :off
+        {:reply, button_state, socket}
+
+      {:error, reason} ->
+        {:reply, {:error, reason}, socket}
+    end
   end
 
+  @impl true
   def handle_call(:get_floor_sensor_state, _from, socket) do
     :gen_tcp.send(socket, [7, 0, 0, 0])
 
-    button_state =
-      case :gen_tcp.recv(socket, 4, @call_timeout) do
-        {:ok, [7, 0, _, 0]} -> :between_floors
-        {:ok, [7, 1, floor, 0]} -> floor
-      end
-
-    {:reply, button_state, socket}
+    case :gen_tcp.recv(socket, 4, @call_timeout) do
+      {:ok, [7, 0, _, 0]} -> {:reply, :between_floors, socket}
+      {:ok, [7, 1, floor, 0]} -> {:reply, floor, socket}
+      {:error, reason} -> {:reply, {:error, reason}, socket}
+    end
   end
 
   @impl true
   def handle_call(:get_stop_button_state, _from, socket) do
     :gen_tcp.send(socket, [8, 0, 0, 0])
 
-    button_state =
-      case :gen_tcp.recv(socket, 4, @call_timeout) do
-        {:ok, [8, 0, 0, 0]} -> :inactive
-        {:ok, [8, 1, 0, 0]} -> :active
-      end
-
-    {:reply, button_state, socket}
+    case :gen_tcp.recv(socket, 4, @call_timeout) do
+      {:ok, [8, 0, 0, 0]} -> {:reply, :inactive, socket}
+      {:ok, [8, 1, 0, 0]} -> {:reply, :active, socket}
+      {:error, reason} -> {:reply, {:error, reason}, socket}
+    end
   end
 
   @impl true
   def handle_call(:get_obstruction_switch_state, _from, socket) do
     :gen_tcp.send(socket, [9, 0, 0, 0])
 
-    button_state =
-      case :gen_tcp.recv(socket, 4, @call_timeout) do
-        {:ok, [9, 0, 0, 0]} -> :inactive
-        {:ok, [9, 1, 0, 0]} -> :active
-      end
-
-    {:reply, button_state, socket}
+    case :gen_tcp.recv(socket, 4, @call_timeout) do
+      {:ok, [9, 0, 0, 0]} -> {:reply, :inactive, socket}
+      {:ok, [9, 1, 0, 0]} -> {:reply, :active, socket}
+      {:error, reason} -> {:reply, {:error, reason}, socket}
+    end
   end
 
   @impl true
   def handle_call(:ping, _from, socket) when is_port(socket) do
-    {:reply, :ok, socket}
+    case :inet.getstat(socket) do
+      {:ok, _stats} -> {:reply, :ok, socket}
+      {:error, reason} -> {:reply, {:error, reason}, socket}
+    end
   end
 
   @impl true
