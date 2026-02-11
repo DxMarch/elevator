@@ -25,74 +25,115 @@ defmodule Elevator.Driver do
 
   # User API ----------------------------------------------
   @doc """
-  direction can be :up/:down/:stop
+  Sets the motor direction.
+
+  ## Parameters
+  - direction: :up, :down, or :stop
   """
   def set_motor_direction(direction) do
     GenServer.cast(__MODULE__, {:set_motor_direction, direction})
   end
 
   @doc """
-  button_type can be :hall_up/:hall_down/:cab
-  state can be :on/:off
+  Sets the light for an order button.
+
+  ## Parameters
+  - button_type: :hall_up, :hall_down, or :cab
+  - floor: floor number (integer)
+  - state: :on or :off
   """
   def set_order_button_light(button_type, floor, state) do
     GenServer.cast(__MODULE__, {:set_order_button_light, button_type, floor, state})
   end
 
   @doc """
-  floor is the floor index
+  Sets the floor indicator display.
+
+  ## Parameters
+  - floor: floor number to display (integer)
   """
   def set_floor_indicator(floor) do
     GenServer.cast(__MODULE__, {:set_floor_indicator, floor})
   end
 
   @doc """
-  state can be :on/:off
+  Sets the stop button light.
+
+  ## Parameters
+  - state: :on or :off
   """
-  # state can be :on/:off
   def set_stop_button_light(state) do
     GenServer.cast(__MODULE__, {:set_stop_button_light, state})
   end
 
   @doc """
-  state can be :on/:off
+  Sets the door open indicator light.
+
+  ## Parameters
+  - state: :on or :off
   """
-  # state can be :on/:off
   def set_door_open_light(state) do
     GenServer.cast(__MODULE__, {:set_door_open_light, state})
   end
 
   @doc """
-  returns :on/:off for the given button
+  Gets the state of an order button.
+
+  ## Parameters
+  - floor: floor number (integer)
+  - button_type: :hall_up, :hall_down, or :cab
+
+  ## Returns
+  - :active if button is pressed
+  - :inactive if button is not pressed
   """
   def get_order_button_state(floor, button_type) do
     GenServer.call(__MODULE__, {:get_order_button_state, floor, button_type})
   end
 
   @doc """
-  returns floor or :between_floors
+  Gets the current floor from the floor sensor.
+
+  ## Returns
+  - floor number (integer) if elevator is at a floor
+  - :between_floors if elevator is between floors
   """
   def get_floor_sensor_state do
     GenServer.call(__MODULE__, :get_floor_sensor_state)
   end
 
   @doc """
-  returns :active/:inactive
+  Gets the state of the stop button.
+
+  ## Returns
+  - :active if stop button is pressed
+  - :inactive if stop button is not pressed
   """
   def get_stop_button_state do
     GenServer.call(__MODULE__, :get_stop_button_state)
   end
 
   @doc """
-  returns :active/:inactive
+  Gets the state of the obstruction switch (door sensor).
+
+  ## Returns
+  - :active if obstruction is detected
+  - :inactive if no obstruction
   """
   def get_obstruction_switch_state do
     GenServer.call(__MODULE__, :get_obstruction_switch_state)
   end
 
-  # quick readiness check
   @doc """
-  returns :ok or {:error, :not_connected}
+  Checks if the driver GenServer is running.
+
+  Note: This only checks if the GenServer process is alive, not if the TCP
+  connection is active. The driver will crash and restart automatically
+  if the connection fails during operation.
+
+  ## Returns
+  - :ok if the GenServer is running
+  - {:error, :not_connected} if the state is not a valid socket (should rarely occur)
   """
   def ping do
     GenServer.call(__MODULE__, :ping)
@@ -133,46 +174,53 @@ defmodule Elevator.Driver do
   @impl true
   def handle_call({:get_order_button_state, floor, order_type}, _from, socket) do
     :gen_tcp.send(socket, [6, @button_map[order_type], floor, 0])
-    {:ok, [6, state, 0, 0]} = :gen_tcp.recv(socket, 4, @call_timeout)
-    {:reply, state, socket}
+
+    button_state =
+      case :gen_tcp.recv(socket, 4, @call_timeout) do
+        {:ok, [6, 0, 0, 0]} -> :inactive
+        {:ok, [6, 1, 0, 0]} -> :active
+      end
+
+    {:reply, button_state, socket}
   end
 
+  @impl true
   def handle_call(:get_floor_sensor_state, _from, socket) do
     :gen_tcp.send(socket, [7, 0, 0, 0])
 
-    button_state =
+    floor_state =
       case :gen_tcp.recv(socket, 4, @call_timeout) do
         {:ok, [7, 0, _, 0]} -> :between_floors
         {:ok, [7, 1, floor, 0]} -> floor
       end
 
-    {:reply, button_state, socket}
+    {:reply, floor_state, socket}
   end
 
   @impl true
   def handle_call(:get_stop_button_state, _from, socket) do
     :gen_tcp.send(socket, [8, 0, 0, 0])
 
-    button_state =
+    stop_state =
       case :gen_tcp.recv(socket, 4, @call_timeout) do
         {:ok, [8, 0, 0, 0]} -> :inactive
         {:ok, [8, 1, 0, 0]} -> :active
       end
 
-    {:reply, button_state, socket}
+    {:reply, stop_state, socket}
   end
 
   @impl true
   def handle_call(:get_obstruction_switch_state, _from, socket) do
     :gen_tcp.send(socket, [9, 0, 0, 0])
 
-    button_state =
+    obstruction_state =
       case :gen_tcp.recv(socket, 4, @call_timeout) do
         {:ok, [9, 0, 0, 0]} -> :inactive
         {:ok, [9, 1, 0, 0]} -> :active
       end
 
-    {:reply, button_state, socket}
+    {:reply, obstruction_state, socket}
   end
 
   @impl true
