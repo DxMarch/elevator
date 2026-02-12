@@ -2,8 +2,7 @@ defmodule Elevator.HallOrders do
   @moduledoc """
   Module responsible for all changes occuring to the hall_order part of the state.
   """
-  alias Elevator.HallOrders
-  alias Elevator.State.Hall
+  alias Elevator.HallOrders.Scoring
   alias Elevator.CabOrders
   alias Elevator.Communicator
   use GenServer
@@ -37,10 +36,13 @@ defmodule Elevator.HallOrders do
   @spec button_press(non_neg_integer(), :up | :down) :: :ok
   def button_press(floor, button_type), do: GenServer.cast(__MODULE__, {:button_press, floor, button_type})
 
+  @spec arrived_at_floor(non_neg_integer(), :up | :down) :: :ok
+  def arrived_at_floor(floor, button_type), do: GenServer.cast(__MODULE__, {:arrived_at_floor, floor, button_type})
+
   @doc """
   Fuse my state with incoming state for each button.
   """
-  @spec handle_cast({:receive_state, state_t()}, state_t()) :: {:noreply, state_t()}
+  @spec handle_cast({:receive_state, state_t()}, state_t()) :: {:noreply, state_t(), {:continue, :update_state}}
   def handle_cast({:receive_state, other_state}, state) do
     new_state = Map.keys(state)
     |> Enum.map(fn key -> 
@@ -51,9 +53,37 @@ defmodule Elevator.HallOrders do
     {:noreply, new_state, {:continue, :update_state}}
   end
 
-  @spec handle_cast({:button_press, non_neg_integer(), :up | :down}, state_t()) :: {:noreply, state_t()}
-  def handle_cast({:button_press, _floor, _direction}, state) do
-    {:noreply, state}
+  @spec handle_cast({:button_press, non_neg_integer(), :up | :down}, state_t()) :: {:noreply, state_t(), {:continue, :update_state}}
+  def handle_cast({:button_press, floor, direction}, order_map) do
+    # If in idle or unknown, go to pending. Otherwise, ignore.
+    key = {floor, direction}
+    order_state = order_map[key]
+    order_map = case order_state do
+      :unknown ->
+        Map.put(order_map, key, {:pending, MapSet.new([Node.self()])})
+      :idle ->
+        Map.put(order_map, key, {:pending, MapSet.new([Node.self()])})
+      _ ->
+        order_map
+    end
+    {:noreply, order_map, {:continue, :update_state}}
+  end
+
+  def handle_cast({:arrived_at_floor, floor, direction}, order_map) do
+    # If in confirmed or unknown, go to idle. Otherwise, ignore.
+    # TODO: Find out if barrier set should be full as well?
+    key = {floor, direction}
+    order_state = order_map[key]
+    order_map = case order_state do
+      :unknown ->
+        Map.put(order_map, key, :idle)
+      {:confirmed, _, _} ->
+        Map.put(order_map, key, :idle)
+      _ ->
+        order_map
+    end
+    # For now, idle should not cause any further changes. So no continue here.
+    {:noreply, order_map}
   end
 
   @doc """
@@ -84,6 +114,7 @@ defmodule Elevator.HallOrders do
     end
   end
 
+  # Unknown goes to any state
   defp merge_button_states(_full_state, :unknown, other_state) do
     other_state
   end
@@ -121,6 +152,19 @@ defmodule Elevator.HallOrders do
       {:confirmed, my_score_map, other_barrier}
     else
       {:confirmed, my_score_map, MapSet.new()}
+    end
+  end
+
+  defp merge_button_states(
+    _full_state,
+    {:confirmed, my_score_map, my_barrier},
+    {:confirmed, other_score_map, other_barrier}
+  ) do
+    cond do
+      my_score_map == other_score_map ->
+        {:confirmed, my_score_map, MapSet.union(my_barrier, other_barrier)}
+      true ->
+        {:confirmed, Scoring.merge_scores(my_score_map, other_score_map), MapSet.new()}
     end
   end
 
