@@ -2,13 +2,14 @@ defmodule Elevator.State do
   @moduledoc """
   Struct representing the elevator GenServer state.
   """
+  alias Elevator.Types
 
-  @enforce_keys [:direction, :floor, :behavior]
-  defstruct [:direction, :floor, :behavior]
+  defstruct orders: %{}, direction: :stop, floor: :unknown, behavior: :idle
 
   @type t :: %__MODULE__{
-    direction: Elevator.Types.elev_dir(),
-    floor: :unknown | Elevator.Types.floor(),
-    behavior: Elevator.Types.elev_state(),
-  }
+          orders: Types.combined_order_map(),
+          direction: Types.elev_dir(),
+          floor: :unknown | Types.floor(),
+          behavior: Types.elev_state()
+        }
 end
