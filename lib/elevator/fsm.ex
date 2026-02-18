@@ -14,9 +14,8 @@ defmodule Elevator.FSM do
   alias Elevator.CabOrders
   alias Elevator.Orders
 
-  @door_open_time 500
+  @door_open_time 1000
 
-  @num_floors Application.compile_env(:elevator, :num_floors, 4)
   @buttons [:hall_up, :hall_down, :cab]
 
   def start_link(_opts) do
@@ -52,8 +51,8 @@ defmodule Elevator.FSM do
 
   # User API ---------------------------------------------------------
 
-  def arrived_at_floor(floor) do
-    GenServer.cast(__MODULE__, {:floor_arrival, floor})
+  def sensed_new_floor(floor) do
+    GenServer.cast(__MODULE__, {:sensed_new_floor, floor})
   end
 
   @spec cab_button_pressed(Types.floor()) :: :ok
@@ -61,7 +60,7 @@ defmodule Elevator.FSM do
     GenServer.cast(__MODULE__, {:cab_button_pressed, floor})
   end
 
-  @spec hall_button_pressed(Types.floor(), Types.btn_dir()) :: :ok
+  @spec hall_button_pressed(Types.floor(), Types.hall_btn()) :: :ok
   def hall_button_pressed(floor, dir) do
     GenServer.cast(__MODULE__, {:hall_button_pressed, floor, dir})
   end
@@ -80,10 +79,16 @@ defmodule Elevator.FSM do
   # calls ------------------------------------------------------------
 
   @impl true
-  def handle_info(:close_door, state) do
+  def handle_info({:close_door, close_ref}, %{door_timer: {_timer_ref, close_ref}} = state) do
+    # TODO: Check obstruction here?
     Driver.set_door_open_light(:off)
-    new_state = %{state | behavior: :idle}
+    new_state = %{state | behavior: :idle, door_timer: nil}
     {:noreply, new_state, {:continue, :do_behavior}}
+  end
+
+  @impl true
+  def handle_info({:close_door, _stale_ref}, state) do
+    {:noreply, state}
   end
 
   @impl true
@@ -92,37 +97,43 @@ defmodule Elevator.FSM do
     IO.inspect(state)
 
     {direction, behavior} = Orders.decide_next_direction(state)
-    Logger.debug("Got behavior #{direction} and #{behavior}")
+    IO.puts("Got behavior #{direction} and #{behavior}")
 
     case behavior do
       :door_open ->
-        Driver.set_door_open_light(:on)
-        Process.send_after(self(), :close_door, @door_open_time)
+        state = open_door_and_restart_timer(state)
+        {:noreply, %{state | direction: direction, behavior: behavior}}
 
       :moving ->
+        cancel_door_timer(state.door_timer)
         Driver.set_motor_direction(direction)
+        {:noreply, %{state | direction: direction, behavior: behavior, door_timer: nil}}
 
       :idle ->
+        cancel_door_timer(state.door_timer)
         Driver.set_motor_direction(:stop)
+        {:noreply, %{state | direction: direction, behavior: behavior, door_timer: nil}}
     end
-
-    {:noreply, %{state | direction: direction, behavior: behavior}}
   end
 
   # Casts ------------------------------------------------------------
 
   @impl true
-  def handle_cast({:floor_arrival, floor}, state) do
-    Logger.debug("Arrived at floor #{floor}")
+  def handle_cast({:sensed_new_floor, floor}, state) do
+    IO.puts("Sensed new floor #{floor}, current state:")
+    IO.inspect(state)
+    new_state = %{state | floor: floor}
 
     new_state =
-      if Orders.should_stop?(state) do
+      if Orders.should_stop?(new_state) do
+        Logger.debug("Should stop")
         Driver.set_motor_direction(:stop)
-        Driver.set_door_open_light(:on)
-        cleared = Orders.clear_orders_at_current_floor(state)
-        %{cleared | floor: floor, behavior: :door_open}
+        cleared = Orders.clear_orders_at_current_floor(new_state)
+
+        %{cleared | behavior: :door_open}
+        |> open_door_and_restart_timer()
       else
-        %{state | floor: floor}
+        new_state
       end
 
     {:noreply, new_state}
@@ -130,15 +141,17 @@ defmodule Elevator.FSM do
 
   @impl true
   def handle_cast({:cab_button_pressed, floor}, state) do
-    if floor == state.floor do
-      # TODO: Floor doesn't get updated until next floor arrival, which means button won't work until then.
-      # Unsure if this goes against the spec though
-      {:noreply, state}
-    end
+    if floor == state.floor and state.behavior != :moving do
+      new_state =
+        %{state | behavior: :door_open, direction: :stop}
+        |> open_door_and_restart_timer()
 
-    new_orders = Orders.combine_new_cab_orders(state.orders, CabOrders.add(floor))
-    new_state = %{state | orders: new_orders}
-    {:noreply, new_state, {:continue, :do_behavior}}
+      {:noreply, new_state}
+    else
+      new_orders = Orders.combine_new_cab_orders(state.orders, CabOrders.add(floor))
+      new_state = %{state | orders: new_orders}
+      {:noreply, new_state, {:continue, :do_behavior}}
+    end
   end
 
   @impl true
@@ -158,10 +171,21 @@ defmodule Elevator.FSM do
     # TODO: Currently this will only set lights if the orders are for the current elevator.
     # In practice we probably want to also set hall lights if others have accepted a order on the floor
     # This could probably be done by seperating into set_hall_lights and set_cab_lights and call them from their respective cast
-    for floor <- 0..(@num_floors - 1), btn <- @buttons do
+    for floor <- 0..(Elevator.num_floors - 1), btn <- @buttons do
       lights = Map.get(orders, floor, MapSet.new())
       state = if MapSet.member?(lights, btn), do: :on, else: :off
       Driver.set_order_button_light(btn, floor, state)
     end
   end
+
+  defp open_door_and_restart_timer(state) do
+    cancel_door_timer(state.door_timer)
+    Driver.set_door_open_light(:on)
+    close_ref = make_ref()
+    timer_ref = Process.send_after(self(), {:close_door, close_ref}, @door_open_time)
+    %{state | door_timer: {timer_ref, close_ref}}
+  end
+
+  defp cancel_door_timer(nil), do: :ok
+  defp cancel_door_timer({timer_ref, _close_ref}), do: Process.cancel_timer(timer_ref)
 end

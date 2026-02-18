@@ -13,7 +13,6 @@ defmodule Elevator.DriverPoller do
   @button_poll_interval 150
   @obstruction_poll_interval 200
 
-  @num_floors Application.compile_env(:elevator, :num_floors, 4)
   @buttons [:hall_up, :hall_down, :cab]
 
   # Public API
@@ -45,7 +44,7 @@ defmodule Elevator.DriverPoller do
         {:noreply, state}
 
       floor != prev_floor ->
-        FSM.arrived_at_floor(floor)
+        FSM.sensed_new_floor(floor)
         {:noreply, %{state | prev_floor: floor}}
 
       true ->
@@ -60,7 +59,7 @@ defmodule Elevator.DriverPoller do
     prev_buttons = Map.get(state, :prev_buttons, MapSet.new())
 
     current_buttons =
-      for floor <- 0..(@num_floors - 1),
+      for floor <- 0..(Elevator.num_floors - 1),
           btn <- get_pressed_buttons_at_floor(floor),
           into: MapSet.new() do
         {floor, btn}
@@ -72,8 +71,8 @@ defmodule Elevator.DriverPoller do
     Enum.each(new_presses, fn {floor, btn} ->
       case btn do
         :cab -> FSM.cab_button_pressed(floor)
-        :hall_up -> FSM.hall_button_pressed(floor, :up)
-        :hall_down -> FSM.hall_button_pressed(floor, :down)
+        :hall_up -> FSM.hall_button_pressed(floor, :hall_up)
+        :hall_down -> FSM.hall_button_pressed(floor, :hall_down)
       end
     end)
 

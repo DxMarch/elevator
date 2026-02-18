@@ -4,12 +4,13 @@ defmodule Elevator.State do
   """
   alias Elevator.Types
 
-  defstruct orders: %{}, direction: :stop, floor: :unknown, behavior: :idle
+  defstruct orders: %{}, direction: :stop, floor: :unknown, behavior: :idle, door_timer: nil
 
   @type t :: %__MODULE__{
           orders: Types.combined_order_map(),
           direction: Types.elev_dir(),
           floor: :unknown | Types.floor(),
-          behavior: Types.elev_state()
+          behavior: Types.elev_state(),
+          door_timer: nil | {reference(), reference()}
         }
 end
