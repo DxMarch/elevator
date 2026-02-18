@@ -1,4 +1,8 @@
 defmodule Test.Utils.TestCompiled do
+  @moduledoc """
+  This module exists because to run :rpc-calls, the called code has to be compiled, not .exs.
+  So put code here if it is the endpoint of an RPC for testing that is not suitable for lib/.
+  """
   def start_order_modules(num_floors) do
     children = [
       {Elevator.HallOrders, num_floors},
