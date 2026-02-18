@@ -197,6 +197,17 @@ defmodule Elevator.HallOrders do
     :idle
   end
 
+  # Otherwise idle goes to anything
+  defp merge_button_states(:idle, other) do
+    other
+  end
+
+  # But confirmed goes to idle
+  defp merge_button_states({:confirmed, _, _}, :idle) do
+    # TODO: find out if barrier set must be full
+    :idle
+  end
+
   defp merge_button_states(
     {:confirmed, my_score_map, my_barrier},
     {:confirmed, other_score_map, other_barrier}
@@ -215,7 +226,7 @@ defmodule Elevator.HallOrders do
     {:confirmed, other_score_map, other_barrier},
     order_map
   ) do
-    cab_orders = CabOrders.get_orders()
+    cab_orders = CabOrders.get_my_orders()
     my_score = Elevator.HallOrders.Scoring.compute_score(order_map, cab_orders)
     my_score_map = Map.put(other_score_map, Node.self(), my_score)
 
@@ -232,7 +243,7 @@ defmodule Elevator.HallOrders do
     # TODO: Logic when confirmed barrier gets full?
     case button_state do
       {:pending, ^alive} ->
-        cab_orders = CabOrders.get_orders()
+        cab_orders = CabOrders.get_my_orders()
         my_score = Elevator.HallOrders.Scoring.compute_score(order_map, cab_orders)
         {true, {:confirmed, %{Node.self() => my_score}, MapSet.new([Node.self()])}}
       _ ->

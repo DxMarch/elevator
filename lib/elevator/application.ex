@@ -9,6 +9,7 @@ defmodule Elevator.Application do
       Elevator.DriverPoller,
       Elevator.FSM
     ]
+
     opts = [strategy: :one_for_one, name: Elevator.Supervisor]
     Supervisor.start_link(children, opts)
   end

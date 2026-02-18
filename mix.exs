@@ -8,7 +8,8 @@ defmodule Elevator.MixProject do
       elixir: "~> 1.19",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
-      aliases: aliases()
+      aliases: aliases(),
+      elixirc_paths: elixirc_paths(Mix.env())
     ]
   end
 
@@ -31,7 +32,9 @@ defmodule Elevator.MixProject do
 
   defp aliases do
     [
-      test: "test --no-start",
+      test: "test --no-start"
     ]
   end
+
+  defp elixirc_paths(:test), do: ["lib", "test/utils"]
 end

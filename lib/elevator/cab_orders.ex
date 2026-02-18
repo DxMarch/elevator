@@ -2,78 +2,80 @@ defmodule Elevator.CabOrders do
   @moduledoc """
   Module responsible for all changes occuring to the cab_order part of the state.
   """
-
+  alias Elevator.Communicator
   use GenServer
 
-  alias Elevator.Types
-  @type state :: Types.cab_order_map()
-  @type node_val :: Types.cab_orders_snapshot()
+  @type state_t :: Elevator.Types.cab_order_map()
+  @type floor_t :: Elevator.Types.floor()
 
-  def start_link(_opts) do
-    GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
+  def start_link(arg) do
+    GenServer.start_link(__MODULE__, arg, name: __MODULE__)
   end
 
-  @impl true
-  def init(_state) do
-    node_val = %{version: 0, orders: MapSet.new()}
-    state = %{node() => node_val}
+  @spec init(any()) :: {:ok, state_t()}
+  def init(_arg) do
+    state = %{Communicator.my_id() => %{version: 0, orders: MapSet.new()}}
     {:ok, state}
   end
 
-  # User API ---------------------------------------------------------
 
   @doc """
-  Call when a cab button is pressed,
-  add it to the set and return the full set
+  Callback for getting the current cab orders state.
   """
-  @spec add(Types.floor()) :: MapSet.t()
-  def add(floor) do
-    GenServer.call(__MODULE__, {:add_order, floor})
+  @spec get_state() :: state_t()
+  def get_state do
+    GenServer.call(__MODULE__, :get_state)
   end
 
   @doc """
-  Call to remove orders
+  Callback for getting this nodes current cab orders.
   """
-  @spec remove(Types.floor()) :: :ok
-  def remove(floor) do
-    GenServer.cast(__MODULE__, {:remove_order, floor})
+  @spec get_my_orders() :: MapSet.t(floor_t())
+  def get_my_orders do
+    GenServer.call(__MODULE__, :get_my_orders)
   end
 
-  @doc """
-  Retrieve cab orders
-  """
-  @spec get_orders() :: :ok
-  def get_orders() do
-    GenServer.call(__MODULE__, :get_orders)
+  @spec receive_state(state_t()) :: :noreply
+  def receive_state(other_state) do
+    GenServer.cast(__MODULE__, {:receive_state, other_state})
   end
 
-  # Calls ------------------------------------------------------------
 
-  @impl true
-  def handle_call({:add_order, floor}, _from, state) do
-    new_state =
-      update_in(
-        state[node()].orders,
-        fn set -> MapSet.put(set || MapSet.new(), floor) end
-      )
+  # --- Handle calls ---
 
-    orders = get_in(new_state, [node(), :orders])
-    {:reply, orders, new_state}
+  def handle_call(:get_my_orders, _from, state) do
+    orders = state[Communicator.my_id()].orders
+    {:reply, orders, state}
   end
 
-  @impl true
-  def handle_call(:get_orders, _from, state) do
+  def handle_call(:get_state, _from, state) do
     {:reply, state, state}
   end
 
-  # Casts ------------------------------------------------------------
 
-  @impl true
-  def handle_cast({:remove_order, floor}, state) do
-    new_state =
-      update_in(state[node()].orders, fn set -> MapSet.delete(set || MapSet.new(), floor) end)
-      |> then(fn s -> update_in(s[node()].version, &(&1 + 1)) end)
+  # --- Handle casts ---
+
+  @spec handle_cast({:receive_state, state_t()}, state_t()) :: {:noreply, state_t()}
+  def handle_cast({:receive_state, order_map}, state) do
+    new_state = Enum.reduce(order_map, state, fn {node_id, received}, acc ->
+      current = Map.get(state, node_id, %{version: 0, orders: MapSet.new()})
+
+      if received[:version] > current[:version] do
+        Map.put(acc, node_id, received)
+      else
+        acc
+      end
+    end)
 
     {:noreply, new_state}
   end
+
+  @spec handle_cast({:btn_press, floor_t()}, state_t()) :: {:noreply, state_t()}
+  def handle_cast({:btn_press, floor}, state) do
+    new_state = Map.update!(state, Communicator.my_id(), fn %{version: old_version, orders: old_orders} ->
+      %{version: old_version + 1, orders: MapSet.put(old_orders, floor)}
+    end)
+    {:noreply, new_state}
+  end
+
 end

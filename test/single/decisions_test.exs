@@ -1,4 +1,4 @@
-defmodule Elevator.SingleElevatorDecisionsTest do
+defmodule Test.Single.DecisionsTest do
   use ExUnit.Case, async: true
 
   alias Elevator.Orders
