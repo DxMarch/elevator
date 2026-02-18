@@ -39,6 +39,14 @@ defmodule Elevator.CabOrders do
     GenServer.cast(__MODULE__, {:remove_order, floor})
   end
 
+  @doc """
+  Retrieve cab orders
+  """
+  @spec get_orders() :: :ok
+  def get_orders() do
+    GenServer.call(__MODULE__, :get_orders)
+  end
+
   # Calls ------------------------------------------------------------
 
   @impl true
@@ -51,6 +59,11 @@ defmodule Elevator.CabOrders do
 
     orders = get_in(new_state, [node(), :orders])
     {:reply, orders, new_state}
+  end
+
+  @impl true
+  def handle_call(:get_orders, _from, state) do
+    {:reply, state, state}
   end
 
   # Casts ------------------------------------------------------------
