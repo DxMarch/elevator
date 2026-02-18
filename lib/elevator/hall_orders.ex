@@ -197,6 +197,17 @@ defmodule Elevator.HallOrders do
     :idle
   end
 
+  # Otherwise idle goes to anything
+  defp merge_button_states(:idle, other) do
+    other
+  end
+
+  # But confirmed goes to idle
+  defp merge_button_states({:confirmed, _, _}, :idle) do
+    # TODO: find out if barrier set must be full
+    :idle
+  end
+
   defp merge_button_states(
     {:confirmed, my_score_map, my_barrier},
     {:confirmed, other_score_map, other_barrier}

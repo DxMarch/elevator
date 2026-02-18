@@ -1,4 +1,4 @@
-defmodule SingleElevatorTest do
+defmodule Test.Single.HallOrders do
   use ExUnit.Case
   # TODO: Maybe doctest
   # doctest Elevator
