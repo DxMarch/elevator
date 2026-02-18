@@ -12,6 +12,8 @@ defmodule Elevator.Types do
 
   @type btn_type :: :cab | :hall_down | :hall_up
 
+  @type node_id :: non_neg_integer()
+
   @type hall_order_value ::
           :unknown
           | :idle
