@@ -145,7 +145,13 @@ defmodule Elevator.HallOrders do
 
   # Wrapper for merge_button_states that ensures Node.self() is in the barrier state.
   defp merge_ensure_self_in_barrier(order_map, button_state, other_state) do
-    new_button_state = merge_button_states(order_map, button_state, other_state)
+    # pending -> confirmed -> give order_map as well
+    new_button_state = case {button_state, other_state} do
+      {{:pending, _}, {:confirmed, _, _}} ->
+        merge_button_states(button_state, other_state, order_map)
+      _ ->
+        merge_button_states(button_state, other_state)
+    end
     case new_button_state do
       {:pending, barrier_set} ->
         {:pending, MapSet.put(barrier_set, Node.self())}
@@ -156,34 +162,46 @@ defmodule Elevator.HallOrders do
   end
 
   # Unknown goes to any state
-  defp merge_button_states(_order_map, :unknown, other_state) do
+  defp merge_button_states(:unknown, other_state) do
     other_state
   end
 
-  defp merge_button_states(_order_map, my_state, :unknown) do
+  defp merge_button_states(my_state, :unknown) do
     my_state
   end
 
-  # Idle cannot go to confirmed
-  defp merge_button_states(_order_map, :idle, {:confirmed, _, _}) do
-    :idle
-  end
-
   # Idle jumps to pending
-  defp merge_button_states(_order_map, :idle, {:pending, barrier}) do
+  defp merge_button_states(:idle, {:pending, barrier}) do
     {:pending, barrier}
   end
 
   # Pending unions with other pending
-  defp merge_button_states(_order_map, {:pending, my_barrier}, {:pending, other_barrier}) do
+  defp merge_button_states({:pending, my_barrier}, {:pending, other_barrier}) do
     {:pending, MapSet.union(my_barrier, other_barrier)}
+  end
+
+  # Idle cannot go to confirmed
+  defp merge_button_states(:idle, {:confirmed, _, _}) do
+    :idle
+  end
+
+  defp merge_button_states(
+    {:confirmed, my_score_map, my_barrier},
+    {:confirmed, other_score_map, other_barrier}
+  ) do
+    cond do
+      my_score_map == other_score_map ->
+        {:confirmed, my_score_map, MapSet.union(my_barrier, other_barrier)}
+      true ->
+        {:confirmed, Scoring.merge_scores(my_score_map, other_score_map), MapSet.new()}
+    end
   end
 
   # Pending jumps to confirmed and computes score
   defp merge_button_states(
-    order_map, 
     {:pending, _}, 
-    {:confirmed, other_score_map, other_barrier}
+    {:confirmed, other_score_map, other_barrier},
+    order_map
   ) do
     cab_orders = CabOrders.get_orders()
     my_score = Elevator.HallOrders.Scoring.compute_score(order_map, cab_orders)
@@ -193,19 +211,6 @@ defmodule Elevator.HallOrders do
       {:confirmed, my_score_map, other_barrier}
     else
       {:confirmed, my_score_map, MapSet.new()}
-    end
-  end
-
-  defp merge_button_states(
-    _order_map,
-    {:confirmed, my_score_map, my_barrier},
-    {:confirmed, other_score_map, other_barrier}
-  ) do
-    cond do
-      my_score_map == other_score_map ->
-        {:confirmed, my_score_map, MapSet.union(my_barrier, other_barrier)}
-      true ->
-        {:confirmed, Scoring.merge_scores(my_score_map, other_score_map), MapSet.new()}
     end
   end
 
