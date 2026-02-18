@@ -56,6 +56,14 @@ defmodule Elevator.HallOrders do
     GenServer.call(__MODULE__, :get_my_orders)
   end
 
+  @doc """
+  Retrieve the full hall order state map
+  """
+  @spec get_state() :: state_t()
+  def get_state do
+    GenServer.call(__MODULE__, :get_state)
+  end
+
   def handle_call(:get_my_orders, _from, order_map) do
     alive = Communicator.who_is_alive()
     my_orders = Enum.filter(order_map, fn {_, order_state} -> 
@@ -79,6 +87,10 @@ defmodule Elevator.HallOrders do
     end)
     |> Enum.into(%{})
     {:reply, my_orders, order_map}
+  end
+
+  def handle_call(:get_state, _, order_map) do
+    {:reply, order_map, order_map}
   end
 
   @spec handle_cast({:receive_state, state_t()}, state_t()) :: {:noreply, state_t(), {:continue, :hall_update_state}}
