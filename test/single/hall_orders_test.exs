@@ -6,7 +6,8 @@ defmodule Test.Single.HallOrders do
   setup_all do
     children = [
       {Elevator.HallOrders, Elevator.num_floors()},
-      Elevator.CabOrders
+      Elevator.Communicator,
+      Elevator.CabOrders,
     ]
     opts = [strategy: :one_for_one, name: Elevator.Supervisor]
     Supervisor.start_link(children, opts)

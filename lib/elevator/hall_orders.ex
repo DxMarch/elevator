@@ -10,7 +10,7 @@ defmodule Elevator.HallOrders do
   @type state_t :: Elevator.Types.hall_order_map()
   @type hall_order_t :: Elevator.Types.hall_order_value()
 
-  def start_link(arg) do 
+  def start_link(arg) do
     GenServer.start_link(__MODULE__, arg, name: __MODULE__)
   end
 
@@ -18,7 +18,7 @@ defmodule Elevator.HallOrders do
   def init(num_floors) do
     top_floor = num_floors - 1
     state = Range.new(0, top_floor)
-    |> Enum.flat_map(fn floor -> 
+    |> Enum.flat_map(fn floor ->
       case floor do
         0 -> [{floor, :hall_up}]
         ^top_floor -> [{floor, :hall_down}]
@@ -32,7 +32,7 @@ defmodule Elevator.HallOrders do
 
   @doc """
   Callback for receiving the hall order state from another node.
-  Merges the states by updating the individual 
+  Merges the states by updating the individual
   """
   @spec receive_state(state_t()) :: :ok
   def receive_state(other_state), do: GenServer.cast(__MODULE__, {:receive_state, other_state})
@@ -47,7 +47,7 @@ defmodule Elevator.HallOrders do
   Callback for clearing a floor.
   """
   @spec arrived_at_floor(non_neg_integer(), :up | :down) :: :ok
-  def arrived_at_floor(floor, direction) do 
+  def arrived_at_floor(floor, direction) do
     GenServer.cast(__MODULE__, {:arrived_at_floor, floor, direction})
   end
 
@@ -66,9 +66,9 @@ defmodule Elevator.HallOrders do
 
   def handle_call(:get_my_orders, _from, order_map) do
     alive = Communicator.who_is_alive()
-    my_orders = Enum.filter(order_map, fn {_, order_state} -> 
+    my_orders = Enum.filter(order_map, fn {_, order_state} ->
       case order_state do
-        {:confirmed, score_map, barrier_set} -> 
+        {:confirmed, score_map, barrier_set} ->
           # Hmm.
           if MapSet.intersection(barrier_set, alive) != alive do
             false
@@ -78,12 +78,12 @@ defmodule Elevator.HallOrders do
         _ -> false
       end
     end)
-    |> Enum.map(fn {{floor, btn_type}, _} -> 
-      {floor, btn_type} 
+    |> Enum.map(fn {{floor, btn_type}, _} ->
+      {floor, btn_type}
     end)
     |> Enum.group_by(fn {floor, _} -> floor end)
-    |> Enum.map(fn {floor, order_list} -> 
-      {floor, MapSet.new(Enum.map(order_list, fn {_, btn_type} -> btn_type end))} 
+    |> Enum.map(fn {floor, order_list} ->
+      {floor, MapSet.new(Enum.map(order_list, fn {_, btn_type} -> btn_type end))}
     end)
     |> Enum.into(%{})
     {:reply, my_orders, order_map}
@@ -96,7 +96,7 @@ defmodule Elevator.HallOrders do
   @spec handle_cast({:receive_state, state_t()}, state_t()) :: {:noreply, state_t(), {:continue, :hall_update_state}}
   def handle_cast({:receive_state, other_order_map}, order_map) do
     new_order_map = Map.keys(order_map)
-    |> Enum.map(fn key -> 
+    |> Enum.map(fn key ->
       new_value = merge_ensure_self_in_barrier(order_map, order_map[key], other_order_map[key])
       {key, new_value}
     end)
@@ -143,7 +143,7 @@ defmodule Elevator.HallOrders do
   """
   @spec handle_continue(:hall_update_state, state_t()) :: {:noreply, state_t()} | {:noreply, state_t(), {:continue, :hall_update_state}}
   def handle_continue(:hall_update_state, order_map) do
-    {any_did_change, new_order_map} = Enum.reduce(order_map, {false, %{}}, 
+    {any_did_change, new_order_map} = Enum.reduce(order_map, {false, %{}},
       fn {key, button_state}, {acc_did_change, acc_order_map} ->
         {did_change, new_button_state} = update_button_state(order_map, button_state)
         {acc_did_change or did_change, Map.put(acc_order_map, key, new_button_state)}
@@ -222,11 +222,11 @@ defmodule Elevator.HallOrders do
 
   # Pending jumps to confirmed and computes score
   defp merge_button_states(
-    {:pending, _}, 
+    {:pending, _},
     {:confirmed, other_score_map, other_barrier},
     order_map
   ) do
-    cab_orders = CabOrders.get_orders()
+    cab_orders = CabOrders.get_my_orders()
     my_score = Elevator.HallOrders.Scoring.compute_score(order_map, cab_orders)
     my_score_map = Map.put(other_score_map, Node.self(), my_score)
 
@@ -243,7 +243,7 @@ defmodule Elevator.HallOrders do
     # TODO: Logic when confirmed barrier gets full?
     case button_state do
       {:pending, ^alive} ->
-        cab_orders = CabOrders.get_orders()
+        cab_orders = CabOrders.get_my_orders()
         my_score = Elevator.HallOrders.Scoring.compute_score(order_map, cab_orders)
         {true, {:confirmed, %{Node.self() => my_score}, MapSet.new([Node.self()])}}
       _ ->
