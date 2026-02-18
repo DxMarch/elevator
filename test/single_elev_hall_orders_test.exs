@@ -3,6 +3,16 @@ defmodule SingleElevatorTest do
   # TODO: Maybe doctest
   # doctest Elevator
 
+  setup_all do
+    children = [
+      {Elevator.HallOrders, Elevator.num_floors()},
+      Elevator.CabOrders
+    ]
+    opts = [strategy: :one_for_one, name: Elevator.Supervisor]
+    Supervisor.start_link(children, opts)
+    :ok
+  end
+
   @tag :hall_orders_single
   test "initializes state with unknown values" do
     {:ok, state} = Elevator.HallOrders.init(3)
