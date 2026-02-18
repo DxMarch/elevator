@@ -13,7 +13,8 @@ defmodule Elevator.CabOrders do
   end
 
   @spec init(any()) :: {:ok, state_t()}
-  def init(state \\ %{Communicator.my_id() => %{version: 0, orders: MapSet.new()}}) do
+  def init(_arg) do
+    state = %{Communicator.my_id() => %{version: 0, orders: MapSet.new()}}
     {:ok, state}
   end
 
