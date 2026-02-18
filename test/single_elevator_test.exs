@@ -39,6 +39,15 @@ defmodule SingleElevatorTest do
   end
 
   @tag :hall_orders_single
+  test "clear floor from other direction leaves elevator state unchanged" do
+    {:ok, state} = Elevator.HallOrders.init(3)
+    id = Node.self()
+    state = Map.put(state, {1, :hall_up}, {:confirmed, %{id => 5}, MapSet.new([id])})
+    assert {:noreply, final_state} = hallorder_cast_full({:arrived_at_floor, 1, :down}, state)
+    assert {:confirmed, _, _} = final_state[{1, :hall_up}]
+  end
+
+  @tag :hall_orders_single
   test "initial elevator has no orders" do
     {:ok, state} = Elevator.HallOrders.init(3)
     {:reply, orders, _} = Elevator.HallOrders.handle_call(:get_my_orders, nil, state)
