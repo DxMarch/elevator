@@ -35,27 +35,45 @@ defmodule Elevator.CabOrders do
     GenServer.call(__MODULE__, :get_my_orders)
   end
 
-  @spec receive_state(state_t()) :: :noreply
+  @spec receive_state(state_t()) :: :ok
   def receive_state(other_state) do
     GenServer.cast(__MODULE__, {:receive_state, other_state})
   end
 
+  def arrived_at_floor(floor) do
+    GenServer.call(__MODULE__, {:arrived_at_floor, floor})
+  end
+
+  def button_pressed(floor) do
+    GenServer.cast(__MODULE__, {:button_pressed, floor})
+  end
 
   # --- Handle calls ---
 
+  @impl true
   def handle_call(:get_my_orders, _from, state) do
     orders = state[Communicator.my_id()].orders
     {:reply, orders, state}
   end
 
+  @impl true
   def handle_call(:get_state, _from, state) do
     {:reply, state, state}
   end
 
+  @impl true
+  def handle_call({:arrived_at_floor, floor}, _from, state) do
+    new_state = Map.update!(state, Communicator.my_id(), fn %{version: old_version, orders: old_orders} ->
+      %{version: old_version + 1, orders: MapSet.delete(old_orders, floor)}
+    end)
+
+    {:reply, :ok, new_state}
+  end
 
   # --- Handle casts ---
 
   @spec handle_cast({:receive_state, state_t()}, state_t()) :: {:noreply, state_t()}
+  @impl true
   def handle_cast({:receive_state, order_map}, state) do
     new_state = Enum.reduce(order_map, state, fn {node_id, received}, acc ->
       current = Map.get(state, node_id, %{version: 0, orders: MapSet.new()})
@@ -70,12 +88,12 @@ defmodule Elevator.CabOrders do
     {:noreply, new_state}
   end
 
-  @spec handle_cast({:btn_press, floor_t()}, state_t()) :: {:noreply, state_t()}
-  def handle_cast({:btn_press, floor}, state) do
+  @spec handle_cast({:button_pressed, floor_t()}, state_t()) :: {:noreply, state_t()}
+  @impl true
+  def handle_cast({:button_pressed, floor}, state) do
     new_state = Map.update!(state, Communicator.my_id(), fn %{version: old_version, orders: old_orders} ->
       %{version: old_version + 1, orders: MapSet.put(old_orders, floor)}
     end)
     {:noreply, new_state}
   end
-
 end

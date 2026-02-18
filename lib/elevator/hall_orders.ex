@@ -38,19 +38,24 @@ defmodule Elevator.HallOrders do
   def receive_state(other_state), do: GenServer.cast(__MODULE__, {:receive_state, other_state})
 
   @doc """
-  Callback for a button press.
+  Callback for a button press. Adds order.
   """
   @spec button_press(non_neg_integer(), :hall_up | :hall_down) :: :ok
-  def button_press(floor, button_type), do: GenServer.cast(__MODULE__, {:button_press, floor, button_type})
+  def button_press(floor, button_type) do
+    GenServer.cast(__MODULE__, {:button_press, floor, button_type})
+  end
 
   @doc """
-  Callback for clearing a floor.
+  Callback when arriving at floor. Removes order.
   """
   @spec arrived_at_floor(non_neg_integer(), :up | :down) :: :ok
   def arrived_at_floor(floor, direction) do
-    GenServer.cast(__MODULE__, {:arrived_at_floor, floor, direction})
+    GenServer.call(__MODULE__, {:arrived_at_floor, floor, direction})
   end
 
+  @doc """
+  Retrieve the orders for this node
+  """
   @spec get_my_orders() :: %{Elevator.Types.floor() => MapSet.t(Elevator.Types.hall_btn())}
   def get_my_orders do
     GenServer.call(__MODULE__, :get_my_orders)
@@ -93,6 +98,26 @@ defmodule Elevator.HallOrders do
     {:reply, order_map, order_map}
   end
 
+  def handle_call({:arrived_at_floor, floor, direction}, _from, order_map) do
+    # If in confirmed or unknown, go to idle. Otherwise, ignore.
+    # TODO: Find out if barrier set should be full as well?
+    # TODO: Does not clear orders when, see clear_at_current_floor in orders.ex
+
+    button_type = [up: :hall_up, down: :hall_down][direction]
+    key = {floor, button_type}
+    order_state = order_map[key]
+    order_map = case order_state do
+      :unknown ->
+        Map.put(order_map, key, :idle)
+      {:confirmed, _, _} ->
+        Map.put(order_map, key, :idle)
+      _ ->
+        order_map
+    end
+    # For now, idle should not cause any further changes. So no continue here.
+    {:reply, :ok, order_map}
+  end
+
   @spec handle_cast({:receive_state, state_t()}, state_t()) :: {:noreply, state_t(), {:continue, :hall_update_state}}
   def handle_cast({:receive_state, other_order_map}, order_map) do
     new_order_map = Map.keys(order_map)
@@ -118,24 +143,6 @@ defmodule Elevator.HallOrders do
         order_map
     end
     {:noreply, order_map, {:continue, :hall_update_state}}
-  end
-
-  def handle_cast({:arrived_at_floor, floor, direction}, order_map) do
-    # If in confirmed or unknown, go to idle. Otherwise, ignore.
-    # TODO: Find out if barrier set should be full as well?
-    button_type = [up: :hall_up, down: :hall_down][direction]
-    key = {floor, button_type}
-    order_state = order_map[key]
-    order_map = case order_state do
-      :unknown ->
-        Map.put(order_map, key, :idle)
-      {:confirmed, _, _} ->
-        Map.put(order_map, key, :idle)
-      _ ->
-        order_map
-    end
-    # For now, idle should not cause any further changes. So no continue here.
-    {:noreply, order_map}
   end
 
   @doc """

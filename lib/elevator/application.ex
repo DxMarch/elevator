@@ -3,6 +3,7 @@ defmodule Elevator.Application do
 
   def start(_start_type, _start_args) do
     children = [
+      Elevator.Communicator,
       {Elevator.HallOrders, Elevator.num_floors()},
       Elevator.CabOrders,
       Elevator.Driver,
