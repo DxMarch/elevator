@@ -1,4 +1,4 @@
-defmodule Elevator.Support.TestCompiled do
+defmodule Test.Utils.TestCompiled do
   def start_order_modules(num_floors) do
     children = [
       {Elevator.HallOrders, num_floors},

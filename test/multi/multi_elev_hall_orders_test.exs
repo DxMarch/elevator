@@ -7,7 +7,7 @@ defmodule Test.Multi.HallOrders do
     {_, node1} = start_and_wait_for_node(:elev1)
     {_, node2} = start_and_wait_for_node(:elev2)
 
-    :erpc.call(Node.self(), Elevator.Support.TestCompiled, :start_order_modules, [Elevator.num_floors()])
+    :erpc.call(Node.self(), Test.Utils.TestCompiled, :start_order_modules, [Elevator.num_floors()])
 
     # Make a clique
     :erpc.call(node1, Node, :connect, [node2])
@@ -147,7 +147,7 @@ defmodule Test.Multi.HallOrders do
 
     wait_until_connected([node])
     :rpc.call(node, :code, :add_paths, [:code.get_path()])
-    :erpc.call(node, Elevator.Support.TestCompiled, :start_order_modules, [Elevator.num_floors()])
+    :erpc.call(node, Test.Utils.TestCompiled, :start_order_modules, [Elevator.num_floors()])
     {peer, node}
   end
 
