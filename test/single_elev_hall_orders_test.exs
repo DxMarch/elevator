@@ -3,6 +3,16 @@ defmodule SingleElevatorTest do
   # TODO: Maybe doctest
   # doctest Elevator
 
+  setup_all do
+    children = [
+      {Elevator.HallOrders, Elevator.num_floors()},
+      Elevator.CabOrders
+    ]
+    opts = [strategy: :one_for_one, name: Elevator.Supervisor]
+    Supervisor.start_link(children, opts)
+    :ok
+  end
+
   @tag :hall_orders_single
   test "initializes state with unknown values" do
     {:ok, state} = Elevator.HallOrders.init(3)
@@ -36,6 +46,15 @@ defmodule SingleElevatorTest do
     state = Map.put(state, {1, :hall_up}, {:pending, MapSet.new([id])})
     assert {:noreply, final_state} = hallorder_cast_full({:arrived_at_floor, 1, :up}, state)
     assert {:pending, _} = final_state[{1, :hall_up}]
+  end
+
+  @tag :hall_orders_single
+  test "clear floor from other direction leaves elevator state unchanged" do
+    {:ok, state} = Elevator.HallOrders.init(3)
+    id = Node.self()
+    state = Map.put(state, {1, :hall_up}, {:confirmed, %{id => 5}, MapSet.new([id])})
+    assert {:noreply, final_state} = hallorder_cast_full({:arrived_at_floor, 1, :down}, state)
+    assert {:confirmed, _, _} = final_state[{1, :hall_up}]
   end
 
   @tag :hall_orders_single
