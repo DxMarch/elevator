@@ -10,7 +10,9 @@ defmodule Elevator.Types do
 
   @type elev_state :: :moving | :idle | :door_open
 
-  @type btn_type :: :cab | :hall_down | :hall_up
+  @type hall_btn :: :hall_down | :hall_up
+
+  @type btn_type :: :cab | hall_btn()
 
   @type node_id :: non_neg_integer()
 
@@ -21,7 +23,7 @@ defmodule Elevator.Types do
           | {:confirmed, map(), MapSet.t()}
 
   @type hall_order_map :: %{
-          {floor(), btn_dir()} => hall_order_value()
+          {floor(), hall_btn()} => hall_order_value()
         }
 
   @type cab_orders_snapshot :: %{

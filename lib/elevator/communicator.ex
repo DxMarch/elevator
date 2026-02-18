@@ -3,6 +3,7 @@ defmodule Elevator.Communicator do
   @moduledoc """
   Module responsible for all communication with other elevators.
   """
+
   alias Elevator.CabOrders
   alias Elevator.HallOrders
   alias Elevator.Types
@@ -50,4 +51,12 @@ defmodule Elevator.Communicator do
     time_ms = 500
     Process.send_after(self(), :work, time_ms) # TODO: set appropriate time
   end
+
+  # # TODO: Implement
+
+  # # TODO: Implement
+
+  # def who_is_alive do
+  #   MapSet.new([Node.self()] ++ Node.list(:connected))
+  # end
 end
