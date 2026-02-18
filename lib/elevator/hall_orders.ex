@@ -20,9 +20,9 @@ defmodule Elevator.HallOrders do
     state = Range.new(0, top_floor)
     |> Enum.flat_map(fn floor -> 
       case floor do
-        0 -> [{floor, :up}]
-        ^top_floor -> [{floor, :down}]
-        _ -> [{floor, :up}, {floor, :down}]
+        0 -> [{floor, :hall_up}]
+        ^top_floor -> [{floor, :hall_down}]
+        _ -> [{floor, :hall_up}, {floor, :hall_down}]
       end
     end)
     |> Enum.map(&{&1, :unknown})
@@ -40,16 +40,18 @@ defmodule Elevator.HallOrders do
   @doc """
   Callback for a button press.
   """
-  @spec button_press(non_neg_integer(), :up | :down) :: :ok
+  @spec button_press(non_neg_integer(), :hall_up | :hall_down) :: :ok
   def button_press(floor, button_type), do: GenServer.cast(__MODULE__, {:button_press, floor, button_type})
 
   @doc """
   Callback for clearing a floor.
   """
   @spec arrived_at_floor(non_neg_integer(), :up | :down) :: :ok
-  def arrived_at_floor(floor, button_type), do: GenServer.cast(__MODULE__, {:arrived_at_floor, floor, button_type})
+  def arrived_at_floor(floor, direction) do 
+    GenServer.cast(__MODULE__, {:arrived_at_floor, floor, direction})
+  end
 
-  @spec handle_cast({:receive_state, state_t()}, state_t()) :: {:noreply, state_t(), {:continue, :update_state}}
+  @spec handle_cast({:receive_state, state_t()}, state_t()) :: {:noreply, state_t(), {:continue, :hall_update_state}}
   def handle_cast({:receive_state, other_order_map}, order_map) do
     new_order_map = Map.keys(order_map)
     |> Enum.map(fn key -> 
@@ -57,10 +59,10 @@ defmodule Elevator.HallOrders do
       {key, new_value}
     end)
     |> Enum.into(%{})
-    {:noreply, new_order_map, {:continue, :update_state}}
+    {:noreply, new_order_map, {:continue, :hall_update_state}}
   end
 
-  @spec handle_cast({:button_press, non_neg_integer(), :up | :down}, state_t()) :: {:noreply, state_t(), {:continue, :update_state}}
+  @spec handle_cast({:button_press, non_neg_integer(), :hall_up | :hall_down}, state_t()) :: {:noreply, state_t(), {:continue, :hall_update_state}}
   def handle_cast({:button_press, floor, direction}, order_map) do
     # If in idle or unknown, go to pending. Otherwise, ignore.
     key = {floor, direction}
@@ -73,13 +75,14 @@ defmodule Elevator.HallOrders do
       _ ->
         order_map
     end
-    {:noreply, order_map, {:continue, :update_state}}
+    {:noreply, order_map, {:continue, :hall_update_state}}
   end
 
   def handle_cast({:arrived_at_floor, floor, direction}, order_map) do
     # If in confirmed or unknown, go to idle. Otherwise, ignore.
     # TODO: Find out if barrier set should be full as well?
-    key = {floor, direction}
+    button_type = [up: :hall_up, down: :hall_down][direction]
+    key = {floor, button_type}
     order_state = order_map[key]
     order_map = case order_state do
       :unknown ->
@@ -96,15 +99,15 @@ defmodule Elevator.HallOrders do
   @doc """
   May advance some states, in which case continue is called until convergence.
   """
-  @spec handle_continue(:update_state, state_t()) :: {:noreply, state_t()} | {:noreply, state_t(), {:continue, :update_state}}
-  def handle_continue(:update_state, order_map) do
+  @spec handle_continue(:hall_update_state, state_t()) :: {:noreply, state_t()} | {:noreply, state_t(), {:continue, :hall_update_state}}
+  def handle_continue(:hall_update_state, order_map) do
     {any_did_change, new_order_map} = Enum.reduce(order_map, {false, %{}}, 
       fn {key, button_state}, {acc_did_change, acc_order_map} ->
         {did_change, new_button_state} = update_button_state(order_map, button_state)
         {acc_did_change or did_change, Map.put(acc_order_map, key, new_button_state)}
       end)
     if any_did_change do
-      {:noreply, new_order_map, {:continue, :update_state}}
+      {:noreply, new_order_map, {:continue, :hall_update_state}}
     else
       {:noreply, new_order_map}
     end
