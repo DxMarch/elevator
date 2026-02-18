@@ -108,6 +108,18 @@ defmodule Test.Multi.HallOrders do
     assert node3_state[{1, :hall_down}] == :idle
   end
 
+  test "all agree on who serves the order", %{nodes: [node1, node2, node3] = nodes} do
+    :rpc.call(node2, HallOrders, :button_press, [2, :hall_up])
+    clique_exchange_states(nodes)
+    clique_exchange_states(nodes)
+
+    node1_orders = :rpc.call(node1, HallOrders, :get_my_orders, [])
+    node2_orders = :rpc.call(node2, HallOrders, :get_my_orders, [])
+    node3_orders = :rpc.call(node3, HallOrders, :get_my_orders, [])
+
+    assert map_size(node1_orders) + map_size(node2_orders) + map_size(node3_orders) == 1
+  end
+
   defp clique_exchange_states([node1, node2, node3]) do
     # 1 -> 2
     node1_state = :rpc.call(node1, HallOrders, :get_state, [])
