@@ -3,11 +3,13 @@ defmodule Test.Multi.HallOrders do
   alias Elevator.Communicator
   use ExUnit.Case, async: false
 
-  setup do
-    {_, node1} = start_and_wait_for_node(:elev1)
-    {_, node2} = start_and_wait_for_node(:elev2)
+  setup ctx do
+    communicator_resend = not Map.get(ctx, :manual_sending, false)
 
-    :erpc.call(Node.self(), Test.Utils.TestCompiled, :start_order_modules, [Elevator.num_floors()])
+    {_, node1} = start_and_wait_for_node(:elev1, communicator_resend)
+    {_, node2} = start_and_wait_for_node(:elev2, communicator_resend)
+
+    :erpc.call(Node.self(), Test.Utils.TestCompiled, :start_order_modules, [Elevator.num_floors(), communicator_resend])
 
     # Make a clique
     :erpc.call(node1, Node, :connect, [node2])
@@ -33,6 +35,7 @@ defmodule Test.Multi.HallOrders do
     assert MapSet.size(Communicator.who_is_alive()) == 3
   end
 
+  @tag :manual_sending
   test "button convergence to confirmed", %{nodes: [node1, node2, node3]} do
     # Node 1 gets a button call
     :rpc.call(node1, HallOrders, :button_press, [0, :hall_up])
@@ -86,6 +89,7 @@ defmodule Test.Multi.HallOrders do
     assert node1_state == converged_state and node1_state == node2_state and node2_state == node3_state
   end
 
+  @tag :manual_sending
   test "button -> arrived convergence to idle", %{nodes: [node1, node2, node3] = nodes} do
     :rpc.call(node2, HallOrders, :button_press, [1, :hall_down])
     clique_exchange_states(nodes)
@@ -108,6 +112,7 @@ defmodule Test.Multi.HallOrders do
     assert node3_state[{1, :hall_down}] == :idle
   end
 
+  @tag :manual_sending
   test "all agree on who serves the order", %{nodes: [node1, node2, node3] = nodes} do
     :rpc.call(node2, HallOrders, :button_press, [2, :hall_up])
     clique_exchange_states(nodes)
@@ -118,6 +123,38 @@ defmodule Test.Multi.HallOrders do
     node3_orders = :rpc.call(node3, HallOrders, :get_my_orders, [])
 
     assert map_size(node1_orders) + map_size(node2_orders) + map_size(node3_orders) == 1
+  end
+
+  test "communicator causes convergence", %{nodes: [node1, node2, node3]} do
+    :rpc.call(node1, HallOrders, :button_press, [2, :hall_up])
+
+    Process.sleep(Elevator.resend_period() * 5)
+
+    node1_orders = :rpc.call(node1, HallOrders, :get_my_orders, [])
+    node2_orders = :rpc.call(node2, HallOrders, :get_my_orders, [])
+    node3_orders = :rpc.call(node3, HallOrders, :get_my_orders, [])
+
+    assert map_size(node1_orders) + map_size(node2_orders) + map_size(node3_orders) == 1
+
+    who_arrives = cond do
+      map_size(node1_orders) == 1 ->
+        node1
+      map_size(node2_orders) == 1 ->
+        node2
+      map_size(node3_orders) == 1 ->
+        node3
+    end
+
+    :rpc.call(who_arrives, HallOrders, :arrived_at_floor, [2, :up])
+
+    Process.sleep(Elevator.resend_period() * 5)
+
+    node1_state = :rpc.call(node1, HallOrders, :get_state, [])
+    node2_state = :rpc.call(node2, HallOrders, :get_state, [])
+    node3_state = :rpc.call(node3, HallOrders, :get_state, [])
+
+    assert node1_state == node2_state and node2_state == node3_state
+    assert node1_state[{2, :hall_up}] == :idle
   end
 
   defp clique_exchange_states([node1, node2, node3]) do
@@ -148,10 +185,10 @@ defmodule Test.Multi.HallOrders do
     assert :rpc.call(node1, HallOrders, :receive_state, [node3_state])
     assert :rpc.call(node2, HallOrders, :receive_state, [node3_state])
 
-    # Yay?
+    # Yay!
   end
 
-  defp start_and_wait_for_node(name) do
+  defp start_and_wait_for_node(name, communicator_resend) do
     {:ok, peer, node} = :peer.start_link(%{
       name: name, 
       name_domain: :shortnames
@@ -159,7 +196,7 @@ defmodule Test.Multi.HallOrders do
 
     wait_until_connected([node])
     :rpc.call(node, :code, :add_paths, [:code.get_path()])
-    :erpc.call(node, Test.Utils.TestCompiled, :start_order_modules, [Elevator.num_floors()])
+    :erpc.call(node, Test.Utils.TestCompiled, :start_order_modules, [Elevator.num_floors(), communicator_resend])
     {peer, node}
   end
 

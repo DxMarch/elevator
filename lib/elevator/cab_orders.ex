@@ -60,7 +60,7 @@ defmodule Elevator.CabOrders do
     new_state = Enum.reduce(order_map, state, fn {node_id, received}, acc ->
       current = Map.get(state, node_id, %{version: 0, orders: MapSet.new()})
 
-      if received.version > current.version do
+      if received[:version] > current[:version] do
         Map.put(acc, node_id, received)
       else
         acc

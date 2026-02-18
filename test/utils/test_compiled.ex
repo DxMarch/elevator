@@ -3,9 +3,10 @@ defmodule Test.Utils.TestCompiled do
   This module exists because to run :rpc-calls, the called code has to be compiled, not .exs.
   So put code here if it is the endpoint of an RPC for testing that is not suitable for lib/.
   """
-  def start_order_modules(num_floors) do
+  def start_order_modules(num_floors, do_resend) do
     children = [
       {Elevator.HallOrders, num_floors},
+      {Elevator.Communicator, [do_resend: do_resend]},
       Elevator.CabOrders
     ]
     opts = [strategy: :one_for_one, name: Elevator.Supervisor]
