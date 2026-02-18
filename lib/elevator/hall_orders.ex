@@ -51,6 +51,36 @@ defmodule Elevator.HallOrders do
     GenServer.cast(__MODULE__, {:arrived_at_floor, floor, direction})
   end
 
+  @spec get_my_orders() :: %{Elevator.Types.floor() => MapSet.t(Elevator.Types.hall_btn())}
+  def get_my_orders do
+    GenServer.call(__MODULE__, :get_my_orders)
+  end
+
+  def handle_call(:get_my_orders, _from, order_map) do
+    alive = Communicator.who_is_alive()
+    my_orders = Enum.filter(order_map, fn {_, order_state} -> 
+      case order_state do
+        {:confirmed, score_map, barrier_set} -> 
+          # Hmm.
+          if MapSet.intersection(barrier_set, alive) != alive do
+            false
+          else
+            Scoring.max_alive_score(score_map, alive) == Node.self()
+          end
+        _ -> false
+      end
+    end)
+    |> Enum.map(fn {{floor, btn_type}, _} -> 
+      {floor, btn_type} 
+    end)
+    |> Enum.group_by(fn {floor, _} -> floor end)
+    |> Enum.map(fn {floor, order_list} -> 
+      {floor, MapSet.new(Enum.map(order_list, fn {_, btn_type} -> btn_type end))} 
+    end)
+    |> Enum.into(%{})
+    {:reply, my_orders, order_map}
+  end
+
   @spec handle_cast({:receive_state, state_t()}, state_t()) :: {:noreply, state_t(), {:continue, :hall_update_state}}
   def handle_cast({:receive_state, other_order_map}, order_map) do
     new_order_map = Map.keys(order_map)

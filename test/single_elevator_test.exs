@@ -38,6 +38,34 @@ defmodule SingleElevatorTest do
     assert {:pending, _} = final_state[{1, :hall_up}]
   end
 
+  @tag :hall_orders_single
+  test "initial elevator has no orders" do
+    {:ok, state} = Elevator.HallOrders.init(3)
+    {:reply, orders, _} = Elevator.HallOrders.handle_call(:get_my_orders, nil, state)
+    assert Enum.count(orders) == 0
+  end
+
+  @tag :hall_orders_single
+  test "elevator get_my_orders returns confirmed orders" do
+    {:ok, state} = Elevator.HallOrders.init(3)
+    assert {:noreply, final_state} = hallorder_cast_full({:button_press, 0, :hall_up}, state)
+    {:reply, orders, _} = Elevator.HallOrders.handle_call(:get_my_orders, nil, final_state)
+    assert Enum.count(orders) == 1
+    assert Map.has_key?(orders, 0)
+    assert orders[0] == MapSet.new([:hall_up])
+  end
+
+  @tag :hall_orders_single
+  test "elevator get_my_orders can return both hall_up and hall_down orders" do
+    {:ok, state} = Elevator.HallOrders.init(3)
+    assert {:noreply, state} = hallorder_cast_full({:button_press, 1, :hall_up}, state)
+    assert {:noreply, state} = hallorder_cast_full({:button_press, 1, :hall_down}, state)
+    {:reply, orders, _} = Elevator.HallOrders.handle_call(:get_my_orders, nil, state)
+    assert Enum.count(orders) == 1
+    assert Map.has_key?(orders, 1)
+    assert orders[1] == MapSet.new([:hall_up, :hall_down])
+  end
+
   defp hallorder_cast_full(msg, state) do
     ret = Elevator.HallOrders.handle_cast(msg, state)
 

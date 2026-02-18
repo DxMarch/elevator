@@ -21,4 +21,12 @@ defmodule Elevator.HallOrders.Scoring do
       end |> Enum.into(%{})
     end
   end
+
+  def max_alive_score(score_map, alive_set) do
+    alive_scores = Enum.filter(score_map, fn {node, score} -> MapSet.member?(alive_set, node) end)
+    {max_node, _} = Enum.max(alive_scores, fn {node1, score1}, {node2, score2} -> 
+      score1 > score2 or (score1 == score2 and node1 > node2)
+    end)
+    max_node
+  end
 end
