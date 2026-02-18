@@ -1,62 +1,75 @@
 defmodule Elevator.Communicator do
-  use GenServer
   @moduledoc """
   Module responsible for all communication with other elevators.
   """
 
   alias Elevator.CabOrders
   alias Elevator.HallOrders
-  alias Elevator.Types
+  use GenServer
 
+  @type node_id_t :: Elevator.Types.node_id()
+  @type hall_orders_t :: Elevator.Types.hall_order_map()
+  @type cab_orders_t :: Elevator.Types.cab_order_map()
+
+  def start_link(arg) do
+    GenServer.start_link(__MODULE__, arg, name: __MODULE__)
+  end
+
+  @spec init(node_id_t()) :: {:ok, node_id_t()}
   def init(id) do
-    schedule_work()
+    schedule_state_broadcast()
     {:ok, id}
   end
 
-  def my_id(), do: GenServer.call(__MODULE__, :self)
+  @doc """
+  Returns the ID of this node.
+  """
+  @spec my_id() :: node_id_t()
+  def my_id, do: GenServer.call(__MODULE__, :self)
+
+  @spec who_is_alive() :: MapSet.t()
+  def who_is_alive do
+    MapSet.new([Node.self()] ++ Node.list(:connected))
+  end
+
+  @doc """
+  Schedules another round of state broadcasting.
+  """
+  defp schedule_state_broadcast do
+    time_ms = 100 # TODO: set appropriate time
+    Process.send_after(self(), :broadcast_state, time_ms)
+  end
+
+  @doc """
+  Sends the cab and hall state to all connected nodes.
+  """
+  def handle_info(:broadcast_state, id) do
+    schedule_state_broadcast() # For periodic execution
+    cab_state = CabOrders.get_state()
+    hall_state = HallOrders.get_state()
+
+    Node.list(:connected)
+    |> Enum.each(fn ext_node ->
+      GenServer.cast({__MODULE__, ext_node}, {:state_update, cab_state, hall_state}) end)
+
+    {:noreply, id}
+  end
+
+  # --- Handle calls ---
 
   def handle_call(:self, _, id) do
     {:reply, id, id}
   end
 
-  @spec handle_cast({:state_update, Types.hall_order_map(), Types.cab_order_map()}, Types.node_id()):: {:noreply, Types.node_id()}
+
+  # --- Handle casts ---
+
+  @spec handle_cast({:state_update, cab_orders_t(), cab_orders_t()}, node_id_t()) :: {:noreply, node_id_t()}
   def handle_cast({:state_update, hall_orders, cab_orders}, id) do
-    # "Decode" the state from the other node
-    # Send cab and hall order states to respective modules
-
-    GenServer.cast(HallOrders, {:update, hall_orders})
-    GenServer.cast(CabOrders, {:update, cab_orders})
     HallOrders.receive_state(hall_orders)
+    CabOrders.receive_state(cab_orders)
     {:noreply, id}
   end
 
-  def who_is_alive() do
-    Node.list(:connected)
-  end
 
-  def handle_info(:work, id) do
-    cab_state = GenServer.call(CabOrders, :get)
-    hall_state = GenServer.call(HallOrders, :get)
-    HallOrders.get_state()
-
-    Node.list(:connected)
-    |> Enum.each(fn(ext_node) ->
-      GenServer.cast({__MODULE__, ext_node}, {cab_state, hall_state}) end)
-
-    schedule_work()
-    {:noreply, id}
-  end
-
-  defp schedule_work do
-    time_ms = 500
-    Process.send_after(self(), :work, time_ms) # TODO: set appropriate time
-  end
-
-  # # TODO: Implement
-
-  # # TODO: Implement
-
-  # def who_is_alive do
-  #   MapSet.new([Node.self()] ++ Node.list(:connected))
-  # end
 end
