@@ -7,8 +7,8 @@ defmodule Elevator.HallOrders do
   alias Elevator.Communicator
   use GenServer
 
-  @type state_t :: Elevator.State.hall_order_map()
-  @type hall_order_t :: Elevator.State.Hall.t()
+  @type state_t :: Elevator.Types.hall_order_map()
+  @type hall_order_t :: Elevator.Types.hall_order_value()
 
   def start_link(arg) do 
     GenServer.start_link(__MODULE__, arg, name: __MODULE__)
@@ -30,18 +30,25 @@ defmodule Elevator.HallOrders do
     {:ok, state}
   end
 
+  @doc """
+  Callback for receiving the hall order state from another node.
+  Merges the states by updating the individual 
+  """
   @spec receive_state(state_t()) :: :ok
   def receive_state(other_state), do: GenServer.cast(__MODULE__, {:receive_state, other_state})
 
+  @doc """
+  Callback for a button press.
+  """
   @spec button_press(non_neg_integer(), :up | :down) :: :ok
   def button_press(floor, button_type), do: GenServer.cast(__MODULE__, {:button_press, floor, button_type})
 
+  @doc """
+  Callback for clearing a floor.
+  """
   @spec arrived_at_floor(non_neg_integer(), :up | :down) :: :ok
   def arrived_at_floor(floor, button_type), do: GenServer.cast(__MODULE__, {:arrived_at_floor, floor, button_type})
 
-  @doc """
-  Fuse my state with incoming state for each button.
-  """
   @spec handle_cast({:receive_state, state_t()}, state_t()) :: {:noreply, state_t(), {:continue, :update_state}}
   def handle_cast({:receive_state, other_order_map}, order_map) do
     new_order_map = Map.keys(order_map)

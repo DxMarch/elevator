@@ -1,8 +1,9 @@
-defmodule ElevatorTest do
+defmodule SingleElevatorTest do
   use ExUnit.Case
-  doctest Elevator
+  # TODO: Maybe doctest
+  # doctest Elevator
 
-  @tag :hall_orders
+  @tag :hall_orders_single
   test "initializes state with unknown values" do
     {:ok, state} = Elevator.HallOrders.init(3)
     assert map_size(state) == 4
@@ -12,14 +13,14 @@ defmodule ElevatorTest do
     assert state[{2, :down}] == :unknown
   end
 
-  @tag :hall_orders
+  @tag :hall_orders_single
   test "button press puts single elevator confirmed state" do
     {:ok, state} = Elevator.HallOrders.init(3)
     assert {:noreply, final_state} = hallorder_cast_full({:button_press, 0, :up}, state)
     assert {:confirmed, _, _} = final_state[{0, :up}]
   end
 
-  @tag :hall_orders
+  @tag :hall_orders_single
   test "arrive at floor from confirmed state puts elevator in idle state" do
     {:ok, state} = Elevator.HallOrders.init(3)
     id = Node.self()
@@ -28,7 +29,7 @@ defmodule ElevatorTest do
     assert :idle = final_state[{1, :down}]
   end
 
-  @tag :hall_orders
+  @tag :hall_orders_single
   test "clear floor from pending state leaves elevator state unchanged" do
     {:ok, state} = Elevator.HallOrders.init(3)
     id = Node.self()
