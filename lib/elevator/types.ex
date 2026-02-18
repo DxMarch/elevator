@@ -14,6 +14,8 @@ defmodule Elevator.Types do
 
   @type btn_type :: :cab | hall_btn()
 
+  @type node_id :: non_neg_integer()
+
   @type hall_order_value ::
           :unknown
           | :idle
@@ -25,15 +27,15 @@ defmodule Elevator.Types do
         }
 
   @type cab_orders_snapshot :: %{
-          version: non_neg_integer(),
-          orders: MapSet.t()
-        }
+    version: non_neg_integer(),
+    orders: MapSet.t(floor())
+  }
 
   @type cab_order_map :: %{
-          node() => cab_orders_snapshot()
-        }
+    node() => cab_orders_snapshot()
+  }
 
   @type combined_order_map :: %{
-          floor() => MapSet.t(btn_type())
-        }
+    floor() => MapSet.t(btn_type())
+  }
 end
