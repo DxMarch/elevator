@@ -3,10 +3,20 @@ defmodule Elevator.SingleElevatorHallOrderTest do
   # TODO: Maybe doctest
   # doctest Elevator
 
+  setup_all do
+    children = [
+      {Elevator.HallOrders, Elevator.num_floors()},
+      Elevator.CabOrders
+    ]
+    opts = [strategy: :one_for_one, name: Elevator.Supervisor]
+    Supervisor.start_link(children, opts)
+    :ok
+  end
+
   @tag :hall_orders_single
   test "initializes state with unknown values" do
-    {:ok, state} = Elevator.HallOrders.init()
-    assert map_size(state) == Elevator.num_floors()*2 - 2
+    {:ok, state} = Elevator.HallOrders.init(3)
+    assert map_size(state) == 4
     assert state[{0, :hall_up}] == :unknown
     assert state[{1, :hall_up}] == :unknown
     assert state[{1, :hall_down}] == :unknown
@@ -15,14 +25,14 @@ defmodule Elevator.SingleElevatorHallOrderTest do
 
   @tag :hall_orders_single
   test "button press puts single elevator confirmed state" do
-    {:ok, state} = Elevator.HallOrders.init()
+    {:ok, state} = Elevator.HallOrders.init(3)
     assert {:noreply, final_state} = hallorder_cast_full({:button_press, 0, :hall_up}, state)
     assert {:confirmed, _, _} = final_state[{0, :hall_up}]
   end
 
   @tag :hall_orders_single
   test "arrive at floor from confirmed state puts elevator in idle state" do
-    {:ok, state} = Elevator.HallOrders.init()
+    {:ok, state} = Elevator.HallOrders.init(3)
     id = Node.self()
     state = Map.put(state, {1, :hall_down}, {:confirmed, %{id => 5}, MapSet.new([id])})
     assert {:noreply, final_state} = hallorder_cast_full({:arrived_at_floor, 1, :down}, state)
@@ -31,7 +41,7 @@ defmodule Elevator.SingleElevatorHallOrderTest do
 
   @tag :hall_orders_single
   test "clear floor from pending state leaves elevator state unchanged" do
-    {:ok, state} = Elevator.HallOrders.init()
+    {:ok, state} = Elevator.HallOrders.init(3)
     id = Node.self()
     state = Map.put(state, {1, :hall_up}, {:pending, MapSet.new([id])})
     assert {:noreply, final_state} = hallorder_cast_full({:arrived_at_floor, 1, :up}, state)
@@ -39,15 +49,24 @@ defmodule Elevator.SingleElevatorHallOrderTest do
   end
 
   @tag :hall_orders_single
+  test "clear floor from other direction leaves elevator state unchanged" do
+    {:ok, state} = Elevator.HallOrders.init(3)
+    id = Node.self()
+    state = Map.put(state, {1, :hall_up}, {:confirmed, %{id => 5}, MapSet.new([id])})
+    assert {:noreply, final_state} = hallorder_cast_full({:arrived_at_floor, 1, :down}, state)
+    assert {:confirmed, _, _} = final_state[{1, :hall_up}]
+  end
+
+  @tag :hall_orders_single
   test "initial elevator has no orders" do
-    {:ok, state} = Elevator.HallOrders.init()
+    {:ok, state} = Elevator.HallOrders.init(3)
     {:reply, orders, _} = Elevator.HallOrders.handle_call(:get_my_orders, nil, state)
     assert Enum.count(orders) == 0
   end
 
   @tag :hall_orders_single
   test "elevator get_my_orders returns confirmed orders" do
-    {:ok, state} = Elevator.HallOrders.init()
+    {:ok, state} = Elevator.HallOrders.init(3)
     assert {:noreply, final_state} = hallorder_cast_full({:button_press, 0, :hall_up}, state)
     {:reply, orders, _} = Elevator.HallOrders.handle_call(:get_my_orders, nil, final_state)
     assert Enum.count(orders) == 1
@@ -57,7 +76,7 @@ defmodule Elevator.SingleElevatorHallOrderTest do
 
   @tag :hall_orders_single
   test "elevator get_my_orders can return both hall_up and hall_down orders" do
-    {:ok, state} = Elevator.HallOrders.init()
+    {:ok, state} = Elevator.HallOrders.init(3)
     assert {:noreply, state} = hallorder_cast_full({:button_press, 1, :hall_up}, state)
     assert {:noreply, state} = hallorder_cast_full({:button_press, 1, :hall_down}, state)
     {:reply, orders, _} = Elevator.HallOrders.handle_call(:get_my_orders, nil, state)
