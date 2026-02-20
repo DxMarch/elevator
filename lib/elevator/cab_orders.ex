@@ -7,7 +7,6 @@ defmodule Elevator.CabOrders do
 
   @type state_t :: Elevator.Types.cab_order_map()
   @type floor_t :: Elevator.Types.floor()
-  @type dir_t :: ELevator.Types.elev_dir()
 
   def start_link(arg) do
     GenServer.start_link(__MODULE__, arg, name: __MODULE__)
@@ -46,8 +45,8 @@ defmodule Elevator.CabOrders do
     GenServer.cast(__MODULE__, {:button_press, floor})
   end
 
-  @spec arrived_at_floor(floor_t(), dir_t()) :: :ok
-  def arrived_at_floor(floor, _direction) do
+  @spec arrived_at_floor(floor_t()) :: :ok
+  def arrived_at_floor(floor) do
     GenServer.cast(__MODULE__, {:arrived_at_floor, floor})
   end
 
