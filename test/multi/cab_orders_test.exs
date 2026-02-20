@@ -15,7 +15,7 @@ defmodule Test.Multi.CabOrdersTest do
     # Make a clique
     :erpc.call(node1, Node, :connect, [node2])
 
-    on_exit(fn -> 
+    on_exit(fn ->
       # Stop own supervisor
       if pid = Process.whereis(Elevator.Supervisor) do
         Process.monitor(pid)
@@ -60,7 +60,7 @@ defmodule Test.Multi.CabOrdersTest do
 
   def start_and_wait_for_node(name, communicator_resend) do
     {:ok, peer, node} = :peer.start_link(%{
-      name: name, 
+      name: name,
       name_domain: :shortnames
     })
 

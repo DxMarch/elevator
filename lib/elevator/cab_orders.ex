@@ -91,7 +91,7 @@ defmodule Elevator.CabOrders do
   @spec handle_cast({:arrived_at_floor, floor_t()}, state_t()) :: {:noreply, state_t()}
   def handle_cast({:arrived_at_floor, floor}, state) do
     new_state = Map.update!(state, Communicator.my_id(), fn %{version: old_version, orders: old_orders} ->
-      %{version: old_version + 1, orderes: MapSet.delete(old_orders, floor)}
+      %{version: old_version + 1, orders: MapSet.delete(old_orders, floor)}
     end)
     {:noreply, new_state}
   end
