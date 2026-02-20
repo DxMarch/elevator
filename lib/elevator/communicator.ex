@@ -30,7 +30,8 @@ defmodule Elevator.Communicator do
   Returns the ID of this node.
   """
   @spec my_id() :: node_id_t()
-  def my_id, do: GenServer.call(__MODULE__, :self)
+  # def my_id, do: GenServer.call(__MODULE__, :self)
+  def my_id, do: Node.self() # TODO: decide on this
 
   @spec who_is_alive() :: MapSet.t()
   def who_is_alive do

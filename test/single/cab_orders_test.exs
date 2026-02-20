@@ -21,7 +21,7 @@ defmodule Test.Single.CabOrdersTest do
 
   test "button press creates a cab order" do
     {:ok, state} = CabOrders.init()
-    assert {:noreply, state} = CabOrders.handle_cast({:btn_press, 1}, state)
+    assert {:noreply, state} = CabOrders.handle_cast({:button_press, 1}, state)
     {:reply, orders, _} = CabOrders.handle_call(:get_my_orders, Node.self(), state)
     assert MapSet.size(orders) == 1
     assert MapSet.member?(orders, 1)
