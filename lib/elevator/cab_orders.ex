@@ -7,12 +7,13 @@ defmodule Elevator.CabOrders do
 
   @type state_t :: Elevator.Types.cab_order_map()
   @type floor_t :: Elevator.Types.floor()
+  @type dir_t :: ELevator.Types.elev_dir()
 
   def start_link(arg) do
     GenServer.start_link(__MODULE__, arg, name: __MODULE__)
   end
 
-  @spec init(any()) :: {:ok, state_t()}
+  @spec init(any()) :: :ok
   def init(_arg) do
     state = %{Communicator.my_id() => %{version: 0, orders: MapSet.new()}}
     {:ok, state}
@@ -40,6 +41,15 @@ defmodule Elevator.CabOrders do
     GenServer.cast(__MODULE__, {:receive_state, other_state})
   end
 
+  @spec button_press(floor_t()) :: :noreply
+  def button_press(floor) do
+    GenServer.cast(__MODULE__, {:button_press, floor})
+  end
+
+  @spec arrived_at_floor(floor_t(), dir_t()) :: :ok
+  def arrived_at_floor(floor, _direction) do
+    GenServer.cast(__MODULE__, {:arrived_at_floor, floor})
+  end
 
   # --- Handle calls ---
 
@@ -70,12 +80,19 @@ defmodule Elevator.CabOrders do
     {:noreply, new_state}
   end
 
-  @spec handle_cast({:btn_press, floor_t()}, state_t()) :: {:noreply, state_t()}
-  def handle_cast({:btn_press, floor}, state) do
+  @spec handle_cast({:button_press, floor_t()}, state_t()) :: {:noreply, state_t()}
+  def handle_cast({:button_press, floor}, state) do
     new_state = Map.update!(state, Communicator.my_id(), fn %{version: old_version, orders: old_orders} ->
       %{version: old_version + 1, orders: MapSet.put(old_orders, floor)}
     end)
     {:noreply, new_state}
   end
 
+  @spec handle_cast({:arrived_at_floor, floor_t()}, state_t()) :: {:noreply, state_t()}
+  def handle_cast({:arrived_at_floor, floor}, state) do
+    new_state = Map.update!(state, Communicator.my_id(), fn %{version: old_version, orders: old_orders} ->
+      %{version: old_version + 1, orderes: MapSet.delete(old_orders, floor)}
+    end)
+    {:noreply, new_state}
+  end
 end
