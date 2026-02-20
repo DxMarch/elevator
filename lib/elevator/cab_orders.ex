@@ -13,8 +13,8 @@ defmodule Elevator.CabOrders do
     GenServer.start_link(__MODULE__, arg, name: __MODULE__)
   end
 
-  @spec init(any()) :: :ok
-  def init(_arg) do
+  @spec init(any()) :: {:ok, state_t()}
+  def init(_arg \\ []) do
     state = %{Communicator.my_id() => %{version: 0, orders: MapSet.new()}}
     {:ok, state}
   end
@@ -36,7 +36,7 @@ defmodule Elevator.CabOrders do
     GenServer.call(__MODULE__, :get_my_orders)
   end
 
-  @spec receive_state(state_t()) :: :noreply
+  @spec receive_state(state_t()) :: :ok
   def receive_state(other_state) do
     GenServer.cast(__MODULE__, {:receive_state, other_state})
   end
