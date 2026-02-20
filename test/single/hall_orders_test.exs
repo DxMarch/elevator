@@ -1,13 +1,13 @@
 defmodule Test.Single.HallOrders do
-  use ExUnit.Case
+  use ExUnit.Case, async: false
   # TODO: Maybe doctest
   # doctest Elevator
 
   setup_all do
     children = [
-      {Elevator.HallOrders, Elevator.num_floors()},
       Elevator.Communicator,
       Elevator.CabOrders,
+      {Elevator.HallOrders, Elevator.num_floors()},
     ]
     opts = [strategy: :one_for_one, name: Elevator.Supervisor]
     Supervisor.start_link(children, opts)

@@ -5,9 +5,9 @@ defmodule Test.Utils.TestCompiled do
   """
   def start_order_modules(num_floors, do_resend) do
     children = [
-      {Elevator.HallOrders, num_floors},
       {Elevator.Communicator, [do_resend: do_resend]},
-      Elevator.CabOrders
+      Elevator.CabOrders,
+      {Elevator.HallOrders, num_floors},
     ]
     opts = [strategy: :one_for_one, name: Elevator.Supervisor]
     case Supervisor.start_link(children, opts) do

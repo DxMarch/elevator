@@ -220,6 +220,13 @@ defmodule Elevator.HallOrders do
     end
   end
 
+  defp merge_button_states(
+    {:confirmed, _, _} = my_state,
+    _
+  ) do
+    my_state
+  end
+
   # Pending jumps to confirmed and computes score
   defp merge_button_states(
     {:pending, _},
