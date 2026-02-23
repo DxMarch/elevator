@@ -120,7 +120,7 @@ defmodule Elevator.FSM do
   @spec notify_button_press(Types.floor(), Types.btn_type()) :: any()
   defp notify_button_press(floor, btn) do
     if btn == :cab do
-      CabOrders.button_pressed(floor)
+      CabOrders.button_press(floor)
     else
       HallOrders.button_press(floor, btn)
     end
