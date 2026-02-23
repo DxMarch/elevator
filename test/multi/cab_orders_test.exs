@@ -83,6 +83,7 @@ defmodule Test.Multi.CabOrdersTest do
     %{version: node1_version, orders: node1_orders} = :rpc.call(node1, CabOrders, :get_state, [])[node1]
     assert node1_version == 69
     assert node1_orders == MapSet.new([1])
+
   end
 
 
@@ -98,15 +99,17 @@ defmodule Test.Multi.CabOrdersTest do
     Process.sleep(3 * Elevator.resend_period())
 
     # Ensure that node1's version and order map has propagated across all nodes
-    %{version: node1_version_1, orders: node1_orders_1} = :rpc.call(node1, CabOrders, :get_state, [])[node1]
-    %{version: node1_version_2, orders: node1_orders_2} = :rpc.call(node2, CabOrders, :get_state, [])[node1]
-    %{version: node1_version_3, orders: node1_orders_3} = :rpc.call(node3, CabOrders, :get_state, [])[node1]
+    %{version: node1_version, orders: node1_orders} = :rpc.call(node1, CabOrders, :get_state, [])[node1]
+    assert node1_version == 1
+    assert MapSet.member?(node1_orders, 1)
 
-    assert node1_version_1 == 1
-    assert node1_orders_1 == MapSet.new([1])
-    assert node1_version_1 == node1_version_2 and node1_version_2 == node1_version_3
-    assert Map.equal?(node1_orders_1, node1_orders_2) and Map.equal?(node1_orders_2, node1_orders_3)
-    end
+    node1_state = :rpc.call(node1, CabOrders, :get_state, [])
+    node2_state = :rpc.call(node2, CabOrders, :get_state, [])
+    node3_state = :rpc.call(node3, CabOrders, :get_state, [])
+
+    assert Map.equal?(node1_state, node2_state)
+    assert Map.equal?(node2_state, node3_state)
+  end
 
   def start_and_wait_for_node(name, communicator_resend) do
     {:ok, peer, node} = :peer.start_link(%{

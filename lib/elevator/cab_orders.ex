@@ -65,9 +65,9 @@ defmodule Elevator.CabOrders do
   # --- Handle casts ---
 
   @spec handle_cast({:receive_state, state_t()}, state_t()) :: {:noreply, state_t()}
-  def handle_cast({:receive_state, order_map}, state) do
-    new_state = Enum.reduce(order_map, state, fn {node_id, received}, acc ->
-      current = Map.get(state, node_id, %{version: 0, orders: MapSet.new()})
+  def handle_cast({:receive_state, other_state}, state) do
+    new_state = Enum.reduce(other_state, state, fn {node_id, received}, acc ->
+      current = Map.get(state, node_id, %{version: -1, orders: MapSet.new()})
 
       if received[:version] > current[:version] do
         Map.put(acc, node_id, received)
