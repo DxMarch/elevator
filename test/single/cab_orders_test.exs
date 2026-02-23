@@ -57,5 +57,4 @@ defmodule Test.Single.CabOrdersTest do
     assert state[Communicator.my_id()].version == 3
   end
 
-  # TODO: Some more tests?
 end
