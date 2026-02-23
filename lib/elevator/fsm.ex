@@ -32,7 +32,7 @@ defmodule Elevator.FSM do
       if floor == :between_floors do
         Driver.set_motor_direction(:down)
         Logger.debug("Initialized between floors, going down")
-        %{state | behavior: :moving}
+        %{state | direction: :down, behavior: :moving}
       else
         %{state | floor: floor}
       end
@@ -84,11 +84,7 @@ defmodule Elevator.FSM do
     new_state =
       if Orders.should_stop?(get_all_orders(), new_state) do
         Driver.set_motor_direction(:stop)
-
-        CabOrders.arrived_at_floor(floor)
-        HallOrders.arrived_at_floor(floor, new_state.direction)
-        # TODO: Init shouldn't open door
-        open_door_and_restart_timer(new_state)
+        decide_and_take_action(%{new_state | behavior: :idle})
       else
         new_state
       end
@@ -100,27 +96,29 @@ defmodule Elevator.FSM do
   def handle_cast({:order_button_pressed, floor, btn}, state) do
     case state.behavior do
       :door_open ->
+        # TODO: Should clear immediately is not valid for hall buttons as they should check all elevators on the network (use "when (btn == :cab)")
         if Orders.should_clear_immediately?(state, floor, btn) do
           {:noreply, open_door_and_restart_timer(state)}
         else
-          handle_button_press(floor, btn)
+          notify_button_press(floor, btn)
           {:noreply, state}
         end
 
       :moving ->
-        handle_button_press(floor, btn)
+        notify_button_press(floor, btn)
+        set_all_lights(get_all_orders())
         {:noreply, state}
 
       :idle ->
-        handle_button_press(floor, btn)
+        notify_button_press(floor, btn)
         {:noreply, decide_and_take_action(state)}
     end
   end
 
   # Helpers ----------------------------------------------------------
 
-  @spec handle_button_press(Types.floor(), Types.btn_type()) :: any()
-  defp handle_button_press(floor, btn) do
+  @spec notify_button_press(Types.floor(), Types.btn_type()) :: any()
+  defp notify_button_press(floor, btn) do
     if btn == :cab do
       CabOrders.button_pressed(floor)
     else
@@ -134,6 +132,7 @@ defmodule Elevator.FSM do
     Orders.combine_hall_and_cab(hall_orders, pressed_cab_floors)
   end
 
+  @spec decide_and_take_action(Elevator.State.t()) :: Elevator.State.t()
   defp decide_and_take_action(state) do
     orders = get_all_orders()
     set_all_lights(orders)
@@ -142,28 +141,29 @@ defmodule Elevator.FSM do
       "Deciding on behavior from state:\n #{inspect(state)}\n Orders: #{inspect(orders)}"
     )
 
-    {direction, new_behavior} = Orders.decide_next_direction(orders, state)
-    Logger.debug("Got behavior #{direction} and #{new_behavior}")
+    {new_direction, new_behavior} = Orders.decide_next_direction(orders, state)
+    Logger.debug("Got behavior #{new_direction} and #{new_behavior}")
 
     case new_behavior do
       :door_open ->
         CabOrders.arrived_at_floor(state.floor)
-        HallOrders.arrived_at_floor(state.floor, direction)
+        HallOrders.arrived_at_floor(state.floor, new_direction)
         new_state = open_door_and_restart_timer(state)
-        %{new_state | direction: direction, behavior: new_behavior}
+        %{new_state | direction: new_direction, behavior: new_behavior}
 
       :moving ->
         cancel_door_timer(state.door_timer)
-        Driver.set_motor_direction(direction)
-        %{state | direction: direction, behavior: new_behavior, door_timer: nil}
+        Driver.set_motor_direction(new_direction)
+        %{state | direction: new_direction, behavior: new_behavior, door_timer: nil}
 
       :idle ->
         cancel_door_timer(state.door_timer)
         Driver.set_motor_direction(:stop)
-        %{state | direction: direction, behavior: new_behavior, door_timer: nil}
+        %{state | direction: new_direction, behavior: new_behavior, door_timer: nil}
     end
   end
 
+  @spec set_all_lights(Elevator.Types.combined_order_map()) :: any()
   defp set_all_lights(orders) do
     # TODO: Currently this will only set lights if the orders are for the current elevator.
     # In practice we probably want to also set hall lights if others have accepted a order on the floor
@@ -182,7 +182,7 @@ defmodule Elevator.FSM do
     close_ref = make_ref()
     timer_ref = Process.send_after(self(), {:close_door, close_ref}, @door_open_time)
 
-    %{state | behavior: :door_open, direction: :stop, door_timer: {timer_ref, close_ref}}
+    %{state | behavior: :door_open, door_timer: {timer_ref, close_ref}}
   end
 
   defp cancel_door_timer(nil), do: :ok

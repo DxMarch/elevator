@@ -15,10 +15,6 @@ defmodule Elevator.Orders do
     Enum.any?(reqs, fn {f, _} -> f < floor end)
   end
 
-  defp request_here?(reqs, floor) do
-    Enum.any?(reqs, fn {f, _} -> f == floor end)
-  end
-
   @doc "Should a request at `btn_floor` and `btn_type` be cleared immediately given elevator state?"
   @spec should_clear_immediately?(
           Elevator.State.t(),
@@ -26,12 +22,11 @@ defmodule Elevator.Orders do
           Elevator.Types.btn_type()
         ) :: boolean()
   def should_clear_immediately?(
-        %Elevator.State{floor: floor, direction: direction, behavior: behavior},
+        %Elevator.State{floor: floor, direction: direction},
         btn_floor,
         btn_type
       ) do
     cond do
-      behavior != :door_open -> false
       floor != btn_floor -> false
       btn_type == :cab -> true
       direction == :up and btn_type == :hall_up -> true
@@ -40,16 +35,6 @@ defmodule Elevator.Orders do
       true -> false
     end
   end
-
-  # @spec combine_new_cab_orders(
-  #         Elevator.Types.combined_order_map(),
-  #         MapSet.t(Elevator.Types.floor())
-  #       ) :: Elevator.Types.combined_order_map()
-  # def combine_new_cab_orders(old_orders, new_cab_orders) do
-  #   Enum.reduce(new_cab_orders, old_orders, fn floor, acc ->
-  #     Map.update(acc, floor, MapSet.new([:cab]), &MapSet.put(&1, :cab))
-  #   end)
-  # end
 
   @spec combine_hall_and_cab(
           Elevator.Types.combined_order_map(),
@@ -79,25 +64,35 @@ defmodule Elevator.Orders do
     else
       case direction do
         :up ->
+          btns = Map.get(orders, floor, MapSet.new())
+
           cond do
             requests_above?(orders, floor) -> {:up, :moving}
-            request_here?(orders, floor) -> {:down, :door_open}
+            MapSet.member?(btns, :hall_up) or MapSet.member?(btns, :cab) -> {:up, :door_open}
+            MapSet.member?(btns, :hall_down) -> {:down, :door_open}
             requests_below?(orders, floor) -> {:down, :moving}
             true -> {:stop, :idle}
           end
 
         :down ->
+          btns = Map.get(orders, floor, MapSet.new())
+
           cond do
             requests_below?(orders, floor) -> {:down, :moving}
-            request_here?(orders, floor) -> {:up, :door_open}
+            MapSet.member?(btns, :hall_down) or MapSet.member?(btns, :cab) -> {:down, :door_open}
+            MapSet.member?(btns, :hall_up) -> {:up, :door_open}
             requests_above?(orders, floor) -> {:up, :moving}
             true -> {:stop, :idle}
           end
 
         # there should only be one request in the Stop case. Checking up or down first is arbitrary.
         :stop ->
+          btns = Map.get(orders, floor, MapSet.new())
+
           cond do
-            request_here?(orders, floor) -> {:stop, :door_open}
+            MapSet.member?(btns, :hall_up) -> {:up, :door_open}
+            MapSet.member?(btns, :hall_down) -> {:down, :door_open}
+            MapSet.member?(btns, :cab) -> {:stop, :door_open}
             requests_above?(orders, floor) -> {:up, :moving}
             requests_below?(orders, floor) -> {:down, :moving}
             true -> {:stop, :idle}
@@ -142,36 +137,4 @@ defmodule Elevator.Orders do
         true
     end
   end
-
-  # @doc "Clear requests at `floor` from the `reqs` map according to the direction of travel.
-  # Clears cab orders always, and hall orders only in the matching direction."
-  # @spec clear_orders_at_current_floor(Elevator.State.t()) :: Elevator.State.t()
-  # def clear_orders_at_current_floor(
-  #       orders,
-  #       %Elevator.State{
-  #         direction: direction,
-  #         floor: floor
-  #       }
-  #     ) do
-  #   btns = Map.get(orders, floor, MapSet.new())
-
-  #   # always clear cab
-  #   remaining = MapSet.delete(btns, :cab)
-
-  #   # Clear hall buttons based on direction
-  #   remaining =
-  #     case direction do
-  #       :up -> MapSet.delete(remaining, :hall_up)
-  #       :down -> MapSet.delete(remaining, :hall_down)
-  #       :stop -> remaining |> MapSet.delete(:hall_up) |> MapSet.delete(:hall_down)
-  #       _ -> remaining
-  #     end
-
-  #   new_orders =
-  #     if MapSet.size(remaining) == 0,
-  #       do: Map.delete(orders, floor),
-  #       else: Map.put(orders, floor, remaining)
-
-  #   %{elevator_state | orders: new_orders}
-  # end
 end

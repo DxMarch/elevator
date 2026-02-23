@@ -101,7 +101,7 @@ defmodule Elevator.HallOrders do
   def handle_call({:arrived_at_floor, floor, direction}, _from, order_map) do
     # If in confirmed or unknown, go to idle. Otherwise, ignore.
     # TODO: Find out if barrier set should be full as well?
-    # TODO: Does not clear orders when, see clear_at_current_floor in orders.ex
+    # TODO: Does not clear orders when direction is wrong, see clear_orders_at_current_floor in orders.ex, maybe create a Orders.clear_hall_buttons_at_current_floor function. Try to understand how the clear functions work in the algo repo
 
     button_type = [up: :hall_up, down: :hall_down][direction]
     key = {floor, button_type}
