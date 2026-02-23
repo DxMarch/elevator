@@ -10,7 +10,7 @@ defmodule Elevator.FSM do
   alias Elevator.Types
   alias Elevator.CabOrders
   alias Elevator.HallOrders
-  alias Elevator.Orders
+  alias Elevator.Decision
 
   @door_open_time 1000
 
@@ -81,13 +81,7 @@ defmodule Elevator.FSM do
     Driver.set_floor_indicator(floor)
     new_state = %{state | floor: floor}
 
-    new_state =
-      if Orders.should_stop?(get_all_orders(), new_state) do
-        Driver.set_motor_direction(:stop)
-        decide_and_take_action(%{new_state | behavior: :idle})
-      else
-        new_state
-      end
+    new_state = decide_and_take_action(%{new_state | behavior: :idle})
 
     {:noreply, new_state}
   end
@@ -97,7 +91,7 @@ defmodule Elevator.FSM do
     case state.behavior do
       :door_open ->
         # TODO: Should clear immediately is not valid for hall buttons as they should check all elevators on the network (use "when (btn == :cab)")
-        if Orders.should_clear_immediately?(state, floor, btn) do
+        if Decision.should_clear_immediately?(state, floor, btn) do
           {:noreply, open_door_and_restart_timer(state)}
         else
           notify_button_press(floor, btn)
@@ -129,7 +123,7 @@ defmodule Elevator.FSM do
   defp get_all_orders() do
     hall_orders = HallOrders.get_my_orders()
     pressed_cab_floors = CabOrders.get_my_orders()
-    Orders.combine_hall_and_cab(hall_orders, pressed_cab_floors)
+    Decision.combine_hall_and_cab(hall_orders, pressed_cab_floors)
   end
 
   @spec decide_and_take_action(Elevator.State.t()) :: Elevator.State.t()
@@ -141,15 +135,14 @@ defmodule Elevator.FSM do
       "Deciding on behavior from state:\n #{inspect(state)}\n Orders: #{inspect(orders)}"
     )
 
-    {new_direction, new_behavior} = Orders.decide_next_direction(orders, state)
+    {new_direction, new_behavior} = Decision.next_action(orders, state)
     Logger.debug("Got behavior #{new_direction} and #{new_behavior}")
 
     case new_behavior do
       :door_open ->
         CabOrders.arrived_at_floor(state.floor)
         HallOrders.arrived_at_floor(state.floor, new_direction)
-        new_state = open_door_and_restart_timer(state)
-        %{new_state | direction: new_direction, behavior: new_behavior}
+        open_door_and_restart_timer(%{state | direction: new_direction})
 
       :moving ->
         cancel_door_timer(state.door_timer)
@@ -177,6 +170,7 @@ defmodule Elevator.FSM do
 
   defp open_door_and_restart_timer(state) do
     cancel_door_timer(state.door_timer)
+    Driver.set_motor_direction(:stop)
     Driver.set_door_open_light(:on)
 
     close_ref = make_ref()

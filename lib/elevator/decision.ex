@@ -1,4 +1,4 @@
-defmodule Elevator.Orders do
+defmodule Elevator.Decision do
   @moduledoc """
   Pure functions for elevator request manipulation.
 
@@ -46,13 +46,13 @@ defmodule Elevator.Orders do
     end)
   end
 
-  @doc "Decide next direction given an elevator state.
-  Algorithm: continue in the current direction if there are any requests further in that direction; otherwise reverse if there are requests in the opposite direction; otherwise stop."
-  @spec decide_next_direction(Elevator.Types.combined_order_map(), Elevator.State.t()) ::
+  @doc "Single decision function for elevator behavior.
+  Returns both direction and behavior for the current state and order snapshot."
+  @spec next_action(Elevator.Types.combined_order_map(), Elevator.State.t()) ::
           {:down, :moving | :door_open}
           | {:up, :moving | :door_open}
           | {:stop, :idle | :door_open}
-  def decide_next_direction(
+  def next_action(
         orders,
         %Elevator.State{
           direction: direction,
@@ -62,37 +62,33 @@ defmodule Elevator.Orders do
     if map_size(orders) == 0 do
       {:stop, :idle}
     else
+      btns_at_floor = Map.get(orders, floor, MapSet.new())
+
       case direction do
         :up ->
-          btns = Map.get(orders, floor, MapSet.new())
-
           cond do
+            MapSet.member?(btns_at_floor, :hall_up) or MapSet.member?(btns_at_floor, :cab) -> {:up, :door_open}
             requests_above?(orders, floor) -> {:up, :moving}
-            MapSet.member?(btns, :hall_up) or MapSet.member?(btns, :cab) -> {:up, :door_open}
-            MapSet.member?(btns, :hall_down) -> {:down, :door_open}
+            MapSet.member?(btns_at_floor, :hall_down) -> {:down, :door_open}
             requests_below?(orders, floor) -> {:down, :moving}
             true -> {:stop, :idle}
           end
 
         :down ->
-          btns = Map.get(orders, floor, MapSet.new())
-
           cond do
+            MapSet.member?(btns_at_floor, :hall_down) or MapSet.member?(btns_at_floor, :cab) -> {:down, :door_open}
             requests_below?(orders, floor) -> {:down, :moving}
-            MapSet.member?(btns, :hall_down) or MapSet.member?(btns, :cab) -> {:down, :door_open}
-            MapSet.member?(btns, :hall_up) -> {:up, :door_open}
+            MapSet.member?(btns_at_floor, :hall_up) -> {:up, :door_open}
             requests_above?(orders, floor) -> {:up, :moving}
             true -> {:stop, :idle}
           end
 
         # there should only be one request in the Stop case. Checking up or down first is arbitrary.
         :stop ->
-          btns = Map.get(orders, floor, MapSet.new())
-
           cond do
-            MapSet.member?(btns, :hall_up) -> {:up, :door_open}
-            MapSet.member?(btns, :hall_down) -> {:down, :door_open}
-            MapSet.member?(btns, :cab) -> {:stop, :door_open}
+            MapSet.member?(btns_at_floor, :hall_up) -> {:up, :door_open}
+            MapSet.member?(btns_at_floor, :hall_down) -> {:down, :door_open}
+            MapSet.member?(btns_at_floor, :cab) -> {:stop, :door_open}
             requests_above?(orders, floor) -> {:up, :moving}
             requests_below?(orders, floor) -> {:down, :moving}
             true -> {:stop, :idle}
@@ -101,40 +97,6 @@ defmodule Elevator.Orders do
         _ ->
           {:stop, :idle}
       end
-    end
-  end
-
-  @doc "Decide whether the elevator should stop at `floor` given current `dir` and `reqs`.
-  Rules:
-  - Stop if any `:cab` request for this floor.
-  - Stop if there's a hall request for this floor in the direction of travel.
-  - Stop if there are no further requests in the direction of travel (so we can turn around)."
-  @spec should_stop?(Elevator.Types.combined_order_map(), Elevator.State.t()) :: boolean()
-  def should_stop?(
-        orders,
-        %Elevator.State{
-          direction: direction,
-          floor: floor
-        }
-      ) do
-    btns = Map.get(orders, floor, MapSet.new())
-
-    case direction do
-      :down ->
-        MapSet.member?(btns, :hall_down) or
-          MapSet.member?(btns, :cab) or
-          not requests_below?(orders, floor)
-
-      :up ->
-        MapSet.member?(btns, :hall_up) or
-          MapSet.member?(btns, :cab) or
-          not requests_above?(orders, floor)
-
-      :stop ->
-        true
-
-      _ ->
-        true
     end
   end
 end
