@@ -54,7 +54,7 @@ defmodule Elevator.DriverPoller do
 
   @impl true
   def handle_info(:poll_buttons, state) do
-    # Polls button and notifies FSM if any are pressd
+    # Polls button and notifies FSM if any are pressed
 
     prev_buttons = Map.get(state, :prev_buttons, MapSet.new())
 

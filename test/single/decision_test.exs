@@ -3,7 +3,7 @@ defmodule Test.Single.DecisionTest do
 
   alias Elevator.Decision
 
-  test "unknonw floor, :down -> stop,idle" do
+  test "unknown floor, :down -> stop,idle" do
     orders = %{}
     state = %Elevator.State{floor: :unknown, direction: :down}
     assert Decision.next_action(orders, state) == {:stop, :idle}
