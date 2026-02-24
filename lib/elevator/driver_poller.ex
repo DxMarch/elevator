@@ -13,8 +13,6 @@ defmodule Elevator.DriverPoller do
   @button_poll_interval 150
   # @obstruction_poll_interval 200
 
-  @buttons [:hall_up, :hall_down, :cab]
-
   # Public API
   def start_link(_opts) do
     GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
@@ -97,7 +95,7 @@ defmodule Elevator.DriverPoller do
   # Helpers
 
   defp get_pressed_buttons_at_floor(floor) do
-    @buttons
+    Elevator.Types.btn_types()
     |> Enum.filter(fn btn ->
       Driver.get_order_button_state(floor, btn) == :active
     end)
