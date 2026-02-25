@@ -17,10 +17,10 @@ nodes =
   |> Enum.map(&String.trim/1)
   |> Enum.map(&String.to_atom/1)
 
-config :chat, static_nodes: nodes
+config :elevator, static_nodes: nodes
 
 topologies = [
-  chat_static: [
+  elevator_static: [
     strategy: Cluster.Strategy.Epmd,
     config: [
       hosts: nodes,
@@ -28,7 +28,7 @@ topologies = [
       polling_interval: 500]
   ],
   # TODO: try multicast and broadcast at sanntid
-  chat_gossip: [
+  elevator_gossip: [
     strategy: Cluster.Strategy.Gossip,
     config: [
       broadcast_only: true, # use UDP broadcast instead of multicast

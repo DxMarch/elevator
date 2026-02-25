@@ -8,7 +8,7 @@ set -euo pipefail
 installs_dir="$HOME/.elixir-install/installs"
 elixir_bin="$installs_dir/elixir/1.19.5-otp-28/bin"
 otp_bin="$installs_dir/otp/28.1/bin"
-project_path="$HOME/gruppe23/chat"
+project_path="$HOME/gruppe23/elevator"
 
 # Check for Elixir >=1.19 and return version line if found
 get_local_elixir_version() {

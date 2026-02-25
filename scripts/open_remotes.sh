@@ -20,7 +20,7 @@ SSH_OPTS="-o BatchMode=yes -o ConnectTimeout=6 -o ControlMaster=auto -o ControlP
 mkdir -p "$HOME/.ssh" || true
 
 # Simple session name
-SESSION_NAME="chat"
+SESSION_NAME="elevator"
 
 # Kill existing session if it exists (avoid tmux printing 'no sessions')
 if tmux has-session -t "$SESSION_NAME" 2>/dev/null; then

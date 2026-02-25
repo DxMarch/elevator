@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Setup script: syncs the chat project to remote hosts and runs remote_setup.sh
+# Setup script: syncs the elevator project to remote hosts and runs remote_setup.sh
 # on each to install Elixir and configure .env files.
 # Expects username "student" and hosts on the 10.100.23.0/24 subnet.
 
@@ -31,7 +31,7 @@ for host in $HOSTS; do
 	echo "--> Processing host: $host"
 
 	RSYNC_SRC="$PROJECT_ROOT/"
-	RSYNC_DEST="/home/student/gruppe23/chat"
+	RSYNC_DEST="/home/student/gruppe23/elevator"
 
 	# Ensure parent directory exists on remote
 	ssh $SSH_OPTS student@"$host" 'mkdir -p /home/student/gruppe23' >/dev/null 2>&1 || true

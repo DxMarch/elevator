@@ -53,7 +53,7 @@ if [ -f "$PROJECT_ROOT/envs/.env" ]; then
   set +a
 fi
 
-COOKIE="${CHAT_COOKIE:-changeme}"
+COOKIE="${ELEVATOR_COOKIE:-changeme}"
 
 # deterministic distribution port range (override with DIST_MIN/DIST_MAX env vars)
 DIST_MIN="${DIST_MIN:-9100}"
@@ -93,7 +93,7 @@ else
 
     NODE_NAME="${name_part}@${ip}"
   else
-    NODE_NAME="${LOCAL_NODE:-chat@$(hostname -I 2>/dev/null | awk '{print $1}' || echo "127.0.0.1") }"
+    NODE_NAME="${LOCAL_NODE:-elevator@$(hostname -I 2>/dev/null | awk '{print $1}' || echo "127.0.0.1") }"
   fi
 
   cd "$PROJECT_ROOT" && exec elixir --name "$NODE_NAME" --cookie "$COOKIE" --erl "$ERL_FLAGS" -S mix run --no-halt
