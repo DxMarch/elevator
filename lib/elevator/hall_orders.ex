@@ -208,6 +208,10 @@ defmodule Elevator.HallOrders do
     :idle
   end
 
+  defp merge_button_states(my_state, :idle) do
+    my_state
+  end
+
   defp merge_button_states(
     {:confirmed, my_score_map, my_barrier},
     {:confirmed, other_score_map, other_barrier}

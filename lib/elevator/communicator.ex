@@ -5,6 +5,8 @@ defmodule Elevator.Communicator do
 
   alias Elevator.CabOrders
   alias Elevator.HallOrders
+
+  require Logger
   use GenServer
 
   @type node_id_t :: Elevator.Types.node_id()
@@ -23,6 +25,7 @@ defmodule Elevator.Communicator do
     if Keyword.get(opts, :do_resend, true) do
       schedule_state_broadcast()
     end
+    Process.send_after(self(), :log_debug, 1000)
     {:ok, nil}
   end
 
@@ -36,6 +39,14 @@ defmodule Elevator.Communicator do
   @spec who_is_alive() :: MapSet.t()
   def who_is_alive do
     MapSet.new([Node.self()] ++ Node.list(:connected))
+  end
+
+  def handle_info(:log_debug, id) do
+    Process.send_after(self(), :log_debug, 1000)
+    Logger.debug("My id: #{my_id()}")
+    others = who_is_alive() |> Enum.map(fn x -> "#{x}" end) |> Enum.join(", ")
+    Logger.debug("Others: #{others}")
+    {:noreply, id}
   end
 
   # Schedules another round of state broadcasting.
