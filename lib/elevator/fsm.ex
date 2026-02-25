@@ -117,7 +117,7 @@ defmodule Elevator.FSM do
 
       :moving ->
         notify_button_press(floor, btn)
-        set_all_lights(get_all_orders())
+        set_all_lights(get_light_orders())
         {:noreply, state}
 
       :idle ->
@@ -137,7 +137,13 @@ defmodule Elevator.FSM do
     end
   end
 
-  defp get_all_orders() do
+  defp get_light_orders() do
+    hall_orders = HallOrders.get_confirmed_orders()
+    pressed_cab_floors = CabOrders.get_my_orders()
+    Decision.combine_hall_and_cab(hall_orders, pressed_cab_floors)
+  end
+
+  defp get_my_orders() do
     hall_orders = HallOrders.get_my_orders()
     pressed_cab_floors = CabOrders.get_my_orders()
     Decision.combine_hall_and_cab(hall_orders, pressed_cab_floors)
@@ -145,8 +151,8 @@ defmodule Elevator.FSM do
 
   @spec decide_and_take_action(Elevator.State.t()) :: Elevator.State.t()
   defp decide_and_take_action(state) do
-    orders = get_all_orders()
-    set_all_lights(orders)
+    set_all_lights(get_light_orders())
+    orders = get_my_orders()
 
     Logger.debug(
       "Deciding on behavior from state:\n #{inspect(state)}\n Orders: #{inspect(orders)}"
@@ -175,9 +181,6 @@ defmodule Elevator.FSM do
 
   @spec set_all_lights(Elevator.Types.combined_order_map()) :: any()
   defp set_all_lights(orders) do
-    # TODO: Currently this will only set lights if the orders are for the current elevator.
-    # In practice we probably want to also set hall lights if others have accepted an order on the floor
-    # This could probably be done by separating into set_hall_lights and set_cab_lights and call them from their respective cast
     for floor <- 0..(Elevator.num_floors() - 1), btn <- Types.btn_types() do
       lights = Map.get(orders, floor, MapSet.new())
       state = if MapSet.member?(lights, btn), do: :on, else: :off

@@ -64,6 +64,14 @@ defmodule Elevator.HallOrders do
     GenServer.call(__MODULE__, :get_state)
   end
 
+  @doc """
+  Get confirmed orders in same format as get_my_orders
+  """
+  @spec get_confirmed_orders() :: %{Elevator.Types.floor() => MapSet.t(Elevator.Types.hall_btn())}
+  def get_confirmed_orders do
+    GenServer.call(__MODULE__, :get_confirmed_orders)
+  end
+
   def handle_call(:get_my_orders, _from, order_map) do
     alive = Communicator.who_is_alive()
     my_orders = Enum.filter(order_map, fn {_, order_state} ->
@@ -87,6 +95,22 @@ defmodule Elevator.HallOrders do
     end)
     |> Enum.into(%{})
     {:reply, my_orders, order_map}
+  end
+
+  def handle_call(:get_confirmed_orders, _from, order_map) do
+    confirmed_orders = Enum.filter(order_map, fn {_, order_state} -> 
+      case order_state do
+        {:confirmed, _, _} -> true
+        _ -> false
+      end
+    end)
+    |> Enum.map(fn {{floor, btn_type}, _} -> {floor, btn_type} end)
+    |> Enum.group_by(fn {floor, _} -> floor end)
+    |> Enum.map(fn {floor, order_list} ->
+      {floor, MapSet.new(Enum.map(order_list, fn {_, btn_type} -> btn_type end))}
+    end)
+    |> Enum.into(%{})
+    {:reply, confirmed_orders, order_map}
   end
 
   def handle_call(:get_state, _, order_map) do
