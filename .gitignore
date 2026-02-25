@@ -29,3 +29,5 @@ elevator-*.tar
 .elixir_ls/
 
 .vscode/
+.env
+.envrc
