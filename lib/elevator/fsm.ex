@@ -13,6 +13,7 @@ defmodule Elevator.FSM do
   alias Elevator.Decision
 
   @door_open_time 1000
+  @order_poll_interval 150
 
   def start_link(_opts) do
     GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
@@ -37,6 +38,7 @@ defmodule Elevator.FSM do
         %{state | floor: floor}
       end
 
+    schedule_order_poll()
     {:ok, state}
   end
 
@@ -51,7 +53,7 @@ defmodule Elevator.FSM do
     GenServer.cast(__MODULE__, {:order_button_pressed, floor, dir})
   end
 
-  # calls ------------------------------------------------------------
+  # Info messages -----------------------------------------------------
 
   @impl true
   def handle_info({:close_door, close_ref}, %{door_timer: {_timer_ref, close_ref}} = state) do
@@ -71,6 +73,21 @@ defmodule Elevator.FSM do
   @impl true
   def handle_info({:close_door, _stale_ref}, state) do
     {:noreply, state}
+  end
+
+  @impl true
+  def handle_info(:poll_orders, state) do
+    orders = get_all_orders()
+    set_all_lights(orders)
+    new_state =
+      if state.behavior == :idle and map_size(orders) != 0 do
+        decide_and_take_action(state)
+      else
+        state
+      end
+
+    schedule_order_poll()
+    {:noreply, new_state}
   end
 
   # Casts ------------------------------------------------------------
@@ -181,4 +198,8 @@ defmodule Elevator.FSM do
 
   defp cancel_door_timer(nil), do: :ok
   defp cancel_door_timer({timer_ref, _close_ref}), do: Process.cancel_timer(timer_ref)
+
+  defp schedule_order_poll do
+    Process.send_after(self(), :poll_orders, @order_poll_interval)
+  end
 end
