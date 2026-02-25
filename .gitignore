@@ -30,3 +30,4 @@ elevator-*.tar
 
 .vscode/
 .env
+.envrc
