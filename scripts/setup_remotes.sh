@@ -7,6 +7,15 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+EXCLUDES=(
+	--exclude=.git/
+	--exclude=.vscode/
+	--exclude=_build/
+	--exclude=.elixir_ls
+	--exclude=.envrc
+	--exclude=docs/
+	--exclude=README.md
+)
 
 if ! command -v rsync >/dev/null 2>&1; then
 	echo "rsync not found; please install rsync (e.g. sudo apt install rsync) and re-run." >&2
@@ -22,7 +31,14 @@ fi
 echo "Connecting to hosts: $HOSTS"
 
 # SSH options: batch mode, connection reuse via ControlMaster
-SSH_OPTS="-o BatchMode=yes -o ConnectTimeout=6 -o ControlMaster=auto -o ControlPersist=60s -o ControlPath=$HOME/.ssh/cm-%r@%h:%p -o LogLevel=ERROR"
+SSH_OPTS=(
+	-o BatchMode=yes
+	-o ConnectTimeout=6
+	-o ControlMaster=auto
+	-o ControlPersist=60s
+	-o ControlPath="$HOME/.ssh/cm-%r@%h:%p"
+	-o LogLevel=ERROR
+)
 
 # Ensure local control-socket directory exists for ControlPath
 mkdir -p "$HOME/.ssh" || true
@@ -34,17 +50,17 @@ for host in $HOSTS; do
 	RSYNC_DEST="/home/student/gruppe23/elevator"
 
 	# Ensure parent directory exists on remote
-	ssh $SSH_OPTS student@"$host" 'mkdir -p /home/student/gruppe23' >/dev/null 2>&1 || true
+	ssh "${SSH_OPTS[@]}" student@"$host" 'mkdir -p /home/student/gruppe23' >/dev/null 2>&1 || true
 
 	echo "Syncing project with rsync"
-	if ! rsync -az --delete --exclude='.git' -e "ssh $SSH_OPTS" "$RSYNC_SRC" "student@${host}:$RSYNC_DEST"; then
+	if ! rsync -az --delete -e "ssh ${SSH_OPTS[*]}" "${EXCLUDES[@]}" "$RSYNC_SRC" "student@${host}:$RSYNC_DEST"; then
 		echo "rsync failed for $host -- skipping remote setup." >&2
 		continue
 	fi
 
 	# Run remote_setup.sh on the remote host to install Elixir and update .env
 	echo "Running remote setup script"
-	if ! ssh $SSH_OPTS student@"$host" "bash -lc '$RSYNC_DEST/scripts/remote_setup.sh'"; then
+	if ! ssh "${SSH_OPTS[@]}" student@"$host" "bash -lc '$RSYNC_DEST/scripts/remote_setup.sh'"; then
 		echo "Remote setup failed for $host" >&2
 		continue  # Continue with other hosts instead of exiting
 	fi

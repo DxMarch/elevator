@@ -14,7 +14,7 @@ fi
 
 echo "Opening tmux session with shells on: ${HOSTS[*]}"
 
-SSH_OPTS="-o BatchMode=yes -o ConnectTimeout=6 -o ControlMaster=auto -o ControlPersist=60s -o ControlPath=$HOME/.ssh/cm-%r@%h:%p -o LogLevel=ERROR"
+SSH_OPTS="-o BatchMode=no -o ConnectTimeout=6 -o ControlMaster=auto -o ControlPersist=60s -o ControlPath=$HOME/.ssh/cm-%r@%h:%p -o StrictHostKeyChecking=accept-new -o LogLevel=ERROR"
 
 # Ensure local control-socket directory exists for ControlPath
 mkdir -p "$HOME/.ssh" || true
@@ -42,7 +42,7 @@ for host in "${HOSTS[@]}"; do
 	
 	# Create split pane with SSH to the IP, capture pane ID for title setting
 	pane_id=$(tmux split-window -t "${SESSION_NAME}:" -h -P -F "#{pane_id}" \
-		"ssh $SSH_OPTS -t student@${ip} 'exec bash -l'")
+		"ssh $SSH_OPTS -t student@${ip} exec bash -l")
 	
 	# Set pane title to show node@ip for easy identification
 	tmux select-pane -t "$pane_id" -T "${node}@${ip}"
