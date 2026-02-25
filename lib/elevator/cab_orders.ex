@@ -40,7 +40,7 @@ defmodule Elevator.CabOrders do
     GenServer.cast(__MODULE__, {:receive_state, other_state})
   end
 
-  @spec button_press(floor_t()) :: :noreply
+  @spec button_press(floor_t()) :: :ok
   def button_press(floor) do
     GenServer.cast(__MODULE__, {:button_press, floor})
   end

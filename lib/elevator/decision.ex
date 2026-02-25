@@ -1,0 +1,102 @@
+defmodule Elevator.Decision do
+  @moduledoc """
+  Pure functions for elevator request manipulation.
+
+  These functions are intentionally pure to make them easy to unit test.
+  """
+
+  # Private helpers
+
+  defp requests_above?(reqs, floor) do
+    Enum.any?(reqs, fn {f, _} -> f > floor end)
+  end
+
+  defp requests_below?(reqs, floor) do
+    Enum.any?(reqs, fn {f, _} -> f < floor end)
+  end
+
+  @doc "Should a request at `btn_floor` and `btn_type` be cleared immediately given elevator state?"
+  @spec should_clear_immediately?(
+          Elevator.State.t(),
+          Elevator.Types.floor(),
+          Elevator.Types.btn_type()
+        ) :: boolean()
+  def should_clear_immediately?(
+        %Elevator.State{floor: floor, direction: direction},
+        btn_floor,
+        btn_type
+      ) do
+    cond do
+      floor != btn_floor -> false
+      btn_type == :cab -> true
+      direction == :up and btn_type == :hall_up -> true
+      direction == :down and btn_type == :hall_down -> true
+      direction == :stop -> true
+      true -> false
+    end
+  end
+
+  @spec combine_hall_and_cab(
+          Elevator.Types.combined_order_map(),
+          MapSet.t(Elevator.Types.floor())
+        ) :: Elevator.Types.combined_order_map()
+  def combine_hall_and_cab(hall_orders, cab_floors) do
+    Enum.reduce(cab_floors, hall_orders, fn floor, acc ->
+      Map.update(acc, floor, MapSet.new([:cab]), &MapSet.put(&1, :cab))
+    end)
+  end
+
+  @doc "Single decision function for elevator behavior.
+  Returns both direction and behavior for the current state and order snapshot."
+  @spec next_action(Elevator.Types.combined_order_map(), Elevator.State.t()) ::
+          {:down, :moving | :door_open}
+          | {:up, :moving | :door_open}
+          | {:stop, :idle | :door_open}
+  def next_action(
+        orders,
+        %Elevator.State{
+          direction: direction,
+          floor: floor
+        }
+      ) do
+    if map_size(orders) == 0 do
+      {:stop, :idle}
+    else
+      btns_at_floor = Map.get(orders, floor, MapSet.new())
+
+      case direction do
+        :up ->
+          cond do
+            MapSet.member?(btns_at_floor, :hall_up) or MapSet.member?(btns_at_floor, :cab) -> {:up, :door_open}
+            requests_above?(orders, floor) -> {:up, :moving}
+            MapSet.member?(btns_at_floor, :hall_down) -> {:down, :door_open}
+            requests_below?(orders, floor) -> {:down, :moving}
+            true -> {:stop, :idle}
+          end
+
+        :down ->
+          cond do
+            MapSet.member?(btns_at_floor, :hall_down) or MapSet.member?(btns_at_floor, :cab) -> {:down, :door_open}
+            requests_below?(orders, floor) -> {:down, :moving}
+            MapSet.member?(btns_at_floor, :hall_up) -> {:up, :door_open}
+            requests_above?(orders, floor) -> {:up, :moving}
+            true -> {:stop, :idle}
+          end
+
+        # there should only be one request in the Stop case. Checking up or down first is arbitrary.
+        :stop ->
+          cond do
+            MapSet.member?(btns_at_floor, :hall_up) -> {:up, :door_open}
+            MapSet.member?(btns_at_floor, :hall_down) -> {:down, :door_open}
+            MapSet.member?(btns_at_floor, :cab) -> {:stop, :door_open}
+            requests_above?(orders, floor) -> {:up, :moving}
+            requests_below?(orders, floor) -> {:down, :moving}
+            true -> {:stop, :idle}
+          end
+
+        _ ->
+          {:stop, :idle}
+      end
+    end
+  end
+end

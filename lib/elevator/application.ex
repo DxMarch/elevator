@@ -3,9 +3,14 @@ defmodule Elevator.Application do
 
   def start(_start_type, _start_args) do
     children = [
+      Elevator.Communicator,
       {Elevator.HallOrders, Elevator.num_floors()},
-      Elevator.CabOrders
+      Elevator.CabOrders,
+      Elevator.Driver,
+      Elevator.DriverPoller,
+      Elevator.FSM
     ]
+
     opts = [strategy: :one_for_one, name: Elevator.Supervisor]
     Supervisor.start_link(children, opts)
   end

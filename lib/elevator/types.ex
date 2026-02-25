@@ -16,6 +16,9 @@ defmodule Elevator.Types do
 
   @type node_id :: Node.t()
 
+  @spec btn_types() :: [btn_type()]
+  def btn_types(), do: [:hall_up, :hall_down, :cab]
+
   @type hall_order_value ::
           :unknown
           | :idle
