@@ -34,15 +34,16 @@ direnv allow
 **Same computer**
 ```shell
 # Open terminal to <path_to_repo>
-iex --sname elev26@localhost -S mix
+elixir --name elev26@localhost -S mix run --no-halt
 # In another terminal
-iex --sname daniel@localhost -S mix
+elixir --name daniel@localhost -S mix run --no-halt
+
 ```
 
 **Different computers**
 ```shell
 # Computer at sanntid
-iex --name elev26@$IP_ELEV26 -S mix
+elixir --name elev25@$IP_ELEV25 --cookie "$ELEVATOR_COOKIE" -S mix run --no-halt
 # Daniels computer
-iex --name daniel@$IP_DANIEL -S mix
+elixir --name daniel@$IP_DANIEL --cookie "$ELEVATOR_COOKIE" -S mix run --no-halt
 ```
