@@ -77,10 +77,10 @@ defmodule Elevator.FSM do
 
   @impl true
   def handle_info(:poll_orders, state) do
-    orders = get_all_orders()
-    set_all_lights(orders)
+    my_orders = get_my_orders()
+    set_all_lights()
     new_state =
-      if state.behavior == :idle and map_size(orders) != 0 do
+      if state.behavior == :idle and map_size(my_orders) != 0 do
         decide_and_take_action(state)
       else
         state
@@ -117,7 +117,6 @@ defmodule Elevator.FSM do
 
       :moving ->
         notify_button_press(floor, btn)
-        set_all_lights(get_light_orders())
         {:noreply, state}
 
       :idle ->
@@ -151,7 +150,6 @@ defmodule Elevator.FSM do
 
   @spec decide_and_take_action(Elevator.State.t()) :: Elevator.State.t()
   defp decide_and_take_action(state) do
-    set_all_lights(get_light_orders())
     orders = get_my_orders()
 
     Logger.debug(
@@ -179,8 +177,9 @@ defmodule Elevator.FSM do
     end
   end
 
-  @spec set_all_lights(Elevator.Types.combined_order_map()) :: any()
-  defp set_all_lights(orders) do
+  @spec set_all_lights() :: any()
+  defp set_all_lights() do
+    orders = get_light_orders()
     for floor <- 0..(Elevator.num_floors() - 1), btn <- Types.btn_types() do
       lights = Map.get(orders, floor, MapSet.new())
       state = if MapSet.member?(lights, btn), do: :on, else: :off
