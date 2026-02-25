@@ -10,7 +10,7 @@ defmodule Elevator.DriverPoller do
   alias Elevator.FSM
 
   @floor_poll_interval 50
-  @button_poll_interval 150
+  @button_poll_interval 20
   # @obstruction_poll_interval 200
 
   # Public API
