@@ -1,9 +1,12 @@
 defmodule Elevator.HallOrders.Scoring do
+  require Logger
   @doc """
   Maybe even random numbers?
   """
-  def compute_score(_hall_orders, _cab_orders) do
-    :rand.uniform(10)
+  def compute_score({floor, btn_dir}) do
+    score = :rand.uniform(10)
+    Logger.debug("Score for (#{floor}, #{btn_dir}): #{score}")
+    score
   end
 
   def merge_scores(score_map_1, score_map_2) do

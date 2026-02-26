@@ -121,7 +121,7 @@ defmodule Elevator.HallOrders do
   def handle_cast({:receive_state, other_order_map}, order_map) do
     new_order_map = Map.keys(order_map)
     |> Enum.map(fn key ->
-      new_value = merge_ensure_self_in_barrier(order_map, order_map[key], other_order_map[key])
+      new_value = merge_ensure_self_in_barrier(key, order_map[key], other_order_map[key])
       {key, new_value}
     end)
     |> Enum.into(%{})
@@ -168,8 +168,8 @@ defmodule Elevator.HallOrders do
   @spec handle_continue(:hall_update_state, state_t()) :: {:noreply, state_t()} | {:noreply, state_t(), {:continue, :hall_update_state}}
   def handle_continue(:hall_update_state, order_map) do
     {any_did_change, new_order_map} = Enum.reduce(order_map, {false, %{}},
-      fn {key, button_state}, {acc_did_change, acc_order_map} ->
-        {did_change, new_button_state} = update_button_state(order_map, button_state)
+      fn {key, _}, {acc_did_change, acc_order_map} ->
+        {did_change, new_button_state} = update_button_state(order_map, key)
         {acc_did_change or did_change, Map.put(acc_order_map, key, new_button_state)}
       end)
     if any_did_change do
@@ -180,11 +180,11 @@ defmodule Elevator.HallOrders do
   end
 
   # Wrapper for merge_button_states that ensures Node.self() is in the barrier state.
-  defp merge_ensure_self_in_barrier(order_map, button_state, other_state) do
+  defp merge_ensure_self_in_barrier(button_key, button_state, other_state) do
     # pending -> confirmed -> give order_map as well
     new_button_state = case {button_state, other_state} do
       {{:pending, _}, {:confirmed, _, _}} ->
-        merge_button_states(button_state, other_state, order_map)
+        merge_button_states(button_state, other_state, button_key)
       _ ->
         merge_button_states(button_state, other_state)
     end
@@ -259,10 +259,9 @@ defmodule Elevator.HallOrders do
   defp merge_button_states(
     {:pending, _},
     {:confirmed, other_score_map, other_barrier},
-    order_map
+    key
   ) do
-    cab_orders = CabOrders.get_my_orders()
-    my_score = Elevator.HallOrders.Scoring.compute_score(order_map, cab_orders)
+    my_score = Elevator.HallOrders.Scoring.compute_score(key)
     my_score_map = Map.put(other_score_map, Node.self(), my_score)
 
     if my_score_map == other_score_map do
@@ -273,13 +272,13 @@ defmodule Elevator.HallOrders do
   end
 
   @spec update_button_state(state_t(), hall_order_t()) :: {boolean(), hall_order_t()}
-  defp update_button_state(order_map, button_state) do
+  defp update_button_state(order_map, key) do
+  button_state = order_map[key]
     alive = Communicator.who_is_alive()
     # TODO: Logic when confirmed barrier gets full?
     case button_state do
       {:pending, ^alive} ->
-        cab_orders = CabOrders.get_my_orders()
-        my_score = Elevator.HallOrders.Scoring.compute_score(order_map, cab_orders)
+        my_score = Elevator.HallOrders.Scoring.compute_score(key)
         {true, {:confirmed, %{Node.self() => my_score}, MapSet.new([Node.self()])}}
       _ ->
         {false, button_state}
