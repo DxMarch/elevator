@@ -8,6 +8,8 @@ defmodule Elevator.HallOrders do
   use GenServer
 
   @type hall_order_map :: Elevator.Types.hall_order_map()
+  @type floor :: Elevator.Types.floor()
+  @type hall_btn :: Elevator.Types.hall_btn()
 
   def start_link(arg) do
     GenServer.start_link(__MODULE__, arg, name: __MODULE__)
@@ -40,13 +42,13 @@ defmodule Elevator.HallOrders do
   @doc """
   Callback for a button press.
   """
-  @spec button_press(non_neg_integer(), :hall_up | :hall_down) :: :ok
+  @spec button_press(floor(), hall_btn()) :: :ok
   def button_press(floor, button_type), do: GenServer.cast(__MODULE__, {:button_press, floor, button_type})
 
   @doc """
   Callback for clearing a floor.
   """
-  @spec arrived_at_floor(non_neg_integer(), :up | :down) :: :ok
+  @spec arrived_at_floor(floor(), :up | :down) :: :ok
   def arrived_at_floor(floor, direction) do
     GenServer.cast(__MODULE__, {:arrived_at_floor, floor, direction})
   end
@@ -128,7 +130,7 @@ defmodule Elevator.HallOrders do
   end
 
   @impl true
-  @spec handle_cast({:button_press, non_neg_integer(), :hall_up | :hall_down}, hall_order_map()) :: {:noreply, hall_order_map(), {:continue, :hall_update_state}}
+  @spec handle_cast({:button_press, floor(), hall_btn()}, hall_order_map()) :: {:noreply, hall_order_map(), {:continue, :hall_update_state}}
   def handle_cast({:button_press, floor, direction}, order_map) do
     # If in idle or unknown, go to pending. Otherwise, ignore.
     key = {floor, direction}
@@ -182,6 +184,8 @@ defmodule Elevator.HallOrders do
     end
   end
 
+  @type enum_orders :: Elevator.Types.hall_order_map() | Enumerable.t({Elevator.Types.hall_order_key(), Elevator.Types.hall_order_value()})
+  @spec orders_by_floor(enum_orders()) :: %{floor() => MapSet.t(hall_btn())}
   defp orders_by_floor(orders) do
     orders
     |> Enum.map(fn {{floor, btn_type}, _} -> {floor, btn_type} end)

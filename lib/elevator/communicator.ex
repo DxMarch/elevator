@@ -20,12 +20,15 @@ defmodule Elevator.Communicator do
     GenServer.start_link(__MODULE__, arg, name: __MODULE__)
   end
 
+  @spec init() :: {:ok, state_t()}
   @spec init(communicator_options()) :: {:ok, state_t()}
-  def init(opts \\ [do_resend: true]) do
+  def init(opts \\ [do_resend: true, do_logging: false]) do
     if Keyword.get(opts, :do_resend, true) do
       schedule_state_broadcast()
     end
-    Process.send_after(self(), :log_debug, 1000)
+    if Keyword.get(opts, :do_logging, false) do
+      Process.send_after(self(), :log_debug, 1000)
+    end
     {:ok, nil}
   end
 
@@ -39,14 +42,6 @@ defmodule Elevator.Communicator do
   @spec who_is_alive() :: MapSet.t()
   def who_is_alive do
     MapSet.new([Node.self()] ++ Node.list(:connected))
-  end
-
-  def handle_info(:log_debug, id) do
-    Process.send_after(self(), :log_debug, 1000)
-    Logger.debug("My id: #{my_id()}")
-    others = who_is_alive() |> Enum.map(fn x -> "#{x}" end) |> Enum.join(", ")
-    Logger.debug("Others: #{others}")
-    {:noreply, id}
   end
 
   # Schedules another round of state broadcasting.
@@ -67,6 +62,14 @@ defmodule Elevator.Communicator do
     |> Enum.each(fn ext_node ->
       GenServer.cast({__MODULE__, ext_node}, {:state_update, hall_state, cab_state}) end)
 
+    {:noreply, id}
+  end
+
+  def handle_info(:log_debug, id) do
+    Process.send_after(self(), :log_debug, 1000)
+    Logger.debug("My id: #{my_id()}")
+    others = who_is_alive() |> Enum.map(fn x -> "#{x}" end) |> Enum.join(", ")
+    Logger.debug("Others: #{others}")
     {:noreply, id}
   end
 
