@@ -1,11 +1,9 @@
 defmodule Elevator.Application do
   use Application
 
-  @default_driver_port 15_657
-
   def start(_start_type, _start_args) do
     topologies = Application.fetch_env!(:libcluster, :topologies)
-    driver_port = get_driver_port()
+    driver_port = Application.fetch_env!(:elevator, :driver_port)
 
     children = [
       {Cluster.Supervisor, [topologies, [name: Chat.ClusterSupervisor]]},
@@ -19,12 +17,5 @@ defmodule Elevator.Application do
 
     opts = [strategy: :one_for_one, name: Elevator.Supervisor]
     Supervisor.start_link(children, opts)
-  end
-
-  defp get_driver_port do
-    case Integer.parse(System.get_env("DRIVER_PORT", Integer.to_string(@default_driver_port))) do
-      {port, ""} -> port
-      _ -> @default_driver_port
-    end
   end
 end

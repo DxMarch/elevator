@@ -6,6 +6,14 @@ import Dotenvy
 env_file = System.get_env("ENV_FILE", ".env")
 source!([env_file, System.get_env()])
 
+driver_port =
+  case Integer.parse(System.get_env("DRIVER_PORT", "15657")) do
+    {port, ""} -> port
+    _ -> 15_657
+  end
+
+config :elevator, driver_port: driver_port
+
 # ------------------------------------------------------------------
 # Cluster topology
 # ------------------------------------------------------------------
