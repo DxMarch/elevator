@@ -6,7 +6,7 @@ defmodule Elevator.Application do
     driver_port = Application.fetch_env!(:elevator, :driver_port)
 
     children = [
-      {Cluster.Supervisor, [topologies, [name: Chat.ClusterSupervisor]]},
+      {Cluster.Supervisor, [topologies, [name: Elevator.ClusterSupervisor]]},
       Elevator.Communicator,
       {Elevator.HallOrders, Elevator.num_floors()},
       Elevator.CabOrders,
