@@ -9,7 +9,7 @@
 #   scripts/.env   — SSHPASS and SYNC_DEST (secrets, gitignored)
 #   scripts/get_hosts.sh  — host resolver for --all / selected IDs
 #
-# Only syncs: lib/, config/, mix.exs, mix.lock, .env, scripts/{start,install}.sh
+# Only syncs: lib/, server/, config/, mix.exs, mix.lock, .env, scripts/{start,install}.sh
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -19,7 +19,7 @@ cd "$(dirname "$0")/.."
 ENV_FILE="scripts/.env"
 GET_HOSTS_SCRIPT="scripts/get_hosts.sh"
 
-[[ ! -f "$ENV_FILE" ]]   && { echo "Missing $ENV_FILE. Copy scripts/.env.example and fill it in." >&2; exit 1; }
+[[ ! -f "$ENV_FILE" ]] && { echo "Missing $ENV_FILE. Copy scripts/.env.example and fill it in." >&2; exit 1; }
 [[ ! -x "$GET_HOSTS_SCRIPT" ]] && { echo "Missing or non-executable $GET_HOSTS_SCRIPT" >&2; exit 1; }
 
 if [[ "$#" -lt 1 ]]; then
@@ -40,8 +40,13 @@ if ! command -v sshpass >/dev/null 2>&1; then
   exit 1
 fi
 
-[[ -z "${SSHPASS:-}" ]]          && { echo "SSHPASS is not set in $ENV_FILE" >&2; exit 1; }
-[[ -z "${SYNC_DEST:-}" ]]       && { echo "SYNC_DEST is not set in $ENV_FILE" >&2; exit 1; }
+if ! command -v rsync >/dev/null 2>&1; then
+  echo "Missing dependency: rsync (apt-get install -y rsync)" >&2
+  exit 1
+fi
+
+: "${SSHPASS:?SSHPASS is not set in $ENV_FILE}"
+: "${SYNC_DEST:?SYNC_DEST is not set in $ENV_FILE}"
 
 # ── Resolve target hosts ──────────────────────────────────────────────
 

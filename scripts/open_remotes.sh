@@ -15,7 +15,7 @@ ENV_FILE="scripts/.env"
 GET_HOSTS_SCRIPT="scripts/get_hosts.sh"
 SESSION_NAME="elevator"
 
-[[ ! -f "$ENV_FILE" ]]   && { echo "Missing $ENV_FILE" >&2; exit 1; }
+[[ ! -f "$ENV_FILE" ]] && { echo "Missing $ENV_FILE" >&2; exit 1; }
 [[ ! -x "$GET_HOSTS_SCRIPT" ]] && { echo "Missing or non-executable $GET_HOSTS_SCRIPT" >&2; exit 1; }
 
 if [[ "$#" -lt 1 ]]; then
@@ -41,6 +41,9 @@ for cmd in tmux sshpass; do
   command -v "$cmd" >/dev/null 2>&1 || { echo "Missing dependency: $cmd" >&2; exit 1; }
 done
 
+: "${SSHPASS:?SSHPASS is not set in $ENV_FILE}"
+: "${SYNC_DEST:?SYNC_DEST is not set in $ENV_FILE}"
+
 SSH_OPTS="-o ConnectTimeout=6 -o StrictHostKeyChecking=accept-new -o LogLevel=ERROR"
 
 # ── Build tmux session ────────────────────────────────────────────────
@@ -63,11 +66,11 @@ for host_line in "${selected_hosts[@]}"; do
   if $first; then
     # First host creates the local tmux session
     tmux new-session -d -s "$SESSION_NAME" -x "$(tput cols)" -y "$(tput lines)" \
-      "SSHPASS='$SSHPASS' $ssh_cmd"
+      -e "SSHPASS=$SSHPASS" "$ssh_cmd"
     first=false
   else
     tmux split-window -t "${SESSION_NAME}:" -h \
-      "SSHPASS='$SSHPASS' $ssh_cmd"
+      -e "SSHPASS=$SSHPASS" "$ssh_cmd"
     tmux select-layout -t "${SESSION_NAME}:" tiled
   fi
 

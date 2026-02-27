@@ -74,7 +74,12 @@ cp scripts/.env.example scripts/.env
 ### Remote shells
 
 ```bash
-# Open a tmux session with one pane per host
-./scripts/open_remotes.sh
-# Running again (same or different machine) attaches to the existing session
+# Open a tmux session with one pane per configured host
+./scripts/open_remotes.sh --all
+
+# Or open only selected elevators
+./scripts/open_remotes.sh 25 26
 ```
+
+Running `open_remotes.sh` again recreates the local tmux layout, while each
+remote pane re-attaches to the same remote `elevator` tmux session.
