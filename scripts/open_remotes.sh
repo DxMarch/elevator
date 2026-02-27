@@ -1,55 +1,85 @@
 #!/usr/bin/env bash
+# Opens a tmux session with one pane per remote elevator host.
+# Each pane SSHs into the host and starts a tmux session there.
+#
+# Usage:
+#   ./scripts/open_remotes.sh --all
+#   ./scripts/open_remotes.sh 24 26
+
 set -euo pipefail
+cd "$(dirname "$0")/.."
 
-# Starts a tmux session with one pane per host
+# ── Config ────────────────────────────────────────────────────────────
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-
-HOSTS=($("$PROJECT_ROOT/scripts/get_hosts.sh" -n))
-if [ ${#HOSTS[@]} -eq 0 ]; then
-	echo "No hosts found"
-	exit 0
-fi
-
-echo "Opening tmux session with shells on: ${HOSTS[*]}"
-
-SSH_OPTS="-o BatchMode=yes -o ConnectTimeout=6 -o ControlMaster=auto -o ControlPersist=60s -o ControlPath=$HOME/.ssh/cm-%r@%h:%p -o LogLevel=ERROR"
-
-# Ensure local control-socket directory exists for ControlPath
-mkdir -p "$HOME/.ssh" || true
-
-# Simple session name
+ENV_FILE="scripts/.env"
+GET_HOSTS_SCRIPT="scripts/get_hosts.sh"
 SESSION_NAME="elevator"
 
-# Kill existing session if it exists (avoid tmux printing 'no sessions')
-if tmux has-session -t "$SESSION_NAME" 2>/dev/null; then
-	tmux kill-session -t "$SESSION_NAME"
+[[ ! -f "$ENV_FILE" ]]   && { echo "Missing $ENV_FILE" >&2; exit 1; }
+[[ ! -x "$GET_HOSTS_SCRIPT" ]] && { echo "Missing or non-executable $GET_HOSTS_SCRIPT" >&2; exit 1; }
+
+if [[ "$#" -lt 1 ]]; then
+  echo "Usage: $0 --all | <id> [<id> ...]" >&2
+  exit 1
 fi
 
-# Create new tmux session with a local shell in the first pane
-tmux new-session -d -s "$SESSION_NAME"
+set -o allexport
+source "$ENV_FILE"
+set +o allexport
 
-# Set tmux options to display pane titles in borders (ignore errors on old tmux versions)
-tmux set-option -t "$SESSION_NAME" pane-border-format "#{pane_index}: #{pane_title}" 2>/dev/null || true
-tmux set-option -t "$SESSION_NAME" pane-active-border-format "#{pane_index}: #{pane_title}" 2>/dev/null || true
+# ── Resolve selected hosts ────────────────────────────────────────────
 
-# Add a pane for each host with SSH shells
-for host in "${HOSTS[@]}"; do
-	# Split node@ip into separate variables
-	node="${host%@*}"
-	ip="${host#*@}"
-	
-	# Create split pane with SSH to the IP, capture pane ID for title setting
-	pane_id=$(tmux split-window -t "${SESSION_NAME}:" -h -P -F "#{pane_id}" \
-		"ssh $SSH_OPTS -t student@${ip} 'exec bash -l'")
-	
-	# Set pane title to show node@ip for easy identification
-	tmux select-pane -t "$pane_id" -T "${node}@${ip}"
-	
-	# Arrange panes in tiled layout
-	tmux select-layout -t "${SESSION_NAME}:" tiled
+mapfile -t selected_hosts < <("$GET_HOSTS_SCRIPT" "$@")
+if [[ "${#selected_hosts[@]}" -eq 0 ]]; then
+  echo "No hosts selected." >&2
+  exit 1
+fi
+
+# ── Prerequisites ─────────────────────────────────────────────────────
+
+for cmd in tmux sshpass; do
+  command -v "$cmd" >/dev/null 2>&1 || { echo "Missing dependency: $cmd" >&2; exit 1; }
 done
 
-# Attach to the session
-tmux attach-session -t "${SESSION_NAME}:"
+SSH_OPTS="-o ConnectTimeout=6 -o StrictHostKeyChecking=accept-new -o LogLevel=ERROR"
+
+# ── Build tmux session ────────────────────────────────────────────────
+
+# If the local session exists, recreate it from scratch.
+# Remote sessions persist because each SSH pane runs `tmux new-session -A` remotely.
+if tmux has-session -t "$SESSION_NAME" 2>/dev/null; then
+  tmux kill-session -t "$SESSION_NAME"
+fi
+
+first=true
+selected_ids=()
+for host_line in "${selected_hosts[@]}"; do
+  read -r id remote <<< "$host_line"
+  selected_ids+=("$id")
+
+  # SSH command that attaches (or creates) a tmux session on the remote, starting in the project dir
+  ssh_cmd="sshpass -e ssh $SSH_OPTS -t $remote 'tmux new-session -A -s elevator -c $SYNC_DEST'"
+
+  if $first; then
+    # First host creates the local tmux session
+    tmux new-session -d -s "$SESSION_NAME" -x "$(tput cols)" -y "$(tput lines)" \
+      "SSHPASS='$SSHPASS' $ssh_cmd"
+    first=false
+  else
+    tmux split-window -t "${SESSION_NAME}:" -h \
+      "SSHPASS='$SSHPASS' $ssh_cmd"
+    tmux select-layout -t "${SESSION_NAME}:" tiled
+  fi
+
+  # Label the pane with the elevator ID and host
+  tmux select-pane -T "elevator ${id} (${remote})"
+done
+
+# Show pane titles in the borders
+tmux set-option -t "$SESSION_NAME" pane-border-format " #{pane_index}: #{pane_title} " 2>/dev/null || true
+tmux set-option -t "$SESSION_NAME" pane-border-status top 2>/dev/null || true
+
+# ── Attach ────────────────────────────────────────────────────────────
+
+echo "Connecting to: ${selected_ids[*]}"
+exec tmux attach-session -t "$SESSION_NAME"

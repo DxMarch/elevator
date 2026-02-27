@@ -1,100 +1,103 @@
 #!/usr/bin/env bash
+# Usage:
+#   ./scripts/start.sh              # cluster mode, uses ELEVATOR_ID from env
+#   ./scripts/start.sh <id>         # cluster mode, explicit ID
+#   ./scripts/start.sh --local <id> # localhost dev mode
+#   ./scripts/start.sh --port 15658 # override simulator driver port
+#
+# The elevator ID is resolved from the CLI argument or the ELEVATOR_ID
+# env var (written to .bashrc on remotes by sync.sh).
+#
+# Reads ERLANG_COOKIE and GOSSIP_SECRET from .env (or the environment).
+
 set -euo pipefail
 
-# usage
-usage() {
-  cat <<EOF
-Usage: $0 [--local] [--name NAME] [--help]
-
-  --local        Run locally (no distributed node). If --name is provided
-                 with --local, the node will be started on loopback as NAME@127.0.0.1
-  --name NAME    Set the local node name (either full NAME@IP or just NAME)
-  --help         Show this help
-EOF
-}
-
-
-# parse args
 LOCAL=false
-MANUAL_NAME=""
+ID=""
+PORT=""
+
 while [[ $# -gt 0 ]]; do
-  case $1 in
+  case "$1" in
     --local)
       LOCAL=true
       shift
       ;;
-    --name)
-      MANUAL_NAME="$2"
+    --port)
+      if [[ $# -lt 2 ]]; then
+        echo "Error: --port requires a value" >&2
+        exit 1
+      fi
+      PORT="$2"
       shift 2
       ;;
-    --name=*)
-      MANUAL_NAME="${1#--name=}"
+    --port=*)
+      PORT="${1#*=}"
       shift
       ;;
-    -h|--help)
-      usage
-      exit 0
+    --*)
+      echo "Unknown option: $1" >&2
+      exit 1
       ;;
     *)
-      # ignore unknown args (or pass through in future)
+      if [[ -n "$ID" ]]; then
+        echo "Error: multiple IDs provided ($ID, $1)" >&2
+        exit 1
+      fi
+      ID="$1"
       shift
       ;;
   esac
 done
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-
-# load env file if present (works with simple KEY=VALUE .env)
-if [ -f "$PROJECT_ROOT/envs/.env" ]; then
-  set -a
-  # shellcheck disable=SC1091
-  . "$PROJECT_ROOT/envs/.env"
-  set +a
+if [[ -n "$PORT" && ! "$PORT" =~ ^[0-9]+$ ]]; then
+  echo "Error: --port must be an integer" >&2
+  exit 1
 fi
 
-COOKIE="${ELEVATOR_COOKIE:-changeme}"
+# Local mode always needs an explicit ID (multiple nodes share one machine)
+if [[ "$LOCAL" == true && ( -z "$ID" || ! "$ID" =~ ^[0-9]+$ ) ]]; then
+  echo "Usage: $0 --local <id>" >&2
+  exit 1
+fi
 
-# deterministic distribution port range (override with DIST_MIN/DIST_MAX env vars)
-DIST_MIN="${DIST_MIN:-9100}"
-DIST_MAX="${DIST_MAX:-9105}"
-ERL_FLAGS="-kernel inet_dist_listen_min ${DIST_MIN} inet_dist_listen_max ${DIST_MAX}"
+cd "$(dirname "$0")/.."
 
-if [ "$LOCAL" = true ]; then
-  if [ -n "$MANUAL_NAME" ]; then
-    # if user supplied a full name (contains @) use it, otherwise use loopback ip
-    if [[ "$MANUAL_NAME" == *@* ]]; then
-      NODE_NAME="$MANUAL_NAME"
-    else
-      NODE_NAME="${MANUAL_NAME}@127.0.0.1"
-    fi
+if [[ -f .env ]]; then
+  set -o allexport
+  source .env
+  set +o allexport
+fi
 
-  cd "$PROJECT_ROOT" && exec elixir --name "$NODE_NAME" --cookie "$COOKIE" -S mix run --no-halt
-  else
-    # local without distribution
-  cd "$PROJECT_ROOT" && exec elixir -S mix run --no-halt
-  fi
+# ── Resolve elevator ID ───────────────────────────────────────────────
+# Priority: CLI argument > ELEVATOR_ID env var (set by sync.sh in .bashrc)
+
+if [[ -z "$ID" && -n "${ELEVATOR_ID:-}" ]]; then
+  ID="$ELEVATOR_ID"
+fi
+
+if [[ -z "$ID" || ! "$ID" =~ ^[0-9]+$ ]]; then
+  echo "Usage: $0 <id>" >&2
+  echo "Optional: --local and --port <number>" >&2
+  echo "Or set ELEVATOR_ID in the environment." >&2
+  exit 1
+fi
+
+if [[ -n "$PORT" ]]; then
+  export DRIVER_PORT="$PORT"
+  echo "Using driver port: ${DRIVER_PORT}"
+fi
+
+# ── Start node ────────────────────────────────────────────────────────
+
+if [[ "$LOCAL" == true ]]; then
+  ERLANG_COOKIE="${ERLANG_COOKIE:-elevator_dev}"
+  # Hardcoded secret keeps local nodes from accidentally joining a real cluster.
+  export GOSSIP_SECRET="elevator_local_dev"
+  echo "Starting elev${ID} (localhost) ..."
+  exec iex --sname "elev${ID}" --cookie "$ERLANG_COOKIE" -S mix
 else
-  # non-local (distributed)
-  if [ -n "$MANUAL_NAME" ]; then
-    # Always use the IP from LOCAL_NODE if available; replace any hostname part
-    # of MANUAL_NAME and keep only the name portion before any '@'.
-    if [[ "$MANUAL_NAME" == *@* ]]; then
-      name_part="${MANUAL_NAME%@*}"
-    else
-      name_part="$MANUAL_NAME"
-    fi
-
-    if [ -n "${LOCAL_NODE:-}" ] && [[ "${LOCAL_NODE}" == *@* ]]; then
-      ip="${LOCAL_NODE#*@}"
-    else
-      ip=$(hostname -I 2>/dev/null | awk '{print $1}' || echo "127.0.0.1")
-    fi
-
-    NODE_NAME="${name_part}@${ip}"
-  else
-    NODE_NAME="${LOCAL_NODE:-elevator@$(hostname -I 2>/dev/null | awk '{print $1}' || echo "127.0.0.1") }"
-  fi
-
-  cd "$PROJECT_ROOT" && exec elixir --name "$NODE_NAME" --cookie "$COOKIE" --erl "$ERL_FLAGS" -S mix run --no-halt
+  ERLANG_COOKIE="${ERLANG_COOKIE:?ERLANG_COOKIE is not set. Add it to .env}"
+  LOCAL_IP="${LOCAL_IP:-$(hostname -I | awk '{print $1}')}"
+  echo "Starting elev${ID}@${LOCAL_IP} (cluster) ..."
+  exec iex --name "elev${ID}@${LOCAL_IP}" --cookie "$ERLANG_COOKIE" -S mix
 fi

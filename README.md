@@ -1,49 +1,80 @@
 # TTK4145 Elevator
 
-## Installation
-Copy environmental variables and make sure to add your IP as well as others you want to use. You can also uncomment the ones you don't want to use to stop libcluster from trying to connect to them.
-```shell
-cp envs/.env.example envs/.env
-nano envs/.env
+## Running nodes
+
+Copy `.env.example` to `.env` and fill in the values, then:
+
+```bash
+# Local dev — run in separate terminals
+./scripts/start.sh --local 1
+./scripts/start.sh --local 2
+
+# Local dev — override simulator port per node
+./scripts/start.sh --local 1 --port 15657
+./scripts/start.sh --local 2 --port 15658
+
+# Cluster — uses ELEVATOR_ID set by sync.sh in .bashrc
+./scripts/start.sh
+
+# Cluster — explicit ID override
+./scripts/start.sh 1
+
+# Cluster — explicit ID + simulator port override
+./scripts/start.sh 1 --port 15658
 ```
 
-To use the IP's source them
-```shell
-set -a
-source envs/.env
-set +a
-```
-Or for convenience use `direnv`
-```shell
-# Install
-sudo apt install direnv
-echo 'eval "$(direnv hook bash)"' >> ~/.bashrc
-source ~/.bashrc
+### Sim
 
-# Setup .envrc
-cat > .envrc <<'EOF'
-set -a
-source envs/.env
-set +a
-EOF
+The simulator supports the following options:
+- `--port` — TCP port used to connect to the simulator (default: 15657). Change this to avoid conflicts; you can run multiple simulators on one machine by using different ports.
+- `--numfloors` — Number of floors (2–9; default: 4).
 
-direnv allow
-```
+Options passed on the command line (for example, `./SimElevatorServer --port 12345`) override settings in `simulator.con`, which in turn override the program defaults. Place `simulator.con` in the same folder as the executable. Options are case-insensitive.
 
-## Run nodes
-**Same computer**
-```shell
-# Open terminal to <path_to_repo>
-elixir --name elev26@localhost -S mix run --no-halt
-# In another terminal
-elixir --name daniel@localhost -S mix run --no-halt
+Default keyboard controls
+- Up: qwertyui
+- Down: sdfghjkl
+- Cab: zxcvbnm,.
+- Stop: p
+- Obstruction: -
+- Motor manual override: Down: 7, Stop: 8, Up: 9
+- Move elevator back in bounds (away from the end-stop switches): 0
 
+Up, Down, Cab and Stop buttons can be toggled (and held) using uppercase letters.
+
+Run the simulator:
+```bash
+./server/SimElevatorServer
 ```
 
-**Different computers**
-```shell
-# Computer at sanntid
-elixir --name elev25@$IP_ELEV25 --cookie "$ELEVATOR_COOKIE" -S mix run --no-halt
-# Daniels computer
-elixir --name daniel@$IP_DANIEL --cookie "$ELEVATOR_COOKIE" -S mix run --no-halt
+## Deploying to remotes
+
+### Setup
+
+```bash
+cp scripts/.env.example scripts/.env
+# Edit scripts/.env with SSHPASS and SYNC_DEST
+
+# Edit scripts/hosts with elevator ID → user@host mappings
+```
+
+### Sync files
+
+```bash
+# Sync to all configured elevators
+./scripts/sync.sh --all
+
+# Sync specific elevator IDs only
+./scripts/sync.sh 25 26
+
+# On each host after first sync:
+./scripts/install.sh
+```
+
+### Remote shells
+
+```bash
+# Open a tmux session with one pane per host
+./scripts/open_remotes.sh
+# Running again (same or different machine) attaches to the existing session
 ```
