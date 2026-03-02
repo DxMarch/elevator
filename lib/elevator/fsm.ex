@@ -19,6 +19,7 @@ defmodule Elevator.FSM do
   end
 
   @impl true
+  @spec init(any()) :: {:ok, Elevator.State.t()}
   def init(_state) do
     # clear stop and door lights
     Driver.set_stop_button_light(:off)

@@ -7,8 +7,9 @@ defmodule Test.Single.CabOrdersTest do
     children = [
       {Elevator.HallOrders, Elevator.num_floors()},
       Elevator.Communicator,
-      Elevator.CabOrders,
+      Elevator.CabOrders
     ]
+
     opts = [strategy: :one_for_one, name: Elevator.Supervisor]
     Supervisor.start_link(children, opts)
     :ok
@@ -30,7 +31,12 @@ defmodule Test.Single.CabOrdersTest do
 
   test "arrived at floor deletes cab order" do
     {:ok, state} = CabOrders.init()
-    state = Map.update(state, Communicator.my_id(), Communicator.my_id(), fn _old -> %{version: 1, orders: MapSet.new([1])} end)
+
+    state =
+      Map.update(state, Communicator.my_id(), Communicator.my_id(), fn _old ->
+        %{version: 1, orders: MapSet.new([1])}
+      end)
+
     {:reply, orders, _} = CabOrders.handle_call(:get_my_orders, Node.self(), state)
     assert MapSet.size(orders) == 1
 
@@ -40,7 +46,7 @@ defmodule Test.Single.CabOrdersTest do
     assert MapSet.size(orders) == 1
     assert MapSet.member?(orders, 1)
 
-    #Arrival at first floor should clear it from the set
+    # Arrival at first floor should clear it from the set
     assert {:noreply, state} = CabOrders.handle_cast({:arrived_at_floor, 1}, state)
     {:reply, orders, _} = CabOrders.handle_call(:get_my_orders, Node.self(), state)
     assert MapSet.size(orders) == 0
@@ -56,5 +62,4 @@ defmodule Test.Single.CabOrdersTest do
     assert {:noreply, state} = CabOrders.handle_cast({:button_press, 1}, state)
     assert state[Communicator.my_id()].version == 3
   end
-
 end

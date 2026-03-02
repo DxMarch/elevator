@@ -25,6 +25,7 @@ defmodule Elevator.Communicator do
     if Keyword.get(opts, :do_resend, true) do
       schedule_state_broadcast()
     end
+
     Process.send_after(self(), :log_debug, 1000)
     {:ok, nil}
   end
@@ -34,7 +35,8 @@ defmodule Elevator.Communicator do
   """
   @spec my_id() :: node_id_t()
   # def my_id, do: GenServer.call(__MODULE__, :self)
-  def my_id, do: Node.self() # TODO: decide on this
+  # TODO: decide on this
+  def my_id, do: Node.self()
 
   @spec who_is_alive() :: MapSet.t()
   def who_is_alive do
@@ -49,25 +51,28 @@ defmodule Elevator.Communicator do
     {:noreply, id}
   end
 
-  # Schedules another round of state broadcasting.
-  defp schedule_state_broadcast do
-    time_ms = Elevator.resend_period() # TODO: set appropriate time
-    Process.send_after(self(), :broadcast_state, time_ms)
-  end
-
   @doc """
   Sends the cab and hall state to all connected nodes.
   """
   def handle_info(:broadcast_state, id) do
-    schedule_state_broadcast() # For periodic execution
+    # For periodic execution
+    schedule_state_broadcast()
     cab_state = CabOrders.get_state()
     hall_state = HallOrders.get_state()
 
     Node.list(:connected)
     |> Enum.each(fn ext_node ->
-      GenServer.cast({__MODULE__, ext_node}, {:state_update, hall_state, cab_state}) end)
+      GenServer.cast({__MODULE__, ext_node}, {:state_update, hall_state, cab_state})
+    end)
 
     {:noreply, id}
+  end
+
+  # Schedules another round of state broadcasting.
+  defp schedule_state_broadcast do
+    # TODO: set appropriate time
+    time_ms = Elevator.resend_period()
+    Process.send_after(self(), :broadcast_state, time_ms)
   end
 
   # --- Handle calls ---
@@ -77,10 +82,10 @@ defmodule Elevator.Communicator do
     {:reply, Node.self(), id}
   end
 
-
   # --- Handle casts ---
 
-  @spec handle_cast({:state_update, hall_orders_t(), cab_orders_t()}, state_t()) :: {:noreply, state_t()}
+  @spec handle_cast({:state_update, hall_orders_t(), cab_orders_t()}, state_t()) ::
+          {:noreply, state_t()}
   def handle_cast({:state_update, hall_orders, cab_orders}, id) do
     HallOrders.receive_state(hall_orders)
     CabOrders.receive_state(cab_orders)
