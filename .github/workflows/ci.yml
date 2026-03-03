@@ -1,0 +1,22 @@
+name: CI
+on:
+  pull_request:
+    branches: [main]
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    container: elixir:1.19.5-otp-28
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Get dependencies
+        run: mix deps.get
+      
+      - name: Compile project
+        run: mix compile
+
+      - name: Run single elevator tests
+        run: mix test ./test/single
+
+      - name: Run multi elevator tests
+        run: mix test ./test/multi
