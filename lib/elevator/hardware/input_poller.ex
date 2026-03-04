@@ -1,14 +1,14 @@
-defmodule Elevator.Poller do
+defmodule Elevator.Hardware.InputPoller do
   @moduledoc """
-  Polls buttons, floor sensor and external order updates, casts to FSM when new info
+  Polls buttons, floor sensor and external order updates, casts to stateful modules when new info
   """
 
   use GenServer
   require Logger
 
-  alias Elevator.HallOrders
   alias Elevator.CabOrders
-  alias Elevator.Driver
+  alias Elevator.HallOrders
+  alias Elevator.Hardware.Driver
 
   @floor_poll_interval 50
   @button_poll_interval 20

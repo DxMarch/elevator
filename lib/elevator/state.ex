@@ -3,18 +3,18 @@ defmodule Elevator.State do
   Module storing the elevator GenServer state.
   """
   require Logger
-  alias Elevator.Driver
+  alias Elevator.Hardware.Driver
   alias Elevator.Types
 
   defstruct direction: :stop, behavior: :idle, floor: :unknown, between_floors: true, door_open_time: Time.utc_now() 
 
   @type t :: %__MODULE__{
-          direction: Types.elev_dir(),
-          behavior: Types.elev_state(),
-          floor: :unknown | Types.floor(),
-          between_floors: boolean(),
-          door_open_time: Time.t()
-        }
+    direction: Types.elev_dir(),
+    behavior: Types.elev_state(),
+    floor: :unknown | Types.floor(),
+    between_floors: boolean(),
+    door_open_time: Time.t()
+  }
 
   use GenServer
 
@@ -22,11 +22,8 @@ defmodule Elevator.State do
   def init(_arg) do
     floor = Driver.get_floor_sensor_state()
     state = %Elevator.State{}
-
     state =
       if floor == :between_floors do
-        Driver.set_motor_direction(:down)
-        Logger.debug("Initialized between floors, going down")
         %{state | direction: :down, behavior: :moving, between_floors: true}
       else
         %{state | floor: floor, between_floors: false}

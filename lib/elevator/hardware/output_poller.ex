@@ -1,18 +1,21 @@
-defmodule Elevator.Lights do
+defmodule Elevator.Hardware.OutputPoller do
   @moduledoc """
-  Watches current state and controls the lights.
+  Watches current state and controls the physical elevator. 
   """
 
   require Logger
-  alias Elevator.Decision
-  alias Elevator.Driver
   alias Elevator.CabOrders
+  alias Elevator.Decision
   alias Elevator.HallOrders
+  alias Elevator.Hardware.Driver
   alias Elevator.Types
+
+  @output_poll_interval 50
 
   def start_link(_arg) do
     Driver.set_stop_button_light(:off)
     Driver.set_door_open_light(:off)
+    Driver.set_motor_direction(:stop)
 
     pid = spawn_link(fn -> loop() end)
 
@@ -30,9 +33,22 @@ defmodule Elevator.Lights do
   end
 
   defp loop() do
-    set_all_lights()
-    Process.sleep(Elevator.light_period())
+    state = Elevator.State.get_state()
+    orders = get_light_orders()
+    set_order_lights(orders)
+    set_door_light(state)
+    set_motors(state)
+    Process.sleep(@output_poll_interval)
     loop()
+  end
+
+  defp set_motors(elev_state) do
+    case elev_state.behavior do
+      :moving ->
+        Driver.set_motor_direction(elev_state.direction)
+      _ ->
+        Driver.set_motor_direction(:stop)
+    end
   end
 
   defp get_light_orders() do
@@ -41,13 +57,7 @@ defmodule Elevator.Lights do
     Decision.combine_hall_and_cab(hall_orders, pressed_cab_floors)
   end
 
-  defp set_all_lights() do
-    set_order_lights()
-    set_door_light()
-  end
-
-  defp set_order_lights() do
-    orders = get_light_orders()
+  defp set_order_lights(orders) do
     for floor <- 0..(Elevator.num_floors() - 1), btn <- Types.btn_types() do
       lights = Map.get(orders, floor, MapSet.new())
       state = if MapSet.member?(lights, btn), do: :on, else: :off
@@ -55,8 +65,8 @@ defmodule Elevator.Lights do
     end
   end
 
-  defp set_door_light() do
-    behavior = Elevator.State.get_state().behavior
+  defp set_door_light(elev_state) do
+    behavior = elev_state.behavior
     case behavior do
       :door_open ->
         Driver.set_door_open_light(:on)

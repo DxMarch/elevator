@@ -1,10 +1,9 @@
 defmodule Elevator.Action do
   @moduledoc """
-  Module controlling motors and door.
+  Module updating the state based on occuring events.
   """
   require Logger
 
-  alias Elevator.Driver
   alias Elevator.CabOrders
   alias Elevator.HallOrders
   alias Elevator.Decision
@@ -13,15 +12,6 @@ defmodule Elevator.Action do
   @action_interval 200
 
   def start_link(_arg) do
-    Driver.set_motor_direction(:stop)
-
-    floor = Driver.get_floor_sensor_state()
-    if floor == :between_floors do
-      Elevator.State.set_behavior(:moving)
-      Elevator.State.set_direction(:down)
-      Driver.set_motor_direction(:down)
-    end
-
     pid = spawn_link(fn -> poll_action() end)
 
     {:ok, pid}
@@ -38,7 +28,6 @@ defmodule Elevator.Action do
   end
 
   defp poll_action() do
-    Process.send_after(self(), :poll_action, @action_interval)
     poll_door_timer()
     decide_and_take_action()
     Process.sleep(@action_interval)
@@ -63,14 +52,10 @@ defmodule Elevator.Action do
     # Logger.debug("Got behavior #{new_direction} and #{new_behavior}")
 
     cond do
-      state.between_floors ->
-        state
-      state.behavior == :door_open ->
-        state
+      state.between_floors or state.behavior == :door_open ->
+        nil
 
       new_behavior == :door_open ->
-        Driver.set_motor_direction(:stop)
-
         CabOrders.arrived_at_floor(state.floor)
         HallOrders.arrived_at_floor(state.floor, new_direction)
 
@@ -78,12 +63,10 @@ defmodule Elevator.Action do
         open_door_and_restart_timer()
 
       new_behavior == :moving ->
-        Driver.set_motor_direction(new_direction)
         Elevator.State.set_direction(new_direction)
         Elevator.State.set_behavior(new_behavior)
 
       new_behavior == :idle ->
-        Driver.set_motor_direction(:stop)
         Elevator.State.set_direction(new_direction)
         Elevator.State.set_behavior(new_behavior)
     end
