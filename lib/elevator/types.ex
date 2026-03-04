@@ -45,7 +45,7 @@ defmodule Elevator.Types do
         }
 
   @type communicator_state_map :: %{
-          operational: true | false,
+          operational: boolean(),
           connected_nodes: %{id: node_id(), timestamp: Time.t()}
         }
 end

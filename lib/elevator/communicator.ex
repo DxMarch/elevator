@@ -12,7 +12,7 @@ defmodule Elevator.Communicator do
   @type node_id_t :: Elevator.Types.node_id()
   @type hall_orders_t :: Elevator.Types.hall_order_map()
   @type cab_orders_t :: Elevator.Types.cab_order_map()
-  @type state_t :: nil
+  @type state_t :: Elevator.Types.communicator_state_map()
 
   @type communicator_options :: [do_resend: boolean()]
 
@@ -41,7 +41,6 @@ defmodule Elevator.Communicator do
   Returns the ID of this node.
   """
   @spec my_id() :: node_id_t()
-  # def my_id, do: GenServer.call(__MODULE__, :self)
   # TODO: decide on this
   def my_id, do: Node.self()
 
@@ -50,9 +49,22 @@ defmodule Elevator.Communicator do
     MapSet.new([Node.self()] ++ Node.list(:connected))
   end
 
+  @doc """
+  Updates the operational key in the state map.
+  """
+  @spec update_operation_status(boolean()) :: state_t()
+  def update_operation_status(status) do
+    GenServer.cast(__MODULE__, {:update_operation_status, status})
+  end
+
+  # Updates the timestamp when a message is recieved from a node
+  @spec update_state_map(state_t(), node_id_t()) :: state_t()
+  defp update_state_map(state, from_node) do
+    Map.put(state.connected_nodes, from_node, Time.utc_now())
+  end
+
   # Schedules another round of state broadcasting.
   defp schedule_state_broadcast do
-    # TODO: set appropriate time
     time_ms = Elevator.resend_period()
     Process.send_after(self(), :broadcast_state, time_ms)
   end
@@ -68,7 +80,7 @@ defmodule Elevator.Communicator do
 
     Node.list(:connected)
     |> Enum.each(fn ext_node ->
-      GenServer.cast({__MODULE__, ext_node}, {:state_update, hall_state, cab_state})
+      GenServer.cast({__MODULE__, ext_node}, {:state_update, my_id(), hall_state, cab_state})
     end)
 
     {:noreply, state}
@@ -85,17 +97,25 @@ defmodule Elevator.Communicator do
   # --- Handle calls ---
 
   def handle_call(:self, _, state) do
-    # TODO: Figure out if Node.self() is OK
     {:reply, my_id(), state}
   end
 
   # --- Handle casts ---
 
-  @spec handle_cast({:state_update, hall_orders_t(), cab_orders_t()}, state_t()) ::
+  @doc """
+  Sends received hall and cab orders to respective modules, and updates timestamps for when the connected nodes last sent something.
+  """
+  @spec handle_cast({:state_update, node_id_t(), hall_orders_t(), cab_orders_t()}, state_t()) ::
           {:noreply, state_t()}
-  def handle_cast({:state_update, hall_orders, cab_orders}, state) do
+  def handle_cast({:state_update, from, hall_orders, cab_orders}, state) do
     HallOrders.receive_state(hall_orders)
     CabOrders.receive_state(cab_orders)
-    {:noreply, state}
+    new_state = update_state_map(state, from)
+    {:noreply, new_state}
+  end
+
+  @spec handle_cast({:update_operation_status, boolean()}, state_t()) :: state_t()
+  def handle_cast({:update_operation_status, status}, state) do
+    {:noreply, %{state | operational: status}}
   end
 end
