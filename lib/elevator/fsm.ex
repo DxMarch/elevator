@@ -13,6 +13,7 @@ defmodule Elevator.FSM do
   alias Elevator.Decision
 
   @door_open_time 1000
+  @action_interval 50
 
   def start_link(_opts) do
     GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
@@ -32,27 +33,20 @@ defmodule Elevator.FSM do
       if floor == :between_floors do
         Driver.set_motor_direction(:down)
         Logger.debug("Initialized between floors, going down")
-        %{state | direction: :down, behavior: :moving}
+        %{state | direction: :down, behavior: :moving, between_floors: true}
       else
-        %{state | floor: floor}
+        %{state | floor: floor, between_floors: false}
       end
+
+    Process.send(self(), :poll_action, [])
 
     {:ok, state}
   end
 
   # User API ---------------------------------------------------------
-
-  def sensed_new_floor(floor) do
-    GenServer.cast(__MODULE__, {:sensed_new_floor, floor})
-  end
-
   @spec order_button_pressed(Types.floor(), Types.btn_type()) :: :ok
   def order_button_pressed(floor, dir) do
     GenServer.cast(__MODULE__, {:order_button_pressed, floor, dir})
-  end
-
-  def hall_orders_updated() do
-    GenServer.cast(__MODULE__, :hall_orders_updated)
   end
 
   # Info messages -----------------------------------------------------
@@ -77,18 +71,13 @@ defmodule Elevator.FSM do
     {:noreply, state}
   end
 
-  # Casts ------------------------------------------------------------
-
   @impl true
-  def handle_cast({:sensed_new_floor, floor}, state) do
-    Logger.debug("Sensed new floor #{floor}, current state: #{inspect(state)}")
-    Driver.set_floor_indicator(floor)
-    new_state = %{state | floor: floor}
-
-    new_state = decide_and_take_action(%{new_state | behavior: :idle})
-
-    {:noreply, new_state}
+  def handle_info(:poll_action, state) do
+    Process.send_after(self(), :poll_action, @action_interval)
+    {:noreply, decide_and_take_action(state)}
   end
+
+  # Casts ------------------------------------------------------------
 
   @impl true
   def handle_cast({:order_button_pressed, floor, btn}, state) do
@@ -108,19 +97,7 @@ defmodule Elevator.FSM do
 
         :idle ->
           notify_button_press(floor, btn)
-          decide_and_take_action(state)
-      end
-
-    {:noreply, new_state}
-  end
-
-  @impl true
-  def handle_cast(:hall_orders_updated, state) do
-    new_state =
-      if state.behavior == :idle do
-        decide_and_take_action(state)
-      else
-        state
+          state
       end
 
     {:noreply, new_state}
@@ -147,25 +124,35 @@ defmodule Elevator.FSM do
   defp decide_and_take_action(state) do
     orders = get_my_orders()
 
-    Logger.debug(
-      "Deciding on behavior from state:\n #{inspect(state)}\n Orders: #{inspect(orders)}"
-    )
+    # Logger.debug( "Deciding on behavior from state:\n #{inspect(state)}\n Orders: #{inspect(orders)}")
+
+    state = %{state | 
+      floor: Elevator.State.get_floor(),
+      between_floors: Elevator.State.get_between_floors()
+    }
 
     {new_direction, new_behavior} = Decision.next_action(orders, state)
-    Logger.debug("Got behavior #{new_direction} and #{new_behavior}")
+    # Logger.debug("Got behavior #{new_direction} and #{new_behavior}")
 
-    case new_behavior do
-      :door_open ->
+    cond do
+      state.between_floors ->
+        state
+
+      not is_nil(state.door_timer) ->
+        state
+
+      new_behavior == :door_open ->
         CabOrders.arrived_at_floor(state.floor)
         HallOrders.arrived_at_floor(state.floor, new_direction)
-        open_door_and_restart_timer(%{state | direction: new_direction})
+        open_door_and_restart_timer(%{state | direction: new_direction, behavior: :idle})
 
-      :moving ->
+      new_behavior == :moving ->
+
         cancel_door_timer(state.door_timer)
         Driver.set_motor_direction(new_direction)
         %{state | direction: new_direction, behavior: new_behavior, door_timer: nil}
 
-      :idle ->
+      new_behavior == :idle ->
         cancel_door_timer(state.door_timer)
         Driver.set_motor_direction(:stop)
         %{state | direction: new_direction, behavior: new_behavior, door_timer: nil}
