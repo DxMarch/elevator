@@ -1,0 +1,19 @@
+name: Line count
+on:
+  pull_request:
+    branches: [main]
+jobs:
+  update_readme:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Install cloc
+        run: sudo apt install cloc
+
+      - name: Install jq
+        run: sudo apt install jq
+
+      - name: Count lines of code and update README
+        run:  chmod +x ./scripts/cloc_and_update_readme.sh
+        

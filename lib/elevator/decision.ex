@@ -67,20 +67,38 @@ defmodule Elevator.Decision do
       case direction do
         :up ->
           cond do
-            MapSet.member?(btns_at_floor, :hall_up) or MapSet.member?(btns_at_floor, :cab) -> {:up, :door_open}
-            requests_above?(orders, floor) -> {:up, :moving}
-            MapSet.member?(btns_at_floor, :hall_down) -> {:down, :door_open}
-            requests_below?(orders, floor) -> {:down, :moving}
-            true -> {:stop, :idle}
+            MapSet.member?(btns_at_floor, :hall_up) or MapSet.member?(btns_at_floor, :cab) ->
+              {:up, :door_open}
+
+            requests_above?(orders, floor) ->
+              {:up, :moving}
+
+            MapSet.member?(btns_at_floor, :hall_down) ->
+              {:down, :door_open}
+
+            requests_below?(orders, floor) ->
+              {:down, :moving}
+
+            true ->
+              {:stop, :idle}
           end
 
         :down ->
           cond do
-            MapSet.member?(btns_at_floor, :hall_down) or MapSet.member?(btns_at_floor, :cab) -> {:down, :door_open}
-            requests_below?(orders, floor) -> {:down, :moving}
-            MapSet.member?(btns_at_floor, :hall_up) -> {:up, :door_open}
-            requests_above?(orders, floor) -> {:up, :moving}
-            true -> {:stop, :idle}
+            MapSet.member?(btns_at_floor, :hall_down) or MapSet.member?(btns_at_floor, :cab) ->
+              {:down, :door_open}
+
+            requests_below?(orders, floor) ->
+              {:down, :moving}
+
+            MapSet.member?(btns_at_floor, :hall_up) ->
+              {:up, :door_open}
+
+            requests_above?(orders, floor) ->
+              {:up, :moving}
+
+            true ->
+              {:stop, :idle}
           end
 
         # there should only be one request in the Stop case. Checking up or down first is arbitrary.

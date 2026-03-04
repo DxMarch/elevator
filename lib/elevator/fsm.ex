@@ -92,24 +92,25 @@ defmodule Elevator.FSM do
 
   @impl true
   def handle_cast({:order_button_pressed, floor, btn}, state) do
+    new_state =
+      case state.behavior do
+        :door_open ->
+          if Decision.should_clear_immediately?(state, floor, btn) do
+            open_door_and_restart_timer(state)
+          else
+            notify_button_press(floor, btn)
+            state
+          end
 
-    new_state = case state.behavior do
-      :door_open ->
-        if Decision.should_clear_immediately?(state, floor, btn) do
-          open_door_and_restart_timer(state)
-        else
+        :moving ->
           notify_button_press(floor, btn)
           state
-        end
 
-      :moving ->
-        notify_button_press(floor, btn)
-        state
+        :idle ->
+          notify_button_press(floor, btn)
+          decide_and_take_action(state)
+      end
 
-      :idle ->
-        notify_button_press(floor, btn)
-        decide_and_take_action(state)
-    end
     set_all_lights()
     {:noreply, new_state}
   end
@@ -183,6 +184,7 @@ defmodule Elevator.FSM do
   @spec set_all_lights() :: any()
   defp set_all_lights() do
     orders = get_light_orders()
+
     for floor <- 0..(Elevator.num_floors() - 1), btn <- Types.btn_types() do
       lights = Map.get(orders, floor, MapSet.new())
       state = if MapSet.member?(lights, btn), do: :on, else: :off
