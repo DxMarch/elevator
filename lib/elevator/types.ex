@@ -37,10 +37,15 @@ defmodule Elevator.Types do
         }
 
   @type cab_order_map :: %{
-          node() => cab_orders_snapshot()
+          node_id() => cab_orders_snapshot()
         }
 
   @type combined_order_map :: %{
           floor() => MapSet.t(btn_type())
+        }
+
+  @type communicator_state_map :: %{
+          operational: true | false,
+          connected_nodes: %{id: node_id(), timestamp: Time.t()}
         }
 end

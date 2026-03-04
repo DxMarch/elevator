@@ -29,7 +29,12 @@ defmodule Elevator.Communicator do
       Process.send_after(self(), :log_debug, 1000)
     end
 
-    {:ok, nil}
+    state = %{
+      operational: true,
+      connected_nodes: Map.from_keys(Node.list(:connected), Time.utc_now())
+    }
+
+    {:ok, state}
   end
 
   @doc """
@@ -55,7 +60,7 @@ defmodule Elevator.Communicator do
   @doc """
   Sends the cab and hall state to all connected nodes.
   """
-  def handle_info(:broadcast_state, id) do
+  def handle_info(:broadcast_state, state) do
     # For periodic execution
     schedule_state_broadcast()
     cab_state = CabOrders.get_state()
@@ -66,31 +71,31 @@ defmodule Elevator.Communicator do
       GenServer.cast({__MODULE__, ext_node}, {:state_update, hall_state, cab_state})
     end)
 
-    {:noreply, id}
+    {:noreply, state}
   end
 
-  def handle_info(:log_debug, id) do
+  def handle_info(:log_debug, state) do
     Process.send_after(self(), :log_debug, 1000)
     Logger.debug("My id: #{my_id()}")
     others = who_is_alive() |> Enum.map(fn x -> "#{x}" end) |> Enum.join(", ")
     Logger.debug("Others: #{others}")
-    {:noreply, id}
+    {:noreply, state}
   end
 
   # --- Handle calls ---
 
-  def handle_call(:self, _, id) do
+  def handle_call(:self, _, state) do
     # TODO: Figure out if Node.self() is OK
-    {:reply, Node.self(), id}
+    {:reply, my_id(), state}
   end
 
   # --- Handle casts ---
 
   @spec handle_cast({:state_update, hall_orders_t(), cab_orders_t()}, state_t()) ::
           {:noreply, state_t()}
-  def handle_cast({:state_update, hall_orders, cab_orders}, id) do
+  def handle_cast({:state_update, hall_orders, cab_orders}, state) do
     HallOrders.receive_state(hall_orders)
     CabOrders.receive_state(cab_orders)
-    {:noreply, id}
+    {:noreply, state}
   end
 end
