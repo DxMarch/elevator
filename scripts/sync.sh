@@ -58,7 +58,7 @@ mapfile -t selected_hosts < <("$GET_HOSTS_SCRIPT" "$@")
 SSH_OPTS="sshpass -e ssh -o ConnectTimeout=6 -o StrictHostKeyChecking=accept-new"
 
 RSYNC=(
-  rsync -avz
+  rsync -avz --delete
   --include='/lib/***'
   --include='/config/***'
   --include='/server/***'

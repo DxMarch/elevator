@@ -1,17 +1,18 @@
-defmodule Elevator.DriverPoller do
+defmodule Elevator.Poller do
   @moduledoc """
-  Polls buttons, floor sensor and obstruction switch, casts to FSM when new info
+  Polls buttons, floor sensor and external order updates, casts to FSM when new info
   """
 
   use GenServer
   require Logger
 
+  alias Elevator.HallOrders
   alias Elevator.Driver
   alias Elevator.FSM
 
   @floor_poll_interval 50
   @button_poll_interval 20
-  # @obstruction_poll_interval 200
+  @hall_order_poll_interval 150
 
   # Public API
   def start_link(_opts) do
@@ -23,9 +24,15 @@ defmodule Elevator.DriverPoller do
   def init(_state) do
     schedule_button_poll()
     schedule_floor_poll()
-    # schedule_obstruction_poll()
+    schedule_hall_order_poll()
 
-    {:ok, %{prev_floor: :unknown, prev_buttons: MapSet.new(), obstructed: :unknown}}
+    {:ok,
+     %{
+       prev_floor: :unknown,
+       prev_buttons: MapSet.new(),
+       hall_orders: %{},
+       obstructed: :unknown
+     }}
   end
 
   @impl true
@@ -74,23 +81,18 @@ defmodule Elevator.DriverPoller do
     {:noreply, %{state | prev_buttons: current_buttons}}
   end
 
-  # @impl true
-  # def handle_info(:poll_obstruction, state) do
-  #   # Polls obstruction switch and notifies FSM if its on
-  #   # Doesn't really need to be polled when door isn't open,
-  #   # but doesn't really hurt either
-  #   prev_obstruction_state = Map.fetch!(state, :obstructed)
-  #   obstruction_state = Driver.get_obstruction_switch_state()
+  @impl true
+  def handle_info(:poll_hall_orders, state) do
+    current_hall_orders = HallOrders.get_my_orders()
+    old_hall_orders = Map.get(state, :hall_orders, Map.new())
 
-  #   case obstruction_state do
-  #     ^prev_obstruction_state -> :ok
-  #     :active -> FSM.door_obstructed()
-  #     :inactive -> FSM.door_cleared()
-  #   end
+    if current_hall_orders != old_hall_orders do
+      FSM.hall_orders_updated()
+    end
 
-  #   schedule_obstruction_poll()
-  #   {:noreply, %{state | obstructed: obstruction_state}}
-  # end
+    schedule_hall_order_poll()
+    {:noreply, %{state | hall_orders: current_hall_orders}}
+  end
 
   # Helpers
 
@@ -111,7 +113,7 @@ defmodule Elevator.DriverPoller do
     Process.send_after(self(), :poll_floor, @floor_poll_interval)
   end
 
-  # defp schedule_obstruction_poll do
-  #   Process.send_after(self(), :poll_obstruction, @obstruction_poll_interval)
-  # end
+  defp schedule_hall_order_poll do
+    Process.send_after(self(), :poll_hall_orders, @hall_order_poll_interval)
+  end
 end

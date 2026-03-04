@@ -51,7 +51,11 @@ defmodule Elevator.FSM do
     GenServer.cast(__MODULE__, {:order_button_pressed, floor, dir})
   end
 
-  # calls ------------------------------------------------------------
+  def hall_orders_updated() do
+    GenServer.cast(__MODULE__, :hall_orders_updated)
+  end
+
+  # Info messages -----------------------------------------------------
 
   @impl true
   def handle_info({:close_door, close_ref}, %{door_timer: {_timer_ref, close_ref}} = state) do
@@ -90,7 +94,6 @@ defmodule Elevator.FSM do
   def handle_cast({:order_button_pressed, floor, btn}, state) do
     case state.behavior do
       :door_open ->
-        # TODO: Should clear immediately is not valid for hall buttons as they should check all elevators on the network (use "when (btn == :cab)")
         if Decision.should_clear_immediately?(state, floor, btn) do
           {:noreply, open_door_and_restart_timer(state)}
         else
@@ -100,13 +103,26 @@ defmodule Elevator.FSM do
 
       :moving ->
         notify_button_press(floor, btn)
-        set_all_lights(get_light_orders())
         {:noreply, state}
 
       :idle ->
         notify_button_press(floor, btn)
         {:noreply, decide_and_take_action(state)}
     end
+  end
+
+  @impl true
+  def handle_cast(:hall_orders_updated, state) do
+    set_all_lights()
+
+    new_state =
+      if state.behavior == :idle do
+        decide_and_take_action(state)
+      else
+        state
+      end
+
+    {:noreply, new_state}
   end
 
   # Helpers ----------------------------------------------------------
@@ -134,7 +150,6 @@ defmodule Elevator.FSM do
 
   @spec decide_and_take_action(Elevator.State.t()) :: Elevator.State.t()
   defp decide_and_take_action(state) do
-    set_all_lights(get_light_orders())
     orders = get_my_orders()
 
     Logger.debug(
@@ -162,8 +177,9 @@ defmodule Elevator.FSM do
     end
   end
 
-  @spec set_all_lights(Elevator.Types.combined_order_map()) :: any()
-  defp set_all_lights(orders) do
+  @spec set_all_lights() :: any()
+  defp set_all_lights() do
+    orders = get_light_orders()
     for floor <- 0..(Elevator.num_floors() - 1), btn <- Types.btn_types() do
       lights = Map.get(orders, floor, MapSet.new())
       state = if MapSet.member?(lights, btn), do: :on, else: :off
