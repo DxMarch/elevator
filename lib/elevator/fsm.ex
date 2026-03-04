@@ -7,13 +7,12 @@ defmodule Elevator.FSM do
   require Logger
 
   alias Elevator.Driver
-  alias Elevator.Types
   alias Elevator.CabOrders
   alias Elevator.HallOrders
   alias Elevator.Decision
 
   @door_open_time 1000
-  @action_interval 50
+  @action_interval 200
 
   def start_link(_opts) do
     GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
@@ -36,12 +35,6 @@ defmodule Elevator.FSM do
     {:ok, []}
   end
 
-  # User API ---------------------------------------------------------
-  @spec order_button_pressed(Types.floor(), Types.btn_type()) :: :ok
-  def order_button_pressed(floor, dir) do
-    GenServer.cast(__MODULE__, {:order_button_pressed, floor, dir})
-  end
-
   # Info messages -----------------------------------------------------
 
   @impl true
@@ -52,35 +45,7 @@ defmodule Elevator.FSM do
     {:noreply, state}
   end
 
-  # Casts ------------------------------------------------------------
-
-  @impl true
-  def handle_cast({:order_button_pressed, floor, btn}, _state) do
-    state = Elevator.State.get_state()
-
-    case state.behavior do
-      :door_open ->
-        if Decision.should_clear_immediately?(state, floor, btn) do
-          open_door_and_restart_timer()
-        else
-          notify_button_press(floor, btn)
-        end
-      _ ->
-        notify_button_press(floor, btn)
-    end
-    {:noreply, []}
-  end
-
   # Helpers ----------------------------------------------------------
-
-  @spec notify_button_press(Types.floor(), Types.btn_type()) :: any()
-  defp notify_button_press(floor, btn) do
-    if btn == :cab do
-      CabOrders.button_press(floor)
-    else
-      HallOrders.button_press(floor, btn)
-    end
-  end
 
   defp get_my_orders() do
     hall_orders = HallOrders.get_my_orders()

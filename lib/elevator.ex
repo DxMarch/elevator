@@ -2,7 +2,7 @@ defmodule Elevator do
   @num_floors Application.compile_env(:elevator, :num_floors, 4)
   # ms
   @resend_period 10
-  @light_period 50
+  @light_period 100
 
   def num_floors do
     @num_floors

@@ -6,8 +6,9 @@ defmodule Elevator.Poller do
   use GenServer
   require Logger
 
+  alias Elevator.HallOrders
+  alias Elevator.CabOrders
   alias Elevator.Driver
-  alias Elevator.FSM
 
   @floor_poll_interval 50
   @button_poll_interval 20
@@ -46,6 +47,7 @@ defmodule Elevator.Poller do
 
   @impl true
   def handle_info(:poll_buttons, state) do
+    schedule_button_poll()
     # Polls button and notifies FSM if any are pressed
 
     prev_buttons = Map.get(state, :prev_buttons, MapSet.new())
@@ -61,10 +63,14 @@ defmodule Elevator.Poller do
     new_presses = MapSet.difference(current_buttons, prev_buttons)
 
     Enum.each(new_presses, fn {floor, btn} ->
-      FSM.order_button_pressed(floor, btn)
+      case btn do
+        :cab -> 
+          CabOrders.button_press(floor)
+        hall_btn ->
+          HallOrders.button_press(floor, hall_btn)
+      end
     end)
 
-    schedule_button_poll()
     {:noreply, %{state | prev_buttons: current_buttons}}
   end
   # Helpers
