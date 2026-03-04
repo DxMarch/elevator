@@ -60,7 +60,7 @@ defmodule Elevator.Communicator do
   # Updates the timestamp when a message is recieved from a node
   @spec update_state_map(state_t(), node_id_t()) :: state_t()
   defp update_state_map(state, from_node) do
-    Map.put(state.connected_nodes, from_node, Time.utc_now())
+    %{state | connected_nodes: Map.put(state.connected_nodes, from_node, Time.utc_now())}
   end
 
   # Schedules another round of state broadcasting.
@@ -75,13 +75,16 @@ defmodule Elevator.Communicator do
   def handle_info(:broadcast_state, state) do
     # For periodic execution
     schedule_state_broadcast()
-    cab_state = CabOrders.get_state()
-    hall_state = HallOrders.get_state()
 
-    Node.list(:connected)
-    |> Enum.each(fn ext_node ->
-      GenServer.cast({__MODULE__, ext_node}, {:state_update, my_id(), hall_state, cab_state})
-    end)
+    if Process.whereis(CabOrders) && Process.whereis(HallOrders) do
+      cab_state = CabOrders.get_state()
+      hall_state = HallOrders.get_state()
+
+      Node.list(:connected)
+      |> Enum.each(fn ext_node ->
+        GenServer.cast({__MODULE__, ext_node}, {:state_update, my_id(), hall_state, cab_state})
+      end)
+    end
 
     {:noreply, state}
   end
