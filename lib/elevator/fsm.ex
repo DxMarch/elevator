@@ -13,7 +13,6 @@ defmodule Elevator.FSM do
   alias Elevator.Decision
 
   @door_open_time 1000
-  @order_poll_interval 150
 
   def start_link(_opts) do
     GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
@@ -38,7 +37,6 @@ defmodule Elevator.FSM do
         %{state | floor: floor}
       end
 
-    schedule_order_poll()
     {:ok, state}
   end
 
@@ -51,6 +49,10 @@ defmodule Elevator.FSM do
   @spec order_button_pressed(Types.floor(), Types.btn_type()) :: :ok
   def order_button_pressed(floor, dir) do
     GenServer.cast(__MODULE__, {:order_button_pressed, floor, dir})
+  end
+
+  def hall_orders_updated() do
+    GenServer.cast(__MODULE__, :hall_orders_updated)
   end
 
   # Info messages -----------------------------------------------------
@@ -75,21 +77,6 @@ defmodule Elevator.FSM do
     {:noreply, state}
   end
 
-  @impl true
-  def handle_info(:poll_orders, state) do
-    my_orders = get_my_orders()
-    set_all_lights()
-    new_state =
-      if state.behavior == :idle and map_size(my_orders) != 0 do
-        decide_and_take_action(state)
-      else
-        state
-      end
-
-    schedule_order_poll()
-    {:noreply, new_state}
-  end
-
   # Casts ------------------------------------------------------------
 
   @impl true
@@ -107,7 +94,6 @@ defmodule Elevator.FSM do
   def handle_cast({:order_button_pressed, floor, btn}, state) do
     case state.behavior do
       :door_open ->
-        # TODO: Should clear immediately is not valid for hall buttons as they should check all elevators on the network (use "when (btn == :cab)")
         if Decision.should_clear_immediately?(state, floor, btn) do
           {:noreply, open_door_and_restart_timer(state)}
         else
@@ -123,6 +109,20 @@ defmodule Elevator.FSM do
         notify_button_press(floor, btn)
         {:noreply, decide_and_take_action(state)}
     end
+  end
+
+  @impl true
+  def handle_cast(:hall_orders_updated, state) do
+    set_all_lights()
+
+    new_state =
+      if state.behavior == :idle do
+        decide_and_take_action(state)
+      else
+        state
+      end
+
+    {:noreply, new_state}
   end
 
   # Helpers ----------------------------------------------------------
@@ -200,8 +200,4 @@ defmodule Elevator.FSM do
 
   defp cancel_door_timer(nil), do: :ok
   defp cancel_door_timer({timer_ref, _close_ref}), do: Process.cancel_timer(timer_ref)
-
-  defp schedule_order_poll do
-    Process.send_after(self(), :poll_orders, @order_poll_interval)
-  end
 end
