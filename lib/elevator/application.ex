@@ -11,8 +11,8 @@ defmodule Elevator.Application do
       {Elevator.HallOrders, Elevator.num_floors()},
       Elevator.CabOrders,
       {Elevator.Hardware.Driver, [{127, 0, 0, 1}, driver_port]},
-      Elevator.State,
-      Elevator.Action,
+      Elevator.FSM.State,
+      Elevator.FSM.Action,
       Elevator.Hardware.InputPoller,
       Elevator.Hardware.OutputPoller,
     ]

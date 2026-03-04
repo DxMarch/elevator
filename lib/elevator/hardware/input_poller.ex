@@ -35,7 +35,7 @@ defmodule Elevator.Hardware.InputPoller do
     schedule_floor_poll()
 
     floor = Driver.get_floor_sensor_state()
-    Elevator.State.set_floor(floor)
+    Elevator.FSM.State.set_floor(floor)
 
     {:noreply, state}
   end

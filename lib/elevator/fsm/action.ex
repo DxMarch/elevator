@@ -1,10 +1,11 @@
-defmodule Elevator.Action do
+defmodule Elevator.FSM.Action do
   @moduledoc """
   Module updating the state based on occuring events.
   """
   require Logger
 
   alias Elevator.CabOrders
+  alias Elevator.FSM.State
   alias Elevator.HallOrders
   alias Elevator.Decision
 
@@ -46,7 +47,7 @@ defmodule Elevator.Action do
   defp decide_and_take_action() do
     orders = get_my_orders()
 
-    state = Elevator.State.get_state()
+    state = State.get_state()
     {new_direction, new_behavior} = Decision.next_action(orders, state)
     # Logger.debug( "Deciding on behavior from state:\n #{inspect(state)}\n Orders: #{inspect(orders)}")
     # Logger.debug("Got behavior #{new_direction} and #{new_behavior}")
@@ -59,28 +60,28 @@ defmodule Elevator.Action do
         CabOrders.arrived_at_floor(state.floor)
         HallOrders.arrived_at_floor(state.floor, new_direction)
 
-        Elevator.State.set_direction(new_direction)
+        State.set_direction(new_direction)
         open_door_and_restart_timer()
 
       new_behavior == :moving ->
-        Elevator.State.set_direction(new_direction)
-        Elevator.State.set_behavior(new_behavior)
+        State.set_direction(new_direction)
+        State.set_behavior(new_behavior)
 
       new_behavior == :idle ->
-        Elevator.State.set_direction(new_direction)
-        Elevator.State.set_behavior(new_behavior)
+        State.set_direction(new_direction)
+        State.set_behavior(new_behavior)
     end
   end
 
   defp poll_door_timer() do
-    state = Elevator.State.get_state()
+    state = State.get_state()
     if state.behavior == :door_open and Time.after?(Time.utc_now(), Time.add(state.door_open_time, @door_open_time, :millisecond)) do
-      Elevator.State.set_behavior(:idle)
+      State.set_behavior(:idle)
     end
   end
 
   defp open_door_and_restart_timer() do
-    Elevator.State.set_behavior(:door_open)
-    Elevator.State.set_door_open_time(Time.utc_now())
+    State.set_behavior(:door_open)
+    State.set_door_open_time(Time.utc_now())
   end
 end

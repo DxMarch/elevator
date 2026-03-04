@@ -17,12 +17,12 @@ defmodule Elevator.Decision do
 
   @doc "Should a request at `btn_floor` and `btn_type` be cleared immediately given elevator state?"
   @spec should_clear_immediately?(
-          Elevator.State.t(),
+          Elevator.FSM.State.t(),
           Elevator.Types.floor(),
           Elevator.Types.btn_type()
         ) :: boolean()
   def should_clear_immediately?(
-        %Elevator.State{floor: floor, direction: direction},
+        %Elevator.FSM.State{floor: floor, direction: direction},
         btn_floor,
         btn_type
       ) do
@@ -48,13 +48,13 @@ defmodule Elevator.Decision do
 
   @doc "Single decision function for elevator behavior.
   Returns both direction and behavior for the current state and order snapshot."
-  @spec next_action(Elevator.Types.combined_order_map(), Elevator.State.t()) ::
+  @spec next_action(Elevator.Types.combined_order_map(), Elevator.FSM.State.t()) ::
           {:down, :moving | :door_open}
           | {:up, :moving | :door_open}
           | {:stop, :idle | :door_open}
   def next_action(
         orders,
-        %Elevator.State{
+        %Elevator.FSM.State{
           direction: direction,
           floor: floor
         }

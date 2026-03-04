@@ -33,7 +33,7 @@ defmodule Elevator.Hardware.OutputPoller do
   end
 
   defp loop() do
-    state = Elevator.State.get_state()
+    state = Elevator.FSM.State.get_state()
     orders = get_light_orders()
     set_order_lights(orders)
     set_door_light(state)

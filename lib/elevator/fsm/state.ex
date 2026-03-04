@@ -1,6 +1,6 @@
-defmodule Elevator.State do
+defmodule Elevator.FSM.State do
   @moduledoc """
-  Module storing the elevator GenServer state.
+  Module storing the elevator state.
   """
   require Logger
   alias Elevator.Hardware.Driver
@@ -21,7 +21,7 @@ defmodule Elevator.State do
   @impl true
   def init(_arg) do
     floor = Driver.get_floor_sensor_state()
-    state = %Elevator.State{}
+    state = %Elevator.FSM.State{}
     state =
       if floor == :between_floors do
         %{state | direction: :down, behavior: :moving, between_floors: true}
