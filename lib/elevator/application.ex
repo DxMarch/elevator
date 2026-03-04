@@ -11,10 +11,10 @@ defmodule Elevator.Application do
       {Elevator.HallOrders, Elevator.num_floors()},
       Elevator.CabOrders,
       {Elevator.Driver, [{127, 0, 0, 1}, driver_port]},
+      Elevator.State,
       Elevator.Lights,
-      Elevator.Poller,
       Elevator.FSM,
-      Elevator.State
+      Elevator.Poller,
     ]
 
     opts = [strategy: :one_for_one, name: Elevator.Supervisor]

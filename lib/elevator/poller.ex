@@ -39,7 +39,7 @@ defmodule Elevator.Poller do
 
 
     floor = Driver.get_floor_sensor_state()
-    Elevator.State.update_floor(floor)
+    Elevator.State.set_floor(floor)
 
     {:noreply, state}
   end

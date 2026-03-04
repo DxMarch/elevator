@@ -1,8 +1,9 @@
 defmodule Elevator.Lights do
   @moduledoc """
-  Watches current order and controls the lights.
+  Watches current state and controls the lights.
   """
 
+  require Logger
   alias Elevator.Decision
   alias Elevator.Driver
   alias Elevator.CabOrders
@@ -10,7 +11,11 @@ defmodule Elevator.Lights do
   alias Elevator.Types
 
   def start_link(_arg) do
+    Driver.set_stop_button_light(:off)
+    Driver.set_door_open_light(:off)
+
     pid = spawn_link(fn -> loop() end)
+
     {:ok, pid}
   end
 
@@ -37,12 +42,26 @@ defmodule Elevator.Lights do
   end
 
   defp set_all_lights() do
-    orders = get_light_orders()
+    set_order_lights()
+    set_door_light()
+  end
 
+  defp set_order_lights() do
+    orders = get_light_orders()
     for floor <- 0..(Elevator.num_floors() - 1), btn <- Types.btn_types() do
       lights = Map.get(orders, floor, MapSet.new())
       state = if MapSet.member?(lights, btn), do: :on, else: :off
       Driver.set_order_button_light(btn, floor, state)
+    end
+  end
+
+  defp set_door_light() do
+    behavior = Elevator.State.get_state().behavior
+    case behavior do
+      :door_open ->
+        Driver.set_door_open_light(:on)
+      _ ->
+        Driver.set_door_open_light(:off)
     end
   end
 end

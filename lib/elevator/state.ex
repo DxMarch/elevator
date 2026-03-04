@@ -6,14 +6,14 @@ defmodule Elevator.State do
   alias Elevator.Driver
   alias Elevator.Types
 
-  defstruct direction: :stop, floor: :unknown, behavior: :idle, door_timer: nil, between_floors: true
+  defstruct direction: :stop, behavior: :idle, floor: :unknown, between_floors: true, door_open_time: Time.utc_now() 
 
   @type t :: %__MODULE__{
           direction: Types.elev_dir(),
-          floor: :unknown | Types.floor(),
           behavior: Types.elev_state(),
-          door_timer: nil | {reference(), reference()},
-          between_floors: boolean()
+          floor: :unknown | Types.floor(),
+          between_floors: boolean(),
+          door_open_time: Time.t()
         }
 
   use GenServer
@@ -39,22 +39,29 @@ defmodule Elevator.State do
     GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
   end
 
-  def update_floor(floor) do
-    GenServer.cast(__MODULE__, {:update_floor, floor})
+  def set_floor(floor) do
+    GenServer.cast(__MODULE__, {:set_floor, floor})
   end
 
-  def get_floor() do
-    GenServer.call(__MODULE__, :get_floor)
+  def set_direction(dir) do
+    GenServer.cast(__MODULE__, {:set_direction, dir})
   end
 
-  def get_between_floors() do
-    GenServer.call(__MODULE__, :get_between_floors)
+  def set_behavior(behavior) do
+    GenServer.cast(__MODULE__, {:set_behavior, behavior})
+  end
+
+  def set_door_open_time(door_open_time) do
+    GenServer.cast(__MODULE__, {:set_door_open_time, door_open_time})
+  end
+
+  def get_state() do
+    GenServer.call(__MODULE__, :get_state)
   end
 
   # Casts ----------------------------------------
-
   @impl true
-  def handle_cast({:update_floor, floor}, state) do
+  def handle_cast({:set_floor, floor}, state) do
     new_state = case floor do
       :between_floors ->
         %{state | between_floors: true}
@@ -64,14 +71,24 @@ defmodule Elevator.State do
     {:noreply, new_state}
   end
 
-  # Calls ----------------------------------------
   @impl true
-  def handle_call(:get_between_floors, _from, state) do
-    {:reply, state.between_floors, state}
+  def handle_cast({:set_direction, dir}, state) do
+    {:noreply, %{state | direction: dir}}
   end
 
   @impl true
-  def handle_call(:get_floor, _from, state) do
-    {:reply, state.floor, state}
+  def handle_cast({:set_behavior, behavior}, state) do
+    {:noreply, %{state | behavior: behavior}}
+  end
+
+  def handle_cast({:set_door_open_time, door_open_time}, state) do
+    {:noreply, %{state | door_open_time: door_open_time}}
+  end
+
+
+  # Calls ----------------------------------------
+  @impl true
+  def handle_call(:get_state, _from, state) do
+    {:reply, state, state}
   end
 end
