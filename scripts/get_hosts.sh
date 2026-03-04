@@ -1,46 +1,48 @@
 #!/usr/bin/env bash
+# Resolves elevator hosts from scripts/hosts.
+#
+# Usage:
+#   ./scripts/get_hosts.sh --all
+#   ./scripts/get_hosts.sh 24 26
+#
+# Output format (stdout):
+#   <id> <user@host>
+
 set -euo pipefail
+cd "$(dirname "$0")/.."
 
-# Outputs host information by parsing the NODES variable from envs/.env
-# Default behavior: prints one host IP per line (for SSH connections)
-# Option:
-#   -n|--nodes   print full node@ip entries (one per line)
+HOSTS_FILE="scripts/hosts"
+[[ ! -f "$HOSTS_FILE" ]] && { echo "Missing $HOSTS_FILE" >&2; exit 1; }
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-ENV_FILE="$PROJECT_ROOT/envs/.env"
-
-# Parse command-line option
-mode="ip_only"
-if [ "${1-}" = "-n" ] || [ "${1-}" = "--nodes" ]; then
-  mode="nodes"
-fi
-
-if [ ! -f "$ENV_FILE" ]; then
-  echo ".env file not found at $ENV_FILE" >&2
+if [[ "$#" -lt 1 ]]; then
+  echo "Usage: $0 --all | <id> [<id> ...]" >&2
   exit 1
 fi
 
-# Extract NODES value using Perl to handle quoted multiline values
-# Matches: NODES="node1@ip\nnode2@ip" or NODES=single_value
-nodes=$(perl -0777 -ne '
-  if (/^NODES\s*=\s*"(.*?)"/ms) { print $1 }
-  elsif (/^NODES\s*=\s*([^\n\r"]\S*)/m) { print $1 }
-' "$ENV_FILE" || true)
+declare -A host_map=()
+host_order=()
 
-# Normalize line endings (handle Windows CRLF if present)
-nodes=$(echo "$nodes" | tr '\r' '\n')
+while read -r id host _rest; do
+  [[ -z "$id" || "$id" == \#* ]] && continue
+  host_map["$id"]="$host"
+  host_order+=("$id")
+done < "$HOSTS_FILE"
 
-# Exit early if no nodes found
-if [ -z "$nodes" ]; then
-  echo "No NODES found in $ENV_FILE" >&2
-  exit 0
-fi
+[[ "${#host_order[@]}" -eq 0 ]] && { echo "No hosts found in $HOSTS_FILE" >&2; exit 1; }
 
-if [ "$mode" = "nodes" ]; then
-  # Output full node@ip entries (one per line)
-  echo "$nodes" | sed '/^\s*$/d' | sort -u
+selected_ids=()
+if [[ "$1" == "--all" ]]; then
+  selected_ids=("${host_order[@]}")
 else
-  # Default: output only IP addresses (strip node@ prefix)
-  echo "$nodes" | sed '/^\s*$/d' | sed 's/.*@//' | sort -u
+  read -r -a selected_ids <<< "$*"
+  [[ "${#selected_ids[@]}" -eq 0 ]] && { echo "No elevator IDs provided." >&2; exit 1; }
 fi
+
+for id in "${selected_ids[@]}"; do
+  remote="${host_map[$id]:-}"
+  if [[ -z "$remote" ]]; then
+    echo "No host configured for elevator id ${id}" >&2
+    exit 1
+  fi
+  printf '%s %s\n' "$id" "$remote"
+done

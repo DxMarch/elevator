@@ -1,0 +1,9 @@
+# Elevator host inventory — one entry per line:
+#   <elevator_id>  <user@host>
+#
+# Lines starting with # and blank lines are ignored.
+
+24  student@10.100.23.34
+25  student@10.100.23.35
+26  student@10.100.23.36
+27  student@10.100.23.37
