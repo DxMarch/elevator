@@ -10,7 +10,10 @@ defmodule Test.Multi.CabOrdersTest do
     {_, node1} = start_and_wait_for_node(:elev1, communicator_resend)
     {_, node2} = start_and_wait_for_node(:elev2, communicator_resend)
 
-    :erpc.call(Node.self(), Test.Utils.TestCompiled, :start_order_modules, [Elevator.num_floors(), communicator_resend])
+    :erpc.call(Node.self(), Test.Utils.TestCompiled, :start_order_modules, [
+      Elevator.num_floors(),
+      communicator_resend
+    ])
 
     # Make a clique
     :erpc.call(node1, Node, :connect, [node2])
@@ -46,11 +49,13 @@ defmodule Test.Multi.CabOrdersTest do
     assert node3_orders == MapSet.new([3])
   end
 
-  test "elevator recovers cab orders", %{nodes: [node1, node2,_node3]} do
+  test "elevator recovers cab orders", %{nodes: [node1, node2, _node3]} do
     node1_orders = :rpc.call(node1, CabOrders, :get_my_orders, [])
     assert node1_orders == MapSet.new()
 
-    :rpc.call(node2, CabOrders, :receive_state, [%{node1 => %{version: 420, orders: MapSet.new([3])}}])
+    :rpc.call(node2, CabOrders, :receive_state, [
+      %{node1 => %{version: 420, orders: MapSet.new([3])}}
+    ])
 
     Process.sleep(3 * Elevator.resend_period())
 
@@ -59,47 +64,74 @@ defmodule Test.Multi.CabOrdersTest do
   end
 
   test "elevator ingores lower version numbers", %{nodes: [node1, node2, node3]} do
-    %{version: node1_version, orders: node1_orders} = :rpc.call(node1, CabOrders, :get_state, [])[node1]
+    %{version: node1_version, orders: node1_orders} =
+      :rpc.call(node1, CabOrders, :get_state, [])[node1]
+
     assert node1_version == 0
     assert node1_orders == MapSet.new()
 
     # Higher version number should overwrite
-    :rpc.cast(node2, CabOrders, :receive_state, [%{node1 => %{version: 69, orders: MapSet.new([1])}}])
+    :rpc.cast(node2, CabOrders, :receive_state, [
+      %{node1 => %{version: 69, orders: MapSet.new([1])}}
+    ])
+
     Process.sleep(3 * Elevator.resend_period())
-    %{version: node1_version, orders: node1_orders} = :rpc.call(node1, CabOrders, :get_state, [])[node1]
+
+    %{version: node1_version, orders: node1_orders} =
+      :rpc.call(node1, CabOrders, :get_state, [])[node1]
+
     assert node1_version == 69
     assert node1_orders == MapSet.new([1])
 
     # Lower version number should be ignored
-    :rpc.cast(node3, CabOrders, :receive_state, [%{node1 => %{version: 67, orders: MapSet.new([1, 2])}}])
+    :rpc.cast(node3, CabOrders, :receive_state, [
+      %{node1 => %{version: 67, orders: MapSet.new([1, 2])}}
+    ])
+
     Process.sleep(3 * Elevator.resend_period())
-    %{version: node1_version, orders: node1_orders} = :rpc.call(node1, CabOrders, :get_state, [])[node1]
+
+    %{version: node1_version, orders: node1_orders} =
+      :rpc.call(node1, CabOrders, :get_state, [])[node1]
+
     assert node1_version == 69
     assert node1_orders == MapSet.new([1])
 
     # Same version number should be ignored
-    :rpc.cast(node3, CabOrders, :receive_state, [%{node1 => %{version: 69, orders: MapSet.new([1, 2])}}])
+    :rpc.cast(node3, CabOrders, :receive_state, [
+      %{node1 => %{version: 69, orders: MapSet.new([1, 2])}}
+    ])
+
     Process.sleep(3 * Elevator.resend_period())
-    %{version: node1_version, orders: node1_orders} = :rpc.call(node1, CabOrders, :get_state, [])[node1]
+
+    %{version: node1_version, orders: node1_orders} =
+      :rpc.call(node1, CabOrders, :get_state, [])[node1]
+
     assert node1_version == 69
     assert node1_orders == MapSet.new([1])
-
   end
 
-
   test "cab order states progate", %{nodes: [node1, node2, node3]} do
-    %{version: node1_version, orders: node1_orders} = :rpc.call(node1, CabOrders, :get_state, [])[node1]
-    %{version: node2_version, orders: node2_orders} = :rpc.call(node2, CabOrders, :get_state, [])[node2]
-    %{version: node3_version, orders: node3_orders} = :rpc.call(node3, CabOrders, :get_state, [])[node3]
+    %{version: node1_version, orders: node1_orders} =
+      :rpc.call(node1, CabOrders, :get_state, [])[node1]
+
+    %{version: node2_version, orders: node2_orders} =
+      :rpc.call(node2, CabOrders, :get_state, [])[node2]
+
+    %{version: node3_version, orders: node3_orders} =
+      :rpc.call(node3, CabOrders, :get_state, [])[node3]
 
     assert node1_version == 0 and node2_version == 0 and node3_version == 0
-    assert node1_orders == MapSet.new() and node2_orders == MapSet.new() and node3_orders == MapSet.new()
+
+    assert node1_orders == MapSet.new() and node2_orders == MapSet.new() and
+             node3_orders == MapSet.new()
 
     :rpc.cast(node1, CabOrders, :button_press, [1])
     Process.sleep(3 * Elevator.resend_period())
 
     # Ensure that node1's version and order map has propagated across all nodes
-    %{version: node1_version, orders: node1_orders} = :rpc.call(node1, CabOrders, :get_state, [])[node1]
+    %{version: node1_version, orders: node1_orders} =
+      :rpc.call(node1, CabOrders, :get_state, [])[node1]
+
     assert node1_version == 1
     assert MapSet.member?(node1_orders, 1)
 
@@ -112,14 +144,20 @@ defmodule Test.Multi.CabOrdersTest do
   end
 
   def start_and_wait_for_node(name, communicator_resend) do
-    {:ok, peer, node} = :peer.start_link(%{
-      name: name,
-      name_domain: :shortnames
-    })
+    {:ok, peer, node} =
+      :peer.start_link(%{
+        name: name,
+        name_domain: :shortnames
+      })
 
     wait_until_connected([node])
     :rpc.call(node, :code, :add_paths, [:code.get_path()])
-    :erpc.call(node, Test.Utils.TestCompiled, :start_order_modules, [Elevator.num_floors(), communicator_resend])
+
+    :erpc.call(node, Test.Utils.TestCompiled, :start_order_modules, [
+      Elevator.num_floors(),
+      communicator_resend
+    ])
+
     {peer, node}
   end
 
@@ -135,6 +173,7 @@ defmodule Test.Multi.CabOrdersTest do
       if System.monotonic_time(:millisecond) > deadline do
         flunk("Test timed out waiting for nodes")
       end
+
       Process.sleep(50)
       wait_loop(nodes, deadline)
     end

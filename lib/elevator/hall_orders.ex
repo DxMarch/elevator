@@ -19,16 +19,19 @@ defmodule Elevator.HallOrders do
   @spec init(any()) :: {:ok, hall_order_map()}
   def init(num_floors) do
     top_floor = num_floors - 1
-    state = Range.new(0, top_floor)
-    |> Enum.flat_map(fn floor ->
-      case floor do
-        0 -> [{floor, :hall_up}]
-        ^top_floor -> [{floor, :hall_down}]
-        _ -> [{floor, :hall_up}, {floor, :hall_down}]
-      end
-    end)
-    |> Enum.map(&{&1, :unknown})
-    |> Enum.into(%{})
+
+    state =
+      Range.new(0, top_floor)
+      |> Enum.flat_map(fn floor ->
+        case floor do
+          0 -> [{floor, :hall_up}]
+          ^top_floor -> [{floor, :hall_down}]
+          _ -> [{floor, :hall_up}, {floor, :hall_down}]
+        end
+      end)
+      |> Enum.map(&{&1, :unknown})
+      |> Enum.into(%{})
+
     {:ok, state}
   end
 
@@ -43,7 +46,8 @@ defmodule Elevator.HallOrders do
   Callback for a button press.
   """
   @spec button_press(floor(), hall_btn()) :: :ok
-  def button_press(floor, button_type), do: GenServer.cast(__MODULE__, {:button_press, floor, button_type})
+  def button_press(floor, button_type),
+    do: GenServer.cast(__MODULE__, {:button_press, floor, button_type})
 
   @doc """
   Callback for clearing a floor.
@@ -83,31 +87,38 @@ defmodule Elevator.HallOrders do
   @impl true
   def handle_call(:get_my_orders, _from, order_map) do
     alive = Communicator.who_is_alive()
-    my_orders = Enum.filter(order_map, fn {_, order_state} ->
-      case order_state do
-        {:confirmed, score_map, barrier_set} ->
-          # Hmm.
-          if MapSet.intersection(barrier_set, alive) != alive do
+
+    my_orders =
+      Enum.filter(order_map, fn {_, order_state} ->
+        case order_state do
+          {:confirmed, score_map, barrier_set} ->
+            # Hmm.
+            if MapSet.intersection(barrier_set, alive) != alive do
+              false
+            else
+              Scoring.max_alive_score(score_map, alive) == Node.self()
+            end
+
+          _ ->
             false
-          else
-            Scoring.max_alive_score(score_map, alive) == Node.self()
-          end
-        _ -> false
-      end
-    end)
-    |> orders_by_floor()
+        end
+      end)
+      |> orders_by_floor()
+
     {:reply, my_orders, order_map}
   end
 
   @impl true
   def handle_call(:get_confirmed_orders, _from, order_map) do
-    confirmed_orders = Enum.filter(order_map, fn {_, order_state} -> 
-      case order_state do
-        {:confirmed, _, _} -> true
-        _ -> false
-      end
-    end)
-    |> orders_by_floor()
+    confirmed_orders =
+      Enum.filter(order_map, fn {_, order_state} ->
+        case order_state do
+          {:confirmed, _, _} -> true
+          _ -> false
+        end
+      end)
+      |> orders_by_floor()
+
     {:reply, confirmed_orders, order_map}
   end
 
@@ -118,31 +129,40 @@ defmodule Elevator.HallOrders do
   # Casts ------------------------------------------------------------
 
   @impl true
-  @spec handle_cast({:receive_state, hall_order_map()}, hall_order_map()) :: {:noreply, hall_order_map(), {:continue, :hall_update_state}}
+  @spec handle_cast({:receive_state, hall_order_map()}, hall_order_map()) ::
+          {:noreply, hall_order_map(), {:continue, :hall_update_state}}
   def handle_cast({:receive_state, other_order_map}, order_map) do
-    new_order_map = Map.keys(order_map)
-    |> Enum.map(fn key ->
-      new_value = Order.merge_hall_orders(key, order_map[key], other_order_map[key])
-      {key, new_value}
-    end)
-    |> Enum.into(%{})
+    new_order_map =
+      Map.keys(order_map)
+      |> Enum.map(fn key ->
+        new_value = Order.merge_hall_orders(key, order_map[key], other_order_map[key])
+        {key, new_value}
+      end)
+      |> Enum.into(%{})
+
     {:noreply, new_order_map, {:continue, :hall_update_state}}
   end
 
   @impl true
-  @spec handle_cast({:button_press, floor(), hall_btn()}, hall_order_map()) :: {:noreply, hall_order_map(), {:continue, :hall_update_state}}
+  @spec handle_cast({:button_press, floor(), hall_btn()}, hall_order_map()) ::
+          {:noreply, hall_order_map(), {:continue, :hall_update_state}}
   def handle_cast({:button_press, floor, direction}, order_map) do
     # If in idle or unknown, go to pending. Otherwise, ignore.
     key = {floor, direction}
     order_state = order_map[key]
-    order_map = case order_state do
-      :unknown ->
-        Map.put(order_map, key, {:pending, MapSet.new([Node.self()])})
-      :idle ->
-        Map.put(order_map, key, {:pending, MapSet.new([Node.self()])})
-      _ ->
-        order_map
-    end
+
+    order_map =
+      case order_state do
+        :unknown ->
+          Map.put(order_map, key, {:pending, MapSet.new([Node.self()])})
+
+        :idle ->
+          Map.put(order_map, key, {:pending, MapSet.new([Node.self()])})
+
+        _ ->
+          order_map
+      end
+
     {:noreply, order_map, {:continue, :hall_update_state}}
   end
 
@@ -153,14 +173,19 @@ defmodule Elevator.HallOrders do
     button_type = [up: :hall_up, down: :hall_down][direction]
     key = {floor, button_type}
     order_state = order_map[key]
-    order_map = case order_state do
-      :unknown ->
-        Map.put(order_map, key, :idle)
-      {:confirmed, _, _} ->
-        Map.put(order_map, key, :idle)
-      _ ->
-        order_map
-    end
+
+    order_map =
+      case order_state do
+        :unknown ->
+          Map.put(order_map, key, :idle)
+
+        {:confirmed, _, _} ->
+          Map.put(order_map, key, :idle)
+
+        _ ->
+          order_map
+      end
+
     {:noreply, order_map}
   end
 
@@ -170,13 +195,17 @@ defmodule Elevator.HallOrders do
   May advance some states, in which case continue is called until convergence.
   """
   @impl true
-  @spec handle_continue(:hall_update_state, hall_order_map()) :: {:noreply, hall_order_map()} | {:noreply, hall_order_map(), {:continue, :hall_update_state}}
+  @spec handle_continue(:hall_update_state, hall_order_map()) ::
+          {:noreply, hall_order_map()}
+          | {:noreply, hall_order_map(), {:continue, :hall_update_state}}
   def handle_continue(:hall_update_state, order_map) do
-    {any_did_change, new_order_map} = Enum.reduce(order_map, {false, %{}},
-      fn {key, button_state}, {acc_did_change, acc_order_map} ->
+    {any_did_change, new_order_map} =
+      Enum.reduce(order_map, {false, %{}}, fn {key, button_state},
+                                              {acc_did_change, acc_order_map} ->
         {did_change, new_button_state} = Order.update_hall_order(key, button_state)
         {acc_did_change or did_change, Map.put(acc_order_map, key, new_button_state)}
       end)
+
     if any_did_change do
       {:noreply, new_order_map, {:continue, :hall_update_state}}
     else
@@ -184,7 +213,9 @@ defmodule Elevator.HallOrders do
     end
   end
 
-  @type enum_orders :: Elevator.Types.hall_order_map() | Enumerable.t({Elevator.Types.hall_order_key(), Elevator.Types.hall_order_value()})
+  @type enum_orders ::
+          Elevator.Types.hall_order_map()
+          | Enumerable.t({Elevator.Types.hall_order_key(), Elevator.Types.hall_order_value()})
   @spec orders_by_floor(enum_orders()) :: %{floor() => MapSet.t(hall_btn())}
   defp orders_by_floor(orders) do
     orders

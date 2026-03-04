@@ -7,8 +7,9 @@ defmodule Test.Single.HallOrders do
     children = [
       Elevator.Communicator,
       Elevator.CabOrders,
-      {Elevator.HallOrders, Elevator.num_floors()},
+      {Elevator.HallOrders, Elevator.num_floors()}
     ]
+
     opts = [strategy: :one_for_one, name: Elevator.Supervisor]
     Supervisor.start_link(children, opts)
     :ok
@@ -92,6 +93,7 @@ defmodule Test.Single.HallOrders do
     case ret do
       {:noreply, new_state, {:continue, continue_arg}} ->
         hallorder_continue_full(continue_arg, new_state)
+
       _ ->
         ret
     end
@@ -106,6 +108,7 @@ defmodule Test.Single.HallOrders do
     case ret do
       {:noreply, new_state, {:continue, continue_arg}} ->
         hallorder_continue_full(continue_arg, new_state, continue_counter + 1)
+
       _ ->
         ret
     end

@@ -15,13 +15,13 @@ defmodule Elevator.Lights do
   end
 
   def child_spec(opts) do
-      %{
-        id: __MODULE__,
-        start: {__MODULE__, :start_link, [opts]},
-        type: :worker,
-        restart: :permanent,
-        shutdown: 500
-      }
+    %{
+      id: __MODULE__,
+      start: {__MODULE__, :start_link, [opts]},
+      type: :worker,
+      restart: :permanent,
+      shutdown: 500
+    }
   end
 
   defp loop() do
@@ -38,6 +38,7 @@ defmodule Elevator.Lights do
 
   defp set_all_lights() do
     orders = get_light_orders()
+
     for floor <- 0..(Elevator.num_floors() - 1), btn <- Types.btn_types() do
       lights = Map.get(orders, floor, MapSet.new())
       state = if MapSet.member?(lights, btn), do: :on, else: :off
