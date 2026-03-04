@@ -13,7 +13,7 @@ defmodule Elevator.Application do
       {Elevator.Driver, [{127, 0, 0, 1}, driver_port]},
       Elevator.State,
       Elevator.Lights,
-      Elevator.FSM,
+      Elevator.Action,
       Elevator.Poller,
     ]
 

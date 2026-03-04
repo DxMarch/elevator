@@ -26,18 +26,13 @@ defmodule Elevator.Poller do
 
     {:ok,
      %{
-       prev_floor: :unknown,
        prev_buttons: MapSet.new(),
-       hall_orders: %{},
-       obstructed: :unknown
      }}
   end
 
   @impl true
   def handle_info(:poll_floor, state) do
-    # Polls floor and notifies FSM if we arrive at a new floor
     schedule_floor_poll()
-
 
     floor = Driver.get_floor_sensor_state()
     Elevator.State.set_floor(floor)
@@ -48,7 +43,7 @@ defmodule Elevator.Poller do
   @impl true
   def handle_info(:poll_buttons, state) do
     schedule_button_poll()
-    # Polls button and notifies FSM if any are pressed
+    # Polls button and notifies State if any are pressed
 
     prev_buttons = Map.get(state, :prev_buttons, MapSet.new())
 

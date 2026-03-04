@@ -1,9 +1,7 @@
-defmodule Elevator.FSM do
+defmodule Elevator.Action do
   @moduledoc """
-  Elevator FSM
+  Module controlling motors and door.
   """
-
-  use GenServer
   require Logger
 
   alias Elevator.Driver
@@ -14,13 +12,7 @@ defmodule Elevator.FSM do
   @door_open_time 1000
   @action_interval 200
 
-  def start_link(_opts) do
-    GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
-  end
-
-  @impl true
-  def init(_state) do
-    # clear stop and door lights
+  def start_link(_arg) do
     Driver.set_motor_direction(:stop)
 
     floor = Driver.get_floor_sensor_state()
@@ -30,19 +22,27 @@ defmodule Elevator.FSM do
       Driver.set_motor_direction(:down)
     end
 
-    Process.send(self(), :poll_action, [])
+    pid = spawn_link(fn -> poll_action() end)
 
-    {:ok, []}
+    {:ok, pid}
   end
 
-  # Info messages -----------------------------------------------------
+  def child_spec(opts) do
+    %{
+      id: __MODULE__,
+      start: {__MODULE__, :start_link, [opts]},
+      type: :worker,
+      restart: :permanent,
+      shutdown: 500
+    }
+  end
 
-  @impl true
-  def handle_info(:poll_action, state) do
+  defp poll_action() do
     Process.send_after(self(), :poll_action, @action_interval)
     poll_door_timer()
     decide_and_take_action()
-    {:noreply, state}
+    Process.sleep(@action_interval)
+    poll_action()
   end
 
   # Helpers ----------------------------------------------------------
