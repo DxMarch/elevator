@@ -2,19 +2,21 @@ defmodule Elevator.HallOrders do
   @moduledoc """
   Module responsible for all changes occuring to the hall_order part of the state.
   """
+  alias Elevator.HallOrders.Order
   alias Elevator.HallOrders.Scoring
-  alias Elevator.CabOrders
   alias Elevator.Communicator
   use GenServer
 
-  @type state_t :: Elevator.Types.hall_order_map()
-  @type hall_order_t :: Elevator.Types.hall_order_value()
+  @type hall_order_map :: Elevator.Types.hall_order_map()
+  @type floor :: Elevator.Types.floor()
+  @type hall_btn :: Elevator.Types.hall_btn()
 
   def start_link(arg) do
     GenServer.start_link(__MODULE__, arg, name: __MODULE__)
   end
 
-  @spec init(any()) :: {:ok, state_t()}
+  @impl true
+  @spec init(any()) :: {:ok, hall_order_map()}
   def init(num_floors) do
     top_floor = num_floors - 1
     state = Range.new(0, top_floor)
@@ -34,44 +36,51 @@ defmodule Elevator.HallOrders do
   Callback for receiving the hall order state from another node.
   Merges the states by updating the individual
   """
-  @spec receive_state(state_t()) :: :ok
+  @spec receive_state(hall_order_map()) :: :ok
   def receive_state(other_state), do: GenServer.cast(__MODULE__, {:receive_state, other_state})
 
   @doc """
   Callback for a button press.
   """
-  @spec button_press(non_neg_integer(), :hall_up | :hall_down) :: :ok
+  @spec button_press(floor(), hall_btn()) :: :ok
   def button_press(floor, button_type), do: GenServer.cast(__MODULE__, {:button_press, floor, button_type})
 
   @doc """
   Callback for clearing a floor.
   """
-  @spec arrived_at_floor(non_neg_integer(), :up | :down) :: :ok
+  @spec arrived_at_floor(floor(), :up | :down) :: :ok
   def arrived_at_floor(floor, direction) do
     GenServer.cast(__MODULE__, {:arrived_at_floor, floor, direction})
   end
 
+  @doc """
+  Retrieve the full hall order state map
+  """
+  @spec get_state() :: hall_order_map()
+  def get_state do
+    GenServer.call(__MODULE__, :get_state)
+  end
+
+  @doc """
+  Retrieve only the orders we are going to take.
+  """
   @spec get_my_orders() :: %{Elevator.Types.floor() => MapSet.t(Elevator.Types.hall_btn())}
   def get_my_orders do
     GenServer.call(__MODULE__, :get_my_orders)
   end
 
   @doc """
-  Retrieve the full hall order state map
-  """
-  @spec get_state() :: state_t()
-  def get_state do
-    GenServer.call(__MODULE__, :get_state)
-  end
-
-  @doc """
-  Get confirmed orders in same format as get_my_orders
+  Get all orders in same format as get_my_orders. 
+  These are the orders we turn the light on for.
   """
   @spec get_confirmed_orders() :: %{Elevator.Types.floor() => MapSet.t(Elevator.Types.hall_btn())}
   def get_confirmed_orders do
     GenServer.call(__MODULE__, :get_confirmed_orders)
   end
 
+  # Calls ------------------------------------------------------------
+
+  @impl true
   def handle_call(:get_my_orders, _from, order_map) do
     alive = Communicator.who_is_alive()
     my_orders = Enum.filter(order_map, fn {_, order_state} ->
@@ -86,17 +95,11 @@ defmodule Elevator.HallOrders do
         _ -> false
       end
     end)
-    |> Enum.map(fn {{floor, btn_type}, _} ->
-      {floor, btn_type}
-    end)
-    |> Enum.group_by(fn {floor, _} -> floor end)
-    |> Enum.map(fn {floor, order_list} ->
-      {floor, MapSet.new(Enum.map(order_list, fn {_, btn_type} -> btn_type end))}
-    end)
-    |> Enum.into(%{})
+    |> orders_by_floor()
     {:reply, my_orders, order_map}
   end
 
+  @impl true
   def handle_call(:get_confirmed_orders, _from, order_map) do
     confirmed_orders = Enum.filter(order_map, fn {_, order_state} -> 
       case order_state do
@@ -104,12 +107,7 @@ defmodule Elevator.HallOrders do
         _ -> false
       end
     end)
-    |> Enum.map(fn {{floor, btn_type}, _} -> {floor, btn_type} end)
-    |> Enum.group_by(fn {floor, _} -> floor end)
-    |> Enum.map(fn {floor, order_list} ->
-      {floor, MapSet.new(Enum.map(order_list, fn {_, btn_type} -> btn_type end))}
-    end)
-    |> Enum.into(%{})
+    |> orders_by_floor()
     {:reply, confirmed_orders, order_map}
   end
 
@@ -117,18 +115,22 @@ defmodule Elevator.HallOrders do
     {:reply, order_map, order_map}
   end
 
-  @spec handle_cast({:receive_state, state_t()}, state_t()) :: {:noreply, state_t(), {:continue, :hall_update_state}}
+  # Casts ------------------------------------------------------------
+
+  @impl true
+  @spec handle_cast({:receive_state, hall_order_map()}, hall_order_map()) :: {:noreply, hall_order_map(), {:continue, :hall_update_state}}
   def handle_cast({:receive_state, other_order_map}, order_map) do
     new_order_map = Map.keys(order_map)
     |> Enum.map(fn key ->
-      new_value = merge_ensure_self_in_barrier(order_map, order_map[key], other_order_map[key])
+      new_value = Order.merge_hall_orders(key, order_map[key], other_order_map[key])
       {key, new_value}
     end)
     |> Enum.into(%{})
     {:noreply, new_order_map, {:continue, :hall_update_state}}
   end
 
-  @spec handle_cast({:button_press, non_neg_integer(), :hall_up | :hall_down}, state_t()) :: {:noreply, state_t(), {:continue, :hall_update_state}}
+  @impl true
+  @spec handle_cast({:button_press, floor(), hall_btn()}, hall_order_map()) :: {:noreply, hall_order_map(), {:continue, :hall_update_state}}
   def handle_cast({:button_press, floor, direction}, order_map) do
     # If in idle or unknown, go to pending. Otherwise, ignore.
     key = {floor, direction}
@@ -144,6 +146,7 @@ defmodule Elevator.HallOrders do
     {:noreply, order_map, {:continue, :hall_update_state}}
   end
 
+  @impl true
   def handle_cast({:arrived_at_floor, floor, direction}, order_map) do
     # If in confirmed or unknown, go to idle. Otherwise, ignore.
     # TODO: Find out if barrier set should be full as well?
@@ -158,18 +161,20 @@ defmodule Elevator.HallOrders do
       _ ->
         order_map
     end
-    # For now, idle should not cause any further changes. So no continue here.
     {:noreply, order_map}
   end
+
+  # Continue ------------------------------------------------------------
 
   @doc """
   May advance some states, in which case continue is called until convergence.
   """
-  @spec handle_continue(:hall_update_state, state_t()) :: {:noreply, state_t()} | {:noreply, state_t(), {:continue, :hall_update_state}}
+  @impl true
+  @spec handle_continue(:hall_update_state, hall_order_map()) :: {:noreply, hall_order_map()} | {:noreply, hall_order_map(), {:continue, :hall_update_state}}
   def handle_continue(:hall_update_state, order_map) do
     {any_did_change, new_order_map} = Enum.reduce(order_map, {false, %{}},
       fn {key, button_state}, {acc_did_change, acc_order_map} ->
-        {did_change, new_button_state} = update_button_state(order_map, button_state)
+        {did_change, new_button_state} = Order.update_hall_order(key, button_state)
         {acc_did_change or did_change, Map.put(acc_order_map, key, new_button_state)}
       end)
     if any_did_change do
@@ -179,110 +184,15 @@ defmodule Elevator.HallOrders do
     end
   end
 
-  # Wrapper for merge_button_states that ensures Node.self() is in the barrier state.
-  defp merge_ensure_self_in_barrier(order_map, button_state, other_state) do
-    # pending -> confirmed -> give order_map as well
-    new_button_state = case {button_state, other_state} do
-      {{:pending, _}, {:confirmed, _, _}} ->
-        merge_button_states(button_state, other_state, order_map)
-      _ ->
-        merge_button_states(button_state, other_state)
-    end
-    case new_button_state do
-      {:pending, barrier_set} ->
-        {:pending, MapSet.put(barrier_set, Node.self())}
-      {:confirmed, score_map, barrier_set} ->
-        {:confirmed, score_map, MapSet.put(barrier_set, Node.self())}
-      _ -> new_button_state
-    end
-  end
-
-  # Unknown goes to any state
-  defp merge_button_states(:unknown, other_state) do
-    other_state
-  end
-
-  defp merge_button_states(my_state, :unknown) do
-    my_state
-  end
-
-  # Idle jumps to pending
-  defp merge_button_states(:idle, {:pending, barrier}) do
-    {:pending, barrier}
-  end
-
-  # Pending unions with other pending
-  defp merge_button_states({:pending, my_barrier}, {:pending, other_barrier}) do
-    {:pending, MapSet.union(my_barrier, other_barrier)}
-  end
-
-  # Idle cannot go to confirmed
-  defp merge_button_states(:idle, {:confirmed, _, _}) do
-    :idle
-  end
-
-  # Otherwise idle goes to anything
-  defp merge_button_states(:idle, other) do
-    other
-  end
-
-  # But confirmed goes to idle
-  defp merge_button_states({:confirmed, _, _}, :idle) do
-    # TODO: find out if barrier set must be full
-    :idle
-  end
-
-  defp merge_button_states(my_state, :idle) do
-    my_state
-  end
-
-  defp merge_button_states(
-    {:confirmed, my_score_map, my_barrier},
-    {:confirmed, other_score_map, other_barrier}
-  ) do
-    cond do
-      my_score_map == other_score_map ->
-        {:confirmed, my_score_map, MapSet.union(my_barrier, other_barrier)}
-      true ->
-        {:confirmed, Scoring.merge_scores(my_score_map, other_score_map), MapSet.new()}
-    end
-  end
-
-  defp merge_button_states(
-    {:confirmed, _, _} = my_state,
-    _
-  ) do
-    my_state
-  end
-
-  # Pending jumps to confirmed and computes score
-  defp merge_button_states(
-    {:pending, _},
-    {:confirmed, other_score_map, other_barrier},
-    order_map
-  ) do
-    cab_orders = CabOrders.get_my_orders()
-    my_score = Elevator.HallOrders.Scoring.compute_score(order_map, cab_orders)
-    my_score_map = Map.put(other_score_map, Node.self(), my_score)
-
-    if my_score_map == other_score_map do
-      {:confirmed, my_score_map, other_barrier}
-    else
-      {:confirmed, my_score_map, MapSet.new()}
-    end
-  end
-
-  @spec update_button_state(state_t(), hall_order_t()) :: {boolean(), hall_order_t()}
-  defp update_button_state(order_map, button_state) do
-    alive = Communicator.who_is_alive()
-    # TODO: Logic when confirmed barrier gets full?
-    case button_state do
-      {:pending, ^alive} ->
-        cab_orders = CabOrders.get_my_orders()
-        my_score = Elevator.HallOrders.Scoring.compute_score(order_map, cab_orders)
-        {true, {:confirmed, %{Node.self() => my_score}, MapSet.new([Node.self()])}}
-      _ ->
-        {false, button_state}
-    end
+  @type enum_orders :: Elevator.Types.hall_order_map() | Enumerable.t({Elevator.Types.hall_order_key(), Elevator.Types.hall_order_value()})
+  @spec orders_by_floor(enum_orders()) :: %{floor() => MapSet.t(hall_btn())}
+  defp orders_by_floor(orders) do
+    orders
+    |> Enum.map(fn {{floor, btn_type}, _} -> {floor, btn_type} end)
+    |> Enum.group_by(fn {floor, _} -> floor end)
+    |> Enum.map(fn {floor, order_list} ->
+      {floor, MapSet.new(Enum.map(order_list, fn {_, btn_type} -> btn_type end))}
+    end)
+    |> Enum.into(%{})
   end
 end
