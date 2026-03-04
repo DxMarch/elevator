@@ -92,23 +92,26 @@ defmodule Elevator.FSM do
 
   @impl true
   def handle_cast({:order_button_pressed, floor, btn}, state) do
-    case state.behavior do
+
+    new_state = case state.behavior do
       :door_open ->
         if Decision.should_clear_immediately?(state, floor, btn) do
-          {:noreply, open_door_and_restart_timer(state)}
+          open_door_and_restart_timer(state)
         else
           notify_button_press(floor, btn)
-          {:noreply, state}
+          state
         end
 
       :moving ->
         notify_button_press(floor, btn)
-        {:noreply, state}
+        state
 
       :idle ->
         notify_button_press(floor, btn)
-        {:noreply, decide_and_take_action(state)}
+        decide_and_take_action(state)
     end
+    set_all_lights()
+    {:noreply, new_state}
   end
 
   @impl true
