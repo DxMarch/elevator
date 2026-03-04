@@ -18,7 +18,6 @@ defmodule Elevator.CabOrders do
     {:ok, state}
   end
 
-
   @doc """
   Callback for getting the current cab orders state.
   """
@@ -61,37 +60,41 @@ defmodule Elevator.CabOrders do
     {:reply, state, state}
   end
 
-
   # --- Handle casts ---
 
   @spec handle_cast({:receive_state, state_t()}, state_t()) :: {:noreply, state_t()}
   def handle_cast({:receive_state, other_state}, state) do
-    new_state = Enum.reduce(other_state, state, fn {node_id, received}, acc ->
-      current = Map.get(state, node_id, %{version: -1, orders: MapSet.new()})
+    new_state =
+      Enum.reduce(other_state, state, fn {node_id, received}, acc ->
+        current = Map.get(state, node_id, %{version: -1, orders: MapSet.new()})
 
-      if received[:version] > current[:version] do
-        Map.put(acc, node_id, received)
-      else
-        acc
-      end
-    end)
+        if received[:version] > current[:version] do
+          Map.put(acc, node_id, received)
+        else
+          acc
+        end
+      end)
 
     {:noreply, new_state}
   end
 
   @spec handle_cast({:button_press, floor_t()}, state_t()) :: {:noreply, state_t()}
   def handle_cast({:button_press, floor}, state) do
-    new_state = Map.update!(state, Communicator.my_id(), fn %{version: old_version, orders: old_orders} ->
-      %{version: old_version + 1, orders: MapSet.put(old_orders, floor)}
-    end)
+    new_state =
+      Map.update!(state, Communicator.my_id(), fn %{version: old_version, orders: old_orders} ->
+        %{version: old_version + 1, orders: MapSet.put(old_orders, floor)}
+      end)
+
     {:noreply, new_state}
   end
 
   @spec handle_cast({:arrived_at_floor, floor_t()}, state_t()) :: {:noreply, state_t()}
   def handle_cast({:arrived_at_floor, floor}, state) do
-    new_state = Map.update!(state, Communicator.my_id(), fn %{version: old_version, orders: old_orders} ->
-      %{version: old_version + 1, orders: MapSet.delete(old_orders, floor)}
-    end)
+    new_state =
+      Map.update!(state, Communicator.my_id(), fn %{version: old_version, orders: old_orders} ->
+        %{version: old_version + 1, orders: MapSet.delete(old_orders, floor)}
+      end)
+
     {:noreply, new_state}
   end
 end

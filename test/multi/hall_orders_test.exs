@@ -9,12 +9,15 @@ defmodule Test.Multi.HallOrders do
     {_, node1} = start_and_wait_for_node(:elev1, communicator_resend)
     {_, node2} = start_and_wait_for_node(:elev2, communicator_resend)
 
-    :erpc.call(Node.self(), Test.Utils.TestCompiled, :start_order_modules, [Elevator.num_floors(), communicator_resend])
+    :erpc.call(Node.self(), Test.Utils.TestCompiled, :start_order_modules, [
+      Elevator.num_floors(),
+      communicator_resend
+    ])
 
     # Make a clique
     :erpc.call(node1, Node, :connect, [node2])
 
-    on_exit(fn -> 
+    on_exit(fn ->
       # Stop own supervisor
       if pid = Process.whereis(Elevator.Supervisor) do
         Process.monitor(pid)
@@ -86,7 +89,8 @@ defmodule Test.Multi.HallOrders do
     node2_state = :rpc.call(node2, HallOrders, :get_state, [])
     node3_state = :rpc.call(node3, HallOrders, :get_state, [])
 
-    assert node1_state == converged_state and node1_state == node2_state and node2_state == node3_state
+    assert node1_state == converged_state and node1_state == node2_state and
+             node2_state == node3_state
   end
 
   @tag :manual_sending
@@ -136,14 +140,17 @@ defmodule Test.Multi.HallOrders do
 
     assert map_size(node1_orders) + map_size(node2_orders) + map_size(node3_orders) == 1
 
-    who_arrives = cond do
-      map_size(node1_orders) == 1 ->
-        node1
-      map_size(node2_orders) == 1 ->
-        node2
-      map_size(node3_orders) == 1 ->
-        node3
-    end
+    who_arrives =
+      cond do
+        map_size(node1_orders) == 1 ->
+          node1
+
+        map_size(node2_orders) == 1 ->
+          node2
+
+        map_size(node3_orders) == 1 ->
+          node3
+      end
 
     :rpc.call(who_arrives, HallOrders, :arrived_at_floor, [2, :up])
 
@@ -189,14 +196,20 @@ defmodule Test.Multi.HallOrders do
   end
 
   defp start_and_wait_for_node(name, communicator_resend) do
-    {:ok, peer, node} = :peer.start_link(%{
-      name: name, 
-      name_domain: :shortnames
-    })
+    {:ok, peer, node} =
+      :peer.start_link(%{
+        name: name,
+        name_domain: :shortnames
+      })
 
     wait_until_connected([node])
     :rpc.call(node, :code, :add_paths, [:code.get_path()])
-    :erpc.call(node, Test.Utils.TestCompiled, :start_order_modules, [Elevator.num_floors(), communicator_resend])
+
+    :erpc.call(node, Test.Utils.TestCompiled, :start_order_modules, [
+      Elevator.num_floors(),
+      communicator_resend
+    ])
+
     {peer, node}
   end
 
@@ -212,6 +225,7 @@ defmodule Test.Multi.HallOrders do
       if System.monotonic_time(:millisecond) > deadline do
         flunk("Test timed out waiting for nodes")
       end
+
       Process.sleep(50)
       wait_loop(nodes, deadline)
     end

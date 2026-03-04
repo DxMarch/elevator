@@ -32,15 +32,15 @@ defmodule Elevator.Types do
         }
 
   @type cab_orders_snapshot :: %{
-    version: non_neg_integer(),
-    orders: MapSet.t(floor())
-  }
+          version: non_neg_integer(),
+          orders: MapSet.t(floor())
+        }
 
   @type cab_order_map :: %{
-    node() => cab_orders_snapshot()
-  }
+          node() => cab_orders_snapshot()
+        }
 
   @type combined_order_map :: %{
-    floor() => MapSet.t(btn_type())
-  }
+          floor() => MapSet.t(btn_type())
+        }
 end

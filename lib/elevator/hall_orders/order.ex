@@ -19,16 +19,20 @@ defmodule Elevator.HallOrders.Order do
   @doc """
   Update a hall order based on an incoming hall order from another node.
   """
-  @spec merge_hall_orders(hall_order_key(), hall_order_value(), hall_order_value()) :: hall_order_value()
+  @spec merge_hall_orders(hall_order_key(), hall_order_value(), hall_order_value()) ::
+          hall_order_value()
   def merge_hall_orders(button_key, button_state, other_state) do
     new_button_state = merge_orders(button_key, button_state, other_state)
     # Ensure self is in any barrier set.
     case new_button_state do
       {:pending, barrier_set} ->
         {:pending, MapSet.put(barrier_set, Node.self())}
+
       {:confirmed, score_map, barrier_set} ->
         {:confirmed, score_map, MapSet.put(barrier_set, Node.self())}
-      _ -> new_button_state
+
+      _ ->
+        new_button_state
     end
   end
 
@@ -40,10 +44,12 @@ defmodule Elevator.HallOrders.Order do
   @spec update_hall_order(hall_order_key(), hall_order_value()) :: {boolean(), hall_order_value()}
   def update_hall_order(key, button_state) do
     alive = Communicator.who_is_alive()
+
     case button_state do
       {:pending, ^alive} ->
         my_score = Scoring.compute_score(key)
         {true, {:confirmed, %{Node.self() => my_score}, MapSet.new([Node.self()])}}
+
       _ ->
         {false, button_state}
     end
@@ -54,15 +60,19 @@ defmodule Elevator.HallOrders.Order do
     case {my_state, other_state} do
       {:unknown, _} ->
         other_state
+
       {my_state, :unknown} ->
         my_state
 
       {:idle, {:confirmed, _, _}} ->
         :idle
+
       {:idle, _} ->
         other_state
+
       {{:confirmed, _, _}, :idle} ->
         :idle
+
       {_, :idle} ->
         my_state
 
@@ -71,8 +81,10 @@ defmodule Elevator.HallOrders.Order do
 
       {{:confirmed, score_map, my_barrier}, {:confirmed, score_map, other_barrier}} ->
         {:confirmed, score_map, MapSet.union(my_barrier, other_barrier)}
+
       {{:confirmed, my_score_map, _}, {:confirmed, other_score_map, _}} ->
         {:confirmed, Scoring.merge_scores(my_score_map, other_score_map), MapSet.new()}
+
       {{:confirmed, _, _}, _} ->
         my_state
 
@@ -80,6 +92,7 @@ defmodule Elevator.HallOrders.Order do
         my_score = Scoring.compute_score({floor, button_type})
         my_score_map = Map.put(score_map, Node.self(), my_score)
         {:confirmed, my_score_map, MapSet.new()}
+
       _ ->
         my_state
     end
