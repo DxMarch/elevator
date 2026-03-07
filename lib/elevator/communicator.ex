@@ -3,6 +3,7 @@ defmodule Elevator.Communicator do
   Module responsible for all communication with other elevators.
   """
 
+  alias Elevator
   alias Elevator.CabOrders
   alias Elevator.HallOrders
 
@@ -44,9 +45,15 @@ defmodule Elevator.Communicator do
   # TODO: decide on this
   def my_id, do: Node.self()
 
+  @doc """
+  Returns a set of alive nodes that are both:
+  a) Connected
+  AND
+  b) Have sent a message within the cutoff period
+  """
   @spec who_is_alive() :: MapSet.t()
   def who_is_alive do
-    MapSet.new([Node.self()] ++ Node.list(:connected))
+    GenServer.call(__MODULE__, :who_is_alive)
   end
 
   @doc """
@@ -101,6 +108,22 @@ defmodule Elevator.Communicator do
 
   def handle_call(:self, _, state) do
     {:reply, my_id(), state}
+  end
+
+  def handle_call(:who_is_alive, _from, state) do
+    cutoff_ms = Elevator.msg_ts_cutoff()
+
+    communcating_nodes =
+      state.connected_nodes
+      |> Map.filter(fn {_k, timestamp} -> Time.diff(Time.utc_now(), timestamp, :millisecond) < cutoff_ms end)
+      |> Map.keys()
+      |> MapSet.new()
+
+    alive_nodes =
+      MapSet.intersection(MapSet.new(Node.list(:connected)), communcating_nodes)
+      |> MapSet.put(my_id())
+
+    {:reply, alive_nodes, state}
   end
 
   # --- Handle casts ---
