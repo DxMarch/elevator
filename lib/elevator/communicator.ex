@@ -30,6 +30,8 @@ defmodule Elevator.Communicator do
       Process.send_after(self(), :log_debug, 1000)
     end
 
+    :net_kernel.monitor_nodes(true)
+
     state = %{
       operational: true,
       connected_nodes: Map.from_keys(Node.list(:connected), Time.utc_now())
@@ -84,16 +86,23 @@ defmodule Elevator.Communicator do
     schedule_state_broadcast()
 
     if Process.whereis(CabOrders) && Process.whereis(HallOrders) do
-      cab_state = CabOrders.get_state()
-      hall_state = HallOrders.get_state()
+      Task.start(fn ->
+        cab_state = CabOrders.get_state()
+        hall_state = HallOrders.get_state()
 
-      Node.list(:connected)
-      |> Enum.each(fn ext_node ->
-        GenServer.cast({__MODULE__, ext_node}, {:state_update, my_id(), hall_state, cab_state})
+        Node.list(:connected)
+        |> Enum.each(fn ext_node ->
+          GenServer.cast({__MODULE__, ext_node}, {:state_update, my_id(), hall_state, cab_state})
+        end)
       end)
     end
 
     {:noreply, state}
+  end
+
+  # Update the state map when a new node connects
+  def handle_info({:nodeup, node}, state) do
+    {:noreply, update_state_map(state, node)}
   end
 
   def handle_info(:log_debug, state) do
@@ -115,7 +124,9 @@ defmodule Elevator.Communicator do
 
     communcating_nodes =
       state.connected_nodes
-      |> Map.filter(fn {_k, timestamp} -> Time.diff(Time.utc_now(), timestamp, :millisecond) < cutoff_ms end)
+      |> Map.filter(fn {_k, timestamp} ->
+        Time.diff(Time.utc_now(), timestamp, :millisecond) < cutoff_ms
+      end)
       |> Map.keys()
       |> MapSet.new()
 
