@@ -2,7 +2,7 @@ defmodule Elevator.HallOrders.Order do
   @moduledoc """
   Logic concerning a single Hall Order.
 
-  A hall order is tied to a floor and direction (up/down). It is essentially 
+  A hall order is tied to a floor and direction (up/down). It is essentially
   one of the hall buttons. It is in one of the following states:
   - unknown: Initial, will transition to any state. Light: off
   - idle: No known order. Light: off
@@ -38,7 +38,7 @@ defmodule Elevator.HallOrders.Order do
 
   @doc """
   Maybe update a hall order based on its own state.
-  This may happen for example when the order autonomously transitions from pending to 
+  This may happen for example when the order autonomously transitions from pending to
   confirmed when only one elevator is alive.
   """
   @spec update_hall_order(hall_order_key(), hall_order_value()) :: {boolean(), hall_order_value()}
@@ -79,11 +79,17 @@ defmodule Elevator.HallOrders.Order do
       {{:pending, my_barrier}, {:pending, other_barrier}} ->
         {:pending, MapSet.union(my_barrier, other_barrier)}
 
-      {{:confirmed, score_map, my_barrier}, {:confirmed, score_map, other_barrier}} ->
-        {:confirmed, score_map, MapSet.union(my_barrier, other_barrier)}
+      # {{:confirmed, score_map, my_barrier}, {:confirmed, score_map, other_barrier}} ->
+      #   {:confirmed, score_map, MapSet.union(my_barrier, other_barrier)}
 
-      {{:confirmed, my_score_map, _}, {:confirmed, other_score_map, _}} ->
-        {:confirmed, Scoring.merge_scores(my_score_map, other_score_map), MapSet.new()}
+      # {{:confirmed, my_score_map, _}, {:confirmed, other_score_map, _}} ->
+      #   {:confirmed, Scoring.merge_scores(my_score_map, other_score_map), MapSet.new()}
+
+      {{:confirmed, my_score_map, my_barrier}, {:confirmed, other_score_map, other_barrier}} ->
+        # Always union barriers, even when score maps differ, so the barrier
+        # accumulates correctly as scores converge through exchanges.
+        {:confirmed, Scoring.merge_scores(my_score_map, other_score_map),
+         MapSet.union(my_barrier, other_barrier)}
 
       {{:confirmed, _, _}, _} ->
         my_state
