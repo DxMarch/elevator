@@ -1,5 +1,10 @@
 # TTK4145 Elevator
 
+### LOC stats (Elixir)
+**Lib:** <!-- LIB_COUNT -->?<!-- END_LIB_COUNT -->\
+**Test:** <!-- TEST_COUNT -->?<!-- END_TEST_COUNT -->
+
+
 ## Running nodes
 
 Copy `.env.example` to `.env` and fill in the values, then:

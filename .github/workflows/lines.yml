@@ -1,19 +1,37 @@
 name: Line count
 on:
-  pull_request:
+  push:
     branches: [main]
 jobs:
   update_readme:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    defaults:
+      run:
+        shell: bash
+        working-directory: ./scripts
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       
-      - name: Install cloc
-        run: sudo apt install cloc
-
-      - name: Install jq
-        run: sudo apt install jq
+      - name: Install dependencies
+        run: |
+          apt-get update
+          apt-get install -y cloc jq
 
       - name: Count lines of code and update README
-        run:  chmod +x ./scripts/cloc_and_update_readme.sh
+        run:  chmod +x ./cloc_and_update_readme.sh && ./cloc_and_update_readme.sh 
         
+      - name: Commit and push changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          
+          git add ../README.md 
+          
+          if git diff --staged --quiet; then
+            echo "No changes to line count."
+          else
+            git commit -m "docs: update line count (auto) [skip ci]"
+            git push
+          fi
