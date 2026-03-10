@@ -219,7 +219,7 @@ defmodule Test.Multi.HallOrders do
   end
 
   defp wait_loop(nodes, deadline) do
-    if Enum.all?(nodes, fn node -> MapSet.member?(Communicator.who_is_alive(), node) end) do
+    if Enum.all?(nodes, fn node -> node in Node.list(:connected) end) do
       true
     else
       if System.monotonic_time(:millisecond) > deadline do

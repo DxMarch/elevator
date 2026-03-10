@@ -3,6 +3,7 @@ defmodule Elevator do
   # ms
   @resend_period 10
   @light_period 50
+  @msg_ts_cutoff 1000
 
   def num_floors do
     @num_floors
@@ -14,5 +15,9 @@ defmodule Elevator do
 
   def light_period do
     @light_period
+  end
+
+  def msg_ts_cutoff do
+    @msg_ts_cutoff
   end
 end
