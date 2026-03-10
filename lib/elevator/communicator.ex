@@ -105,6 +105,11 @@ defmodule Elevator.Communicator do
     {:noreply, update_state_map(state, node)}
   end
 
+  # Delete node from state map on disconnect
+  def handle_info({:nodedown, node}, state) do
+    {:noreply, Map.delete(state.connected_nodes, node)}
+  end
+
   def handle_info(:log_debug, state) do
     Process.send_after(self(), :log_debug, 1000)
     Logger.debug("My id: #{my_id()}")
