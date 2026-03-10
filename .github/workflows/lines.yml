@@ -16,8 +16,8 @@ jobs:
       
       - name: Install dependencies
         run: |
-          apt-get update
-          apt-get install -y cloc jq
+          sudo apt-get update
+          sudo apt-get install -y cloc jq
 
       - name: Count lines of code and update README
         run:  chmod +x ./cloc_and_update_readme.sh && ./cloc_and_update_readme.sh 
