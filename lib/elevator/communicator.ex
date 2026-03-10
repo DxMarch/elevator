@@ -20,8 +20,6 @@ defmodule Elevator.Communicator do
     GenServer.start_link(__MODULE__, arg, name: __MODULE__)
   end
 
-  @spec init() :: {:ok, state_t()}
-  @spec init(communicator_options()) :: {:ok, state_t()}
   def init(opts \\ [do_resend: true, do_logging: false]) do
     if Keyword.get(opts, :do_resend, true) do
       schedule_state_broadcast()

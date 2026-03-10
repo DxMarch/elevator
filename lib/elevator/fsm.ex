@@ -111,14 +111,11 @@ defmodule Elevator.FSM do
           decide_and_take_action(state)
       end
 
-    set_all_lights()
     {:noreply, new_state}
   end
 
   @impl true
   def handle_cast(:hall_orders_updated, state) do
-    set_all_lights()
-
     new_state =
       if state.behavior == :idle do
         decide_and_take_action(state)
@@ -138,12 +135,6 @@ defmodule Elevator.FSM do
     else
       HallOrders.button_press(floor, btn)
     end
-  end
-
-  defp get_light_orders() do
-    hall_orders = HallOrders.get_confirmed_orders()
-    pressed_cab_floors = CabOrders.get_my_orders()
-    Decision.combine_hall_and_cab(hall_orders, pressed_cab_floors)
   end
 
   defp get_my_orders() do
@@ -178,17 +169,6 @@ defmodule Elevator.FSM do
         cancel_door_timer(state.door_timer)
         Driver.set_motor_direction(:stop)
         %{state | direction: new_direction, behavior: new_behavior, door_timer: nil}
-    end
-  end
-
-  @spec set_all_lights() :: any()
-  defp set_all_lights() do
-    orders = get_light_orders()
-
-    for floor <- 0..(Elevator.num_floors() - 1), btn <- Types.btn_types() do
-      lights = Map.get(orders, floor, MapSet.new())
-      state = if MapSet.member?(lights, btn), do: :on, else: :off
-      Driver.set_order_button_light(btn, floor, state)
     end
   end
 

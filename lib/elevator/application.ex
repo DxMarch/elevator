@@ -11,6 +11,7 @@ defmodule Elevator.Application do
       {Elevator.HallOrders, Elevator.num_floors()},
       Elevator.CabOrders,
       {Elevator.Driver, [{127, 0, 0, 1}, driver_port]},
+      Elevator.Lights,
       Elevator.Poller,
       Elevator.FSM
     ]
