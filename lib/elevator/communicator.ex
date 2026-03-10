@@ -61,7 +61,7 @@ defmodule Elevator.Communicator do
   @doc """
   Updates the operational key in the state map.
   """
-  @spec update_operation_status(boolean()) :: state_t()
+  @spec update_operation_status(boolean()) :: :ok
   def update_operation_status(status) do
     GenServer.cast(__MODULE__, {:update_operation_status, status})
   end
