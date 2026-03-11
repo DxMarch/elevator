@@ -10,7 +10,7 @@ defmodule Elevator.FSM.Action do
   alias Elevator.Decision
 
   @door_open_time 1000
-  @action_interval 200
+  @action_interval 100
 
   def start_link(_arg) do
     pid = spawn_link(fn -> poll_action() end)
@@ -49,19 +49,17 @@ defmodule Elevator.FSM.Action do
 
     state = State.get_state()
     {new_direction, new_behavior} = Decision.next_action(orders, state)
-    # Logger.debug( "Deciding on behavior from state:\n #{inspect(state)}\n Orders: #{inspect(orders)}")
+    # Logger.debug("Deciding on behavior from state:\n #{inspect(state)}\n Orders: #{inspect(orders)}")
     # Logger.debug("Got behavior #{new_direction} and #{new_behavior}")
 
     cond do
-      state.between_floors or state.behavior == :door_open ->
-        nil
-
-      new_behavior == :door_open ->
+      state.behavior == :door_open ->
         CabOrders.arrived_at_floor(state.floor)
         HallOrders.arrived_at_floor(state.floor, new_direction)
 
+      new_behavior == :door_open ->
+        State.open_door()
         State.set_direction(new_direction)
-        open_door_and_restart_timer()
 
       new_behavior == :moving ->
         State.set_direction(new_direction)
@@ -78,10 +76,5 @@ defmodule Elevator.FSM.Action do
     if state.behavior == :door_open and Time.after?(Time.utc_now(), Time.add(state.door_open_time, @door_open_time, :millisecond)) do
       State.set_behavior(:idle)
     end
-  end
-
-  defp open_door_and_restart_timer() do
-    State.set_behavior(:door_open)
-    State.set_door_open_time(Time.utc_now())
   end
 end

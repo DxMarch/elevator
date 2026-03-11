@@ -3,6 +3,7 @@ defmodule Elevator.FSM.State do
   Module storing the elevator state.
   """
   require Logger
+  alias Elevator.Hardware.Outputs
   alias Elevator.Hardware.Driver
   alias Elevator.Types
 
@@ -29,7 +30,7 @@ defmodule Elevator.FSM.State do
         %{state | floor: floor, between_floors: false}
       end
 
-    {:ok, state}
+    {:ok, state, {:continue, :set_outputs}}
   end
 
   def start_link(_args) do
@@ -48,8 +49,8 @@ defmodule Elevator.FSM.State do
     GenServer.cast(__MODULE__, {:set_behavior, behavior})
   end
 
-  def set_door_open_time(door_open_time) do
-    GenServer.cast(__MODULE__, {:set_door_open_time, door_open_time})
+  def open_door() do
+    GenServer.cast(__MODULE__, :open_door)
   end
 
   def get_state() do
@@ -65,23 +66,39 @@ defmodule Elevator.FSM.State do
       _ ->
         %{state | between_floors: false, floor: floor}
     end
-    {:noreply, new_state}
+    {:noreply, new_state, {:continue, :set_outputs}}
   end
 
   @impl true
   def handle_cast({:set_direction, dir}, state) do
-    {:noreply, %{state | direction: dir}}
+    {:noreply, %{state | direction: dir}, {:continue, :set_outputs}}
   end
 
   @impl true
   def handle_cast({:set_behavior, behavior}, state) do
-    {:noreply, %{state | behavior: behavior}}
+    {:noreply, %{state | behavior: behavior}, {:continue, :set_outputs}}
   end
 
+  @impl true
   def handle_cast({:set_door_open_time, door_open_time}, state) do
-    {:noreply, %{state | door_open_time: door_open_time}}
+    {:noreply, %{state | door_open_time: door_open_time}, {:continue, :set_outputs}}
   end
 
+  @impl true 
+  def handle_cast(:open_door, state) do
+    new_state = if state.between_floors do
+      state
+    else
+      %{state | behavior: :door_open, door_open_time: Time.utc_now()}
+    end
+    {:noreply, new_state, {:continue, :set_outputs}}
+  end
+
+  @impl true
+  def handle_continue(:set_outputs, state) do
+    Outputs.set_outputs(state)
+    {:noreply, state}
+  end
 
   # Calls ----------------------------------------
   @impl true

@@ -14,7 +14,6 @@ defmodule Elevator.Application do
       Elevator.FSM.State,
       Elevator.FSM.Action,
       Elevator.Hardware.InputPoller,
-      Elevator.Hardware.OutputPoller,
     ]
 
     opts = [strategy: :one_for_one, name: Elevator.Supervisor]

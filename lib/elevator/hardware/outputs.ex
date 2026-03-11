@@ -1,4 +1,4 @@
-defmodule Elevator.Hardware.OutputPoller do
+defmodule Elevator.Hardware.Outputs do
   @moduledoc """
   Watches current state and controls the physical elevator. 
   """
@@ -10,37 +10,20 @@ defmodule Elevator.Hardware.OutputPoller do
   alias Elevator.Hardware.Driver
   alias Elevator.Types
 
-  @output_poll_interval 50
-
-  def start_link(_arg) do
+  def init() do
     Driver.set_stop_button_light(:off)
     Driver.set_door_open_light(:off)
     Driver.set_motor_direction(:stop)
-
-    pid = spawn_link(fn -> loop() end)
-
-    {:ok, pid}
   end
 
-  def child_spec(opts) do
-    %{
-      id: __MODULE__,
-      start: {__MODULE__, :start_link, [opts]},
-      type: :worker,
-      restart: :permanent,
-      shutdown: 500
-    }
-  end
-
-  defp loop() do
-    state = Elevator.FSM.State.get_state()
-    orders = get_light_orders()
-    set_order_lights(orders)
+  def set_outputs(state) do
     set_door_light(state)
     set_motors(state)
-    Process.sleep(@output_poll_interval)
-    loop()
+    set_floor_light(state)
+    orders = get_light_orders()
+    set_order_lights(orders)
   end
+
 
   defp set_motors(elev_state) do
     case elev_state.behavior do
@@ -49,6 +32,10 @@ defmodule Elevator.Hardware.OutputPoller do
       _ ->
         Driver.set_motor_direction(:stop)
     end
+  end
+
+  defp set_floor_light(state) do
+    Driver.set_floor_indicator(state.floor)
   end
 
   defp get_light_orders() do

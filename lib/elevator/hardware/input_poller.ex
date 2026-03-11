@@ -11,7 +11,7 @@ defmodule Elevator.Hardware.InputPoller do
   alias Elevator.Hardware.Driver
 
   @floor_poll_interval 50
-  @button_poll_interval 20
+  @button_poll_interval 50
 
   # Public API
   def start_link(_opts) do
