@@ -93,12 +93,10 @@ defmodule Elevator.Communicator do
         hall_state = HallOrders.get_state()
 
         Node.list(:connected)
-        |> Enum.each(fn ext_node ->
-          GenServer.cast(
-            {__MODULE__, ext_node},
-            {:state_update, my_id(), state.operational, hall_state, cab_state}
-          )
-        end)
+        |> GenServer.abcast(
+          __MODULE__,
+          {:state_update, my_id(), state.operational, hall_state, cab_state}
+        )
       end)
     end
 
