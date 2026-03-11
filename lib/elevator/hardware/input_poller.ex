@@ -26,7 +26,7 @@ defmodule Elevator.Hardware.InputPoller do
 
     {:ok,
      %{
-       prev_buttons: MapSet.new(),
+       prev_buttons: MapSet.new()
      }}
   end
 
@@ -59,8 +59,9 @@ defmodule Elevator.Hardware.InputPoller do
 
     Enum.each(new_presses, fn {floor, btn} ->
       case btn do
-        :cab -> 
+        :cab ->
           CabOrders.button_press(floor)
+
         hall_btn ->
           HallOrders.button_press(floor, hall_btn)
       end
@@ -68,6 +69,7 @@ defmodule Elevator.Hardware.InputPoller do
 
     {:noreply, %{state | prev_buttons: current_buttons}}
   end
+
   # Helpers
 
   defp get_pressed_buttons_at_floor(floor) do

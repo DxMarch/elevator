@@ -46,6 +46,7 @@ defmodule Elevator.Hardware.OutputPoller do
     case elev_state.behavior do
       :moving ->
         Driver.set_motor_direction(elev_state.direction)
+
       _ ->
         Driver.set_motor_direction(:stop)
     end
@@ -67,9 +68,11 @@ defmodule Elevator.Hardware.OutputPoller do
 
   defp set_door_light(elev_state) do
     behavior = elev_state.behavior
+
     case behavior do
       :door_open ->
         Driver.set_door_open_light(:on)
+
       _ ->
         Driver.set_door_open_light(:off)
     end
