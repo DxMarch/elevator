@@ -3,7 +3,7 @@ defmodule Elevator.HallOrders do
   Module responsible for all changes occuring to the hall_order part of the state.
   """
   alias Elevator.HallOrders.Order
-  alias Elevator.HallOrders.Scoring
+  alias Elevator.HallOrders.Cost
   alias Elevator.Communicator
   require Logger
   use GenServer
@@ -226,12 +226,12 @@ defmodule Elevator.HallOrders do
   defp my_orders_from_order_map(order_map, alive) do
     Enum.filter(order_map, fn {_, order_state} ->
       case order_state do
-        {:confirmed, score_map, barrier_set} ->
+        {:confirmed, cost_map, barrier_set} ->
           # Hmm.
           if MapSet.intersection(barrier_set, alive) != alive do
             false
           else
-            Scoring.max_alive_score(score_map, alive) == Node.self()
+            Cost.min_alive_cost(cost_map, alive) == Node.self()
           end
 
         _ ->

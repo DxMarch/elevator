@@ -1,12 +1,14 @@
-defmodule Elevator.HallOrders.Scoring do
+defmodule Elevator.HallOrders.Cost do
   alias Elevator.CabOrders
   require Logger
 
   @doc """
   Maybe even random numbers?
   """
-  def compute_score({floor, btn_dir}, my_hall_orders) do
+  def compute_cost({floor, btn_dir}, my_hall_orders) do
     state = Elevator.FSM.State.get_state()
+
+    # Represent state and orders in the format expected by time_to_serve
     cab_orders = CabOrders.get_my_orders()
     behavior_str = [idle: "idle", moving: "moving", door_open: "doorOpen"][state.behavior]
 
@@ -44,33 +46,40 @@ defmodule Elevator.HallOrders.Scoring do
     end
   end
 
-  def merge_scores(score_map_1, score_map_2) do
-    MapSet.new(Map.keys(score_map_1) ++ Map.keys(score_map_2))
+  @doc """
+  Merge two cost maps. 
+  Uses pessimistic merge: If two conflicting costs for the same node are found, keep the higher one.
+  """
+  def merge_cost(cost_map_1, cost_map_2) do
+    MapSet.new(Map.keys(cost_map_1) ++ Map.keys(cost_map_2))
     |> Enum.map(fn node ->
       cond do
-        Map.has_key?(score_map_1, node) and Map.has_key?(score_map_2, node) ->
-          score_1 = score_map_1[node]
-          score_2 = score_map_2[node]
-          {node, max(score_1, score_2)}
+        Map.has_key?(cost_map_1, node) and Map.has_key?(cost_map_2, node) ->
+          cost_1 = cost_map_1[node]
+          cost_2 = cost_map_2[node]
+          {node, max(cost_1, cost_2)}
 
-        Map.has_key?(score_map_1, node) ->
-          {node, score_map_1[node]}
+        Map.has_key?(cost_map_1, node) ->
+          {node, cost_map_1[node]}
 
         true ->
-          {node, score_map_2[node]}
+          {node, cost_map_2[node]}
       end
     end)
     |> Enum.into(%{})
   end
 
-  def max_alive_score(score_map, alive_set) do
-    alive_scores = Enum.filter(score_map, fn {node, _} -> MapSet.member?(alive_set, node) end)
+  @doc """
+  Returns the node with the lowest cost for a given cost map and alive set.
+  """
+  def min_alive_cost(cost_map, alive_set) do
+    alive_costs = Enum.filter(cost_map, fn {node, _} -> MapSet.member?(alive_set, node) end)
 
-    {max_node, _} =
-      Enum.min(alive_scores, fn {node1, score1}, {node2, score2} ->
-        score1 < score2 or (score1 == score2 and node1 < node2)
+    {min_node, _} =
+      Enum.min(alive_costs, fn {node1, cost1}, {node2, cost2} ->
+        cost1 < cost2 or (cost1 == cost2 and node1 < node2)
       end)
 
-    max_node
+    min_node
   end
 end

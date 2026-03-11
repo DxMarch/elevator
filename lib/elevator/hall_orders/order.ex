@@ -11,7 +11,7 @@ defmodule Elevator.HallOrders.Order do
   """
 
   alias Elevator.Types
-  alias Elevator.HallOrders.Scoring
+  alias Elevator.HallOrders.Cost
   alias Elevator.Communicator
 
   @type hall_order_key :: Elevator.Types.hall_order_key()
@@ -31,8 +31,8 @@ defmodule Elevator.HallOrders.Order do
       {:pending, barrier_set} ->
         {:pending, MapSet.put(barrier_set, Node.self())}
 
-      {:confirmed, score_map, barrier_set} ->
-        {:confirmed, score_map, MapSet.put(barrier_set, Node.self())}
+      {:confirmed, cost_map, barrier_set} ->
+        {:confirmed, cost_map, MapSet.put(barrier_set, Node.self())}
 
       _ ->
         new_button_state
@@ -52,8 +52,8 @@ defmodule Elevator.HallOrders.Order do
 
     case button_state do
       {:pending, ^alive} ->
-        my_score = Scoring.compute_score(key, confirmed_hall_orders)
-        {true, {:confirmed, %{Node.self() => my_score}, MapSet.new([Node.self()])}}
+        my_cost = Cost.compute_cost(key, confirmed_hall_orders)
+        {true, {:confirmed, %{Node.self() => my_cost}, MapSet.new([Node.self()])}}
 
       _ ->
         {false, button_state}
@@ -90,19 +90,19 @@ defmodule Elevator.HallOrders.Order do
       # {{:confirmed, my_score_map, _}, {:confirmed, other_score_map, _}} ->
       #   {:confirmed, Scoring.merge_scores(my_score_map, other_score_map), MapSet.new()}
 
-      {{:confirmed, my_score_map, my_barrier}, {:confirmed, other_score_map, other_barrier}} ->
-        # Always union barriers, even when score maps differ, so the barrier
-        # accumulates correctly as scores converge through exchanges.
-        {:confirmed, Scoring.merge_scores(my_score_map, other_score_map),
+      {{:confirmed, my_cost_map, my_barrier}, {:confirmed, other_cost_map, other_barrier}} ->
+        # Always union barriers, even when cost maps differ, so the barrier
+        # accumulates correctly as costs converge through exchanges.
+        {:confirmed, Cost.merge_cost(my_cost_map, other_cost_map),
          MapSet.union(my_barrier, other_barrier)}
 
       {{:confirmed, _, _}, _} ->
         my_state
 
-      {{:pending, _}, {:confirmed, score_map, _}} ->
-        my_score = Scoring.compute_score({floor, button_type}, my_hall_orders)
-        my_score_map = Map.put(score_map, Node.self(), my_score)
-        {:confirmed, my_score_map, MapSet.new()}
+      {{:pending, _}, {:confirmed, cost_map, _}} ->
+        my_cost = Cost.compute_cost({floor, button_type}, my_hall_orders)
+        my_cost_map = Map.put(cost_map, Node.self(), my_cost)
+        {:confirmed, my_cost_map, MapSet.new()}
 
       _ ->
         my_state
