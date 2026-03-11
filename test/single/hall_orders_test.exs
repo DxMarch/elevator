@@ -4,6 +4,7 @@ defmodule Test.Single.HallOrders do
   # doctest Elevator
 
   setup_all do
+    start_supervised!(Elevator.FSM.State)
     start_supervised!(Elevator.Communicator)
     start_supervised!(Elevator.CabOrders)
     start_supervised!({Elevator.HallOrders, Elevator.num_floors()})

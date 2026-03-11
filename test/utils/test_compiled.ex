@@ -7,7 +7,8 @@ defmodule Test.Utils.TestCompiled do
     children = [
       {Elevator.Communicator, [do_resend: do_resend]},
       Elevator.CabOrders,
-      {Elevator.HallOrders, num_floors}
+      {Elevator.HallOrders, num_floors},
+      Elevator.FSM.State
     ]
 
     opts = [strategy: :one_for_one, name: Elevator.Supervisor]

@@ -23,11 +23,14 @@ defmodule Elevator.Hardware.Outputs do
     set_door_light(state)
     set_motors(state)
     set_floor_light(state)
-    orders = get_light_orders()
-    set_order_lights(orders)
 
     operational? = !((state.behavior == :door_open and state.obstructed) or state.motor_timed_out)
     Communicator.update_operation_status(operational?)
+
+    Task.start(fn ->
+      orders = get_light_orders()
+      set_order_lights(orders)
+    end)
   end
 
   defp set_motors(elev_state) do

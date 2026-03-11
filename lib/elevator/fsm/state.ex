@@ -31,16 +31,7 @@ defmodule Elevator.FSM.State do
 
   @impl true
   def init(_arg) do
-    floor = Driver.get_floor_sensor_state()
     state = %Elevator.FSM.State{}
-
-    state =
-      if floor == :between_floors do
-        %{state | direction: :down, behavior: :moving, between_floors: true}
-      else
-        %{state | floor: floor, between_floors: false}
-      end
-
     {:ok, state, {:continue, :set_outputs}}
   end
 
