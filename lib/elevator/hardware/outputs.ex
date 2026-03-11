@@ -24,11 +24,11 @@ defmodule Elevator.Hardware.Outputs do
     set_order_lights(orders)
   end
 
-
   defp set_motors(elev_state) do
     case elev_state.behavior do
       :moving ->
         Driver.set_motor_direction(elev_state.direction)
+
       _ ->
         Driver.set_motor_direction(:stop)
     end
@@ -54,9 +54,11 @@ defmodule Elevator.Hardware.Outputs do
 
   defp set_door_light(elev_state) do
     behavior = elev_state.behavior
+
     case behavior do
       :door_open ->
         Driver.set_door_open_light(:on)
+
       _ ->
         Driver.set_door_open_light(:off)
     end

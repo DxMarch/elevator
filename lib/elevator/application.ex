@@ -13,7 +13,7 @@ defmodule Elevator.Application do
       {Elevator.Hardware.Driver, [{127, 0, 0, 1}, driver_port]},
       Elevator.FSM.State,
       Elevator.FSM.Action,
-      Elevator.Hardware.InputPoller,
+      Elevator.Hardware.InputPoller
     ]
 
     opts = [strategy: :one_for_one, name: Elevator.Supervisor]

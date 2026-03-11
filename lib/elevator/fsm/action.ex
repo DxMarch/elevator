@@ -49,6 +49,7 @@ defmodule Elevator.FSM.Action do
 
     state = State.get_state()
     {new_direction, new_behavior} = Decision.next_action(orders, state)
+
     # Logger.debug("Deciding on behavior from state:\n #{inspect(state)}\n Orders: #{inspect(orders)}")
     # Logger.debug("Got behavior #{new_direction} and #{new_behavior}")
 
@@ -73,7 +74,12 @@ defmodule Elevator.FSM.Action do
 
   defp poll_door_timer() do
     state = State.get_state()
-    if state.behavior == :door_open and Time.after?(Time.utc_now(), Time.add(state.door_open_time, @door_open_time, :millisecond)) do
+
+    if state.behavior == :door_open and
+         Time.after?(
+           Time.utc_now(),
+           Time.add(state.door_open_time, @door_open_time, :millisecond)
+         ) do
       State.set_behavior(:idle)
     end
   end

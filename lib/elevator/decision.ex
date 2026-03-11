@@ -61,13 +61,17 @@ defmodule Elevator.Decision do
         }
       ) do
     btns_at_floor = Map.get(orders, floor, MapSet.new())
+
     cond do
-      between_floors and (direction == :stop) ->
+      between_floors and direction == :stop ->
         {:down, :moving}
-      between_floors -> 
+
+      between_floors ->
         {direction, :moving}
+
       map_size(orders) == 0 ->
         {:stop, :idle}
+
       direction == :up ->
         cond do
           MapSet.member?(btns_at_floor, :hall_up) or MapSet.member?(btns_at_floor, :cab) ->
@@ -85,6 +89,7 @@ defmodule Elevator.Decision do
           true ->
             {:stop, :idle}
         end
+
       direction == :down ->
         cond do
           MapSet.member?(btns_at_floor, :hall_down) or MapSet.member?(btns_at_floor, :cab) ->
@@ -102,7 +107,8 @@ defmodule Elevator.Decision do
           true ->
             {:stop, :idle}
         end
-      direction == :stop -> 
+
+      direction == :stop ->
         cond do
           MapSet.member?(btns_at_floor, :hall_up) -> {:up, :door_open}
           MapSet.member?(btns_at_floor, :hall_down) -> {:down, :door_open}
@@ -111,6 +117,7 @@ defmodule Elevator.Decision do
           requests_below?(orders, floor) -> {:down, :moving}
           true -> {:stop, :idle}
         end
+
       true ->
         {:stop, :idle}
     end
