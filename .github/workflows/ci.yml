@@ -16,7 +16,7 @@ jobs:
         run: mix compile
 
       - name: Run single elevator tests
-        run: mix test ./test/single
+        run: mix test ./test/single --repeat-until-failure 1000
 
       - name: Run multi elevator tests
-        run: mix test ./test/multi
+        run: mix test ./test/multi --repeat-until-failure 10

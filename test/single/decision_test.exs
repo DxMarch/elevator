@@ -81,7 +81,13 @@ defmodule Test.Single.DecisionTest do
     moving = %Elevator.FSM.State{floor: 2, direction: :up, behavior: :moving}
     assert Decision.should_clear_immediately?(moving, 2, :cab)
 
-    door_open_stop = %Elevator.FSM.State{floor: 2, direction: :stop, behavior: :door_open, between_floors: false}
+    door_open_stop = %Elevator.FSM.State{
+      floor: 2,
+      direction: :stop,
+      behavior: :door_open,
+      between_floors: false
+    }
+
     assert Decision.should_clear_immediately?(door_open_stop, 2, :hall_down)
   end
 end

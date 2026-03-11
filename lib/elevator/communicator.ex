@@ -34,7 +34,8 @@ defmodule Elevator.Communicator do
 
     state = %{
       operational: true,
-      connected_nodes: Map.from_keys(Node.list(:connected), Time.utc_now())
+      connected_nodes:
+        Map.from_keys(Node.list(:connected), %{operational: true, timestamp: Time.utc_now()})
     }
 
     {:ok, state}
@@ -53,9 +54,9 @@ defmodule Elevator.Communicator do
   AND
   b) Have sent a message within the cutoff period
   """
-  @spec who_is_alive() :: MapSet.t()
-  def who_is_alive do
-    GenServer.call(__MODULE__, :who_is_alive)
+  @spec who_can_serve() :: MapSet.t()
+  def who_can_serve do
+    GenServer.call(__MODULE__, :who_can_serve)
   end
 
   @doc """
@@ -67,9 +68,10 @@ defmodule Elevator.Communicator do
   end
 
   # Updates the timestamp when a message is recieved from a node
-  @spec update_state_map(state_t(), node_id_t()) :: state_t()
-  defp update_state_map(state, from_node) do
-    %{state | connected_nodes: Map.put(state.connected_nodes, from_node, Time.utc_now())}
+  @spec update_state_map(state_t(), node_id_t(), boolean()) :: state_t()
+  defp update_state_map(state, from_node, operational) do
+    from_node_map = %{operational: operational, timestamp: Time.utc_now()}
+    %{state | connected_nodes: Map.put(state.connected_nodes, from_node, from_node_map)}
   end
 
   # Schedules another round of state broadcasting.
@@ -92,7 +94,10 @@ defmodule Elevator.Communicator do
 
         Node.list(:connected)
         |> Enum.each(fn ext_node ->
-          GenServer.cast({__MODULE__, ext_node}, {:state_update, my_id(), hall_state, cab_state})
+          GenServer.cast(
+            {__MODULE__, ext_node},
+            {:state_update, my_id(), state.operational, hall_state, cab_state}
+          )
         end)
       end)
     end
@@ -102,7 +107,7 @@ defmodule Elevator.Communicator do
 
   # Update the state map when a new node connects
   def handle_info({:nodeup, node}, state) do
-    {:noreply, update_state_map(state, node)}
+    {:noreply, update_state_map(state, node, true)}
   end
 
   # Delete node from state map on disconnect
@@ -113,7 +118,7 @@ defmodule Elevator.Communicator do
   def handle_info(:log_debug, state) do
     Process.send_after(self(), :log_debug, 1000)
     Logger.debug("My id: #{my_id()}")
-    others = who_is_alive() |> Enum.map(fn x -> "#{x}" end) |> Enum.join(", ")
+    others = who_can_serve() |> Enum.map(fn x -> "#{x}" end) |> Enum.join(", ")
     Logger.debug("Others: #{others}")
     {:noreply, state}
   end
@@ -124,13 +129,13 @@ defmodule Elevator.Communicator do
     {:reply, my_id(), state}
   end
 
-  def handle_call(:who_is_alive, _from, state) do
+  def handle_call(:who_can_serve, _from, state) do
     cutoff_ms = Elevator.msg_ts_cutoff()
 
     communcating_nodes =
       state.connected_nodes
-      |> Map.filter(fn {_k, timestamp} ->
-        Time.diff(Time.utc_now(), timestamp, :millisecond) < cutoff_ms
+      |> Map.filter(fn {_k, %{operational: operational, timestamp: timestamp}} ->
+        Time.diff(Time.utc_now(), timestamp, :millisecond) < cutoff_ms and operational
       end)
       |> Map.keys()
       |> MapSet.new()
@@ -147,12 +152,15 @@ defmodule Elevator.Communicator do
   @doc """
   Sends received hall and cab orders to respective modules, and updates timestamps for when the connected nodes last sent something.
   """
-  @spec handle_cast({:state_update, node_id_t(), hall_orders_t(), cab_orders_t()}, state_t()) ::
+  @spec handle_cast(
+          {:state_update, node_id_t(), boolean(), hall_orders_t(), cab_orders_t()},
+          state_t()
+        ) ::
           {:noreply, state_t()}
-  def handle_cast({:state_update, from, hall_orders, cab_orders}, state) do
+  def handle_cast({:state_update, from, operational, hall_orders, cab_orders}, state) do
     HallOrders.receive_state(hall_orders)
     CabOrders.receive_state(cab_orders)
-    new_state = update_state_map(state, from)
+    new_state = update_state_map(state, from, operational)
     {:noreply, new_state}
   end
 
