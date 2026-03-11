@@ -2,7 +2,7 @@
 
 ### LOC stats (Elixir)
 **Lib:** <!-- LIB_COUNT -->997<!-- END_LIB_COUNT -->\
-**Test:** <!-- TEST_COUNT -->531<!-- END_TEST_COUNT -->
+**Test:** <!-- TEST_COUNT -->540<!-- END_TEST_COUNT -->
 
 
 ## Running nodes
