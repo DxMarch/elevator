@@ -1,14 +1,16 @@
 defmodule Elevator.Hardware.Outputs do
   @moduledoc """
-  Watches current state and controls the physical elevator. 
+  Watches current state and controls the physical elevator.
   """
 
   require Logger
   alias Elevator.CabOrders
   alias Elevator.Decision
   alias Elevator.HallOrders
+  alias Elevator.Communicator
   alias Elevator.Hardware.Driver
   alias Elevator.Types
+  alias Elevator.FSM
 
   def init() do
     Driver.set_stop_button_light(:off)
@@ -16,12 +18,16 @@ defmodule Elevator.Hardware.Outputs do
     Driver.set_motor_direction(:stop)
   end
 
+  @spec set_outputs(FSM.State.t()) :: any()
   def set_outputs(state) do
     set_door_light(state)
     set_motors(state)
     set_floor_light(state)
     orders = get_light_orders()
     set_order_lights(orders)
+
+    operational? = !((state.behavior == :door_open and state.obstructed) or state.motor_timed_out)
+    Communicator.update_operation_status(operational?)
   end
 
   defp set_motors(elev_state) do

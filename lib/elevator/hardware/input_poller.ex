@@ -11,7 +11,8 @@ defmodule Elevator.Hardware.InputPoller do
   alias Elevator.Hardware.Driver
 
   @floor_poll_interval 50
-  @button_poll_interval 50
+  @button_poll_interval 20
+  @obstruction_poll_interval 500
 
   # Public API
   def start_link(_opts) do
@@ -23,11 +24,9 @@ defmodule Elevator.Hardware.InputPoller do
   def init(_state) do
     schedule_button_poll()
     schedule_floor_poll()
+    schedule_obstruction_poll()
 
-    {:ok,
-     %{
-       prev_buttons: MapSet.new()
-     }}
+    {:ok, %{prev_buttons: MapSet.new()}}
   end
 
   @impl true
@@ -36,6 +35,17 @@ defmodule Elevator.Hardware.InputPoller do
 
     floor = Driver.get_floor_sensor_state()
     Elevator.FSM.State.set_floor(floor)
+
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_info(:poll_obstruction, state) do
+    schedule_obstruction_poll()
+
+    switch_state = Driver.get_obstruction_switch_state()
+    obstructed = switch_state == :active
+    Elevator.FSM.State.set_obstruction(obstructed)
 
     {:noreply, state}
   end
@@ -86,5 +96,9 @@ defmodule Elevator.Hardware.InputPoller do
 
   defp schedule_floor_poll do
     Process.send_after(self(), :poll_floor, @floor_poll_interval)
+  end
+
+  defp schedule_obstruction_poll do
+    Process.send_after(self(), :poll_obstruction, @obstruction_poll_interval)
   end
 end

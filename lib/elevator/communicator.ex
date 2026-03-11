@@ -132,7 +132,7 @@ defmodule Elevator.Communicator do
   def handle_call(:who_can_serve, _from, state) do
     cutoff_ms = Elevator.msg_ts_cutoff()
 
-    communcating_nodes =
+    communicating_nodes =
       state.connected_nodes
       |> Map.filter(fn {_k, %{operational: operational, timestamp: timestamp}} ->
         Time.diff(Time.utc_now(), timestamp, :millisecond) < cutoff_ms and operational
@@ -140,11 +140,14 @@ defmodule Elevator.Communicator do
       |> Map.keys()
       |> MapSet.new()
 
-    alive_nodes =
-      MapSet.intersection(MapSet.new(Node.list(:connected)), communcating_nodes)
-      |> MapSet.put(my_id())
+    operational_nodes =
+      if state.operational do
+        MapSet.put(communicating_nodes, my_id())
+      else
+        communicating_nodes
+      end
 
-    {:reply, alive_nodes, state}
+    {:reply, operational_nodes, state}
   end
 
   # --- Handle casts ---
