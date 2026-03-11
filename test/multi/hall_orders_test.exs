@@ -114,7 +114,7 @@ defmodule Test.Multi.HallOrders do
   test "communicator causes convergence", %{nodes: [node1, node2, node3]} do
     :rpc.call(node1, HallOrders, :button_press, [2, :hall_up])
 
-    Process.sleep(Elevator.resend_period() * 3)
+    Process.sleep(Elevator.test_convergence_wait_time())
 
     node1_orders = :rpc.call(node1, HallOrders, :get_my_orders, [])
     node2_orders = :rpc.call(node2, HallOrders, :get_my_orders, [])
@@ -136,7 +136,7 @@ defmodule Test.Multi.HallOrders do
 
     :rpc.call(who_arrives, HallOrders, :arrived_at_floor, [2, :up])
 
-    Process.sleep(Elevator.resend_period() * 5)
+    Process.sleep(Elevator.test_convergence_wait_time())
 
     node1_state = :rpc.call(node1, HallOrders, :get_state, [])
     node2_state = :rpc.call(node2, HallOrders, :get_state, [])
