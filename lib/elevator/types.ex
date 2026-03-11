@@ -8,7 +8,7 @@ defmodule Elevator.Types do
 
   @type elev_dir :: :up | :down | :stop
 
-  @type elev_state :: :moving | :idle | :door_open
+  @type elev_behavior :: :moving | :idle | :door_open
 
   @type hall_btn :: :hall_down | :hall_up
 

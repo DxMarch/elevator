@@ -15,7 +15,7 @@ defmodule Elevator.FSM.State do
 
   @type t :: %__MODULE__{
           direction: Types.elev_dir(),
-          behavior: Types.elev_state(),
+          behavior: Types.elev_behavior(),
           floor: :unknown | Types.floor(),
           between_floors: boolean(),
           door_open_time: Time.t()
