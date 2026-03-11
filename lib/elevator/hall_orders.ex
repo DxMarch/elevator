@@ -3,7 +3,7 @@ defmodule Elevator.HallOrders do
   Module responsible for all changes occuring to the hall_order part of the state.
   """
   alias Elevator.HallOrders.Order
-  alias Elevator.HallOrders.Scoring
+  alias Elevator.HallOrders.Cost
   alias Elevator.Communicator
   require Logger
   use GenServer
@@ -91,23 +91,7 @@ defmodule Elevator.HallOrders do
   def handle_call(:get_my_orders, _from, order_map) do
     alive = Communicator.who_can_serve()
 
-    my_orders =
-      Enum.filter(order_map, fn {_, order_state} ->
-        case order_state do
-          {:confirmed, score_map, barrier_set} ->
-            # Hmm.
-            if MapSet.intersection(barrier_set, alive) != alive do
-              false
-            else
-              Scoring.max_alive_score(score_map, alive) == Node.self()
-            end
-
-          _ ->
-            false
-        end
-      end)
-      |> orders_by_floor()
-
+    my_orders = my_orders_from_order_map(order_map, alive)
     {:reply, my_orders, order_map}
   end
 
@@ -135,10 +119,14 @@ defmodule Elevator.HallOrders do
   @spec handle_cast({:receive_state, hall_order_map()}, hall_order_map()) ::
           {:noreply, hall_order_map(), {:continue, :hall_update_state}}
   def handle_cast({:receive_state, other_order_map}, order_map) do
+    alive = Communicator.who_can_serve()
+    my_orders = my_orders_from_order_map(order_map, alive)
+
     new_order_map =
       Map.keys(order_map)
       |> Enum.map(fn key ->
-        new_value = Order.merge_hall_orders(key, order_map[key], other_order_map[key])
+        # TODO
+        new_value = Order.merge_hall_orders(key, order_map[key], other_order_map[key], my_orders)
         {key, new_value}
       end)
       |> Enum.into(%{})
@@ -218,10 +206,13 @@ defmodule Elevator.HallOrders do
           {:noreply, hall_order_map()}
           | {:noreply, hall_order_map(), {:continue, :hall_update_state}}
   def handle_continue(:hall_update_state, order_map) do
+    alive = Communicator.who_can_serve()
+    my_orders = my_orders_from_order_map(order_map, alive)
+
     {any_did_change, new_order_map} =
       Enum.reduce(order_map, {false, %{}}, fn {key, button_state},
                                               {acc_did_change, acc_order_map} ->
-        {did_change, new_button_state} = Order.update_hall_order(key, button_state)
+        {did_change, new_button_state} = Order.update_hall_order(key, button_state, my_orders)
         {acc_did_change or did_change, Map.put(acc_order_map, key, new_button_state)}
       end)
 
@@ -230,6 +221,24 @@ defmodule Elevator.HallOrders do
     else
       {:noreply, new_order_map}
     end
+  end
+
+  defp my_orders_from_order_map(order_map, alive) do
+    Enum.filter(order_map, fn {_, order_state} ->
+      case order_state do
+        {:confirmed, cost_map, barrier_set} ->
+          # Hmm.
+          if MapSet.intersection(barrier_set, alive) != alive do
+            false
+          else
+            Cost.min_alive_cost(cost_map, alive) == Node.self()
+          end
+
+        _ ->
+          false
+      end
+    end)
+    |> orders_by_floor()
   end
 
   @type enum_orders ::
