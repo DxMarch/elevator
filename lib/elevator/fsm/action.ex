@@ -53,7 +53,7 @@ defmodule Elevator.FSM.Action do
     # Logger.debug("Got behavior #{new_direction} and #{new_behavior}")
 
     cond do
-      state.between_floors or state.behavior == :door_open ->
+      state.behavior == :door_open ->
         nil
 
       new_behavior == :door_open ->

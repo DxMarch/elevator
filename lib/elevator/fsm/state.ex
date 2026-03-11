@@ -6,13 +6,12 @@ defmodule Elevator.FSM.State do
   alias Elevator.Hardware.Driver
   alias Elevator.Types
 
-  defstruct direction: :stop, behavior: :idle, floor: :unknown, between_floors: true, door_open_time: Time.utc_now() 
+  defstruct direction: :stop, behavior: :idle, floor: :unknown, door_open_time: Time.utc_now() 
 
   @type t :: %__MODULE__{
     direction: Types.elev_dir(),
     behavior: Types.elev_state(),
     floor: :unknown | Types.floor(),
-    between_floors: boolean(),
     door_open_time: Time.t()
   }
 
@@ -24,9 +23,9 @@ defmodule Elevator.FSM.State do
     state = %Elevator.FSM.State{}
     state =
       if floor == :between_floors do
-        %{state | direction: :down, behavior: :moving, between_floors: true}
+        %{state | direction: :down, behavior: :moving}
       else
-        %{state | floor: floor, between_floors: false}
+        %{state | floor: floor}
       end
 
     {:ok, state}
@@ -59,12 +58,13 @@ defmodule Elevator.FSM.State do
   # Casts ----------------------------------------
   @impl true
   def handle_cast({:set_floor, floor}, state) do
-    new_state = case floor do
-      :between_floors ->
-        %{state | between_floors: true}
-      _ ->
-        %{state | between_floors: false, floor: floor}
-    end
+  
+    new_state = 
+      if floor != :between_floors do
+        %{state | floor: floor}
+      else
+        state
+      end
     {:noreply, new_state}
   end
 
