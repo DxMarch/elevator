@@ -14,6 +14,10 @@ driver_port =
 
 config :elevator, driver_port: driver_port
 
+{:ok, cwd} = File.cwd()
+
+config :elevator, time_to_serve_executable: "#{cwd}/server/time_to_serve"
+
 # ------------------------------------------------------------------
 # Cluster topology
 # ------------------------------------------------------------------

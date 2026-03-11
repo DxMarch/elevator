@@ -10,6 +10,7 @@ defmodule Elevator.HallOrders.Order do
   - confirmed: All alive nodes know about the order and has indicated their preference to it. Light on.
   """
 
+  alias Elevator.Types
   alias Elevator.HallOrders.Scoring
   alias Elevator.Communicator
 
@@ -19,10 +20,12 @@ defmodule Elevator.HallOrders.Order do
   @doc """
   Update a hall order based on an incoming hall order from another node.
   """
-  @spec merge_hall_orders(hall_order_key(), hall_order_value(), hall_order_value()) ::
+  @spec merge_hall_orders(hall_order_key(), hall_order_value(), hall_order_value(), %{
+          Types.floor() => MapSet.t(Types.hall_btn())
+        }) ::
           hall_order_value()
-  def merge_hall_orders(button_key, button_state, other_state) do
-    new_button_state = merge_orders(button_key, button_state, other_state)
+  def merge_hall_orders(button_key, button_state, other_state, my_hall_orders) do
+    new_button_state = merge_orders(button_key, button_state, other_state, my_hall_orders)
     # Ensure self is in any barrier set.
     case new_button_state do
       {:pending, barrier_set} ->
@@ -41,13 +44,15 @@ defmodule Elevator.HallOrders.Order do
   This may happen for example when the order autonomously transitions from pending to
   confirmed when only one elevator is alive.
   """
-  @spec update_hall_order(hall_order_key(), hall_order_value()) :: {boolean(), hall_order_value()}
-  def update_hall_order(key, button_state) do
+  @spec update_hall_order(hall_order_key(), hall_order_value(), %{
+          Types.floor() => MapSet.t(Types.hall_btn())
+        }) :: {boolean(), hall_order_value()}
+  def update_hall_order(key, button_state, confirmed_hall_orders) do
     alive = Communicator.who_can_serve()
 
     case button_state do
       {:pending, ^alive} ->
-        my_score = Scoring.compute_score(key)
+        my_score = Scoring.compute_score(key, confirmed_hall_orders)
         {true, {:confirmed, %{Node.self() => my_score}, MapSet.new([Node.self()])}}
 
       _ ->
@@ -55,7 +60,7 @@ defmodule Elevator.HallOrders.Order do
     end
   end
 
-  defp merge_orders({floor, button_type}, my_state, other_state) do
+  defp merge_orders({floor, button_type}, my_state, other_state, my_hall_orders) do
     # This is the full state machine of the hall order consensus algorithm.
     case {my_state, other_state} do
       {:unknown, _} ->
@@ -95,7 +100,7 @@ defmodule Elevator.HallOrders.Order do
         my_state
 
       {{:pending, _}, {:confirmed, score_map, _}} ->
-        my_score = Scoring.compute_score({floor, button_type})
+        my_score = Scoring.compute_score({floor, button_type}, my_hall_orders)
         my_score_map = Map.put(score_map, Node.self(), my_score)
         {:confirmed, my_score_map, MapSet.new()}
 

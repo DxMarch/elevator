@@ -20,4 +20,9 @@ defmodule Elevator do
   def test_convergence_wait_time do
     @test_convergence_wait_time
   end
+
+  def time_to_serve_executable do
+    {:ok, path} = Application.fetch_env(:elevator, :time_to_serve_executable)
+    path
+  end
 end
