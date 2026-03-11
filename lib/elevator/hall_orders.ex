@@ -89,7 +89,7 @@ defmodule Elevator.HallOrders do
 
   @impl true
   def handle_call(:get_my_orders, _from, order_map) do
-    alive = Communicator.who_is_alive()
+    alive = Communicator.who_can_serve()
 
     my_orders =
       Enum.filter(order_map, fn {_, order_state} ->

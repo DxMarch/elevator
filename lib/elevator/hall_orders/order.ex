@@ -43,7 +43,7 @@ defmodule Elevator.HallOrders.Order do
   """
   @spec update_hall_order(hall_order_key(), hall_order_value()) :: {boolean(), hall_order_value()}
   def update_hall_order(key, button_state) do
-    alive = Communicator.who_is_alive()
+    alive = Communicator.who_can_serve()
 
     case button_state do
       {:pending, ^alive} ->

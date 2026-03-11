@@ -54,9 +54,9 @@ defmodule Elevator.Communicator do
   AND
   b) Have sent a message within the cutoff period
   """
-  @spec who_is_alive() :: MapSet.t()
-  def who_is_alive do
-    GenServer.call(__MODULE__, :who_is_alive)
+  @spec who_can_serve() :: MapSet.t()
+  def who_can_serve do
+    GenServer.call(__MODULE__, :who_can_serve)
   end
 
   @doc """
@@ -118,7 +118,7 @@ defmodule Elevator.Communicator do
   def handle_info(:log_debug, state) do
     Process.send_after(self(), :log_debug, 1000)
     Logger.debug("My id: #{my_id()}")
-    others = who_is_alive() |> Enum.map(fn x -> "#{x}" end) |> Enum.join(", ")
+    others = who_can_serve() |> Enum.map(fn x -> "#{x}" end) |> Enum.join(", ")
     Logger.debug("Others: #{others}")
     {:noreply, state}
   end
@@ -129,7 +129,7 @@ defmodule Elevator.Communicator do
     {:reply, my_id(), state}
   end
 
-  def handle_call(:who_is_alive, _from, state) do
+  def handle_call(:who_can_serve, _from, state) do
     cutoff_ms = Elevator.msg_ts_cutoff()
 
     communcating_nodes =

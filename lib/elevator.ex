@@ -1,7 +1,7 @@
 defmodule Elevator do
   @num_floors Application.compile_env(:elevator, :num_floors, 4)
   # ms
-  @resend_period 10
+  @resend_period 50
   @light_period 50
   @msg_ts_cutoff 1000
 

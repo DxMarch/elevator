@@ -17,7 +17,7 @@ defmodule Test.Multi.HallOrders do
   end
 
   test "test runner self-acceptance" do
-    assert MapSet.size(Communicator.who_is_alive()) == 3
+    assert MapSet.size(Communicator.who_can_serve()) == 3
   end
 
   @tag :manual_sending
@@ -60,7 +60,7 @@ defmodule Test.Multi.HallOrders do
 
     # All should have converged on the alive set
     assert node1_state == node2_state and node2_state == node3_state
-    alive = Communicator.who_is_alive()
+    alive = Communicator.who_can_serve()
     assert {:confirmed, _, ^alive} = node1_state[{0, :hall_up}]
     converged_state = node1_state
 
@@ -114,7 +114,7 @@ defmodule Test.Multi.HallOrders do
   test "communicator causes convergence", %{nodes: [node1, node2, node3]} do
     :rpc.call(node1, HallOrders, :button_press, [2, :hall_up])
 
-    Process.sleep(Elevator.resend_period() * 5)
+    Process.sleep(Elevator.resend_period() * 3)
 
     node1_orders = :rpc.call(node1, HallOrders, :get_my_orders, [])
     node2_orders = :rpc.call(node2, HallOrders, :get_my_orders, [])
