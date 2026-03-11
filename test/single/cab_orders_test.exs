@@ -4,14 +4,9 @@ defmodule Test.Single.CabOrdersTest do
   use ExUnit.Case, async: false
 
   setup_all do
-    children = [
-      {Elevator.HallOrders, Elevator.num_floors()},
-      Elevator.Communicator,
-      Elevator.CabOrders
-    ]
-
-    opts = [strategy: :one_for_one, name: Elevator.Supervisor]
-    Supervisor.start_link(children, opts)
+    start_supervised!(Elevator.Communicator)
+    start_supervised!(Elevator.CabOrders)
+    start_supervised!({Elevator.HallOrders, Elevator.num_floors()})
     :ok
   end
 

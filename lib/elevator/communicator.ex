@@ -61,7 +61,7 @@ defmodule Elevator.Communicator do
   @doc """
   Updates the operational key in the state map.
   """
-  @spec update_operation_status(boolean()) :: state_t()
+  @spec update_operation_status(boolean()) :: :ok
   def update_operation_status(status) do
     GenServer.cast(__MODULE__, {:update_operation_status, status})
   end
@@ -107,7 +107,7 @@ defmodule Elevator.Communicator do
 
   # Delete node from state map on disconnect
   def handle_info({:nodedown, node}, state) do
-    {:noreply, Map.delete(state.connected_nodes, node)}
+    {:noreply, %{state | connected_nodes: Map.delete(state.connected_nodes, node)}}
   end
 
   def handle_info(:log_debug, state) do
