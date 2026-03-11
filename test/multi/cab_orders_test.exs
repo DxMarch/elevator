@@ -38,7 +38,7 @@ defmodule Test.Multi.CabOrdersTest do
       %{node1 => %{version: 420, orders: MapSet.new([3])}}
     ])
 
-    Process.sleep(3 * Elevator.resend_period())
+    Process.sleep(Elevator.test_convergence_wait_time())
 
     node1_orders = :rpc.call(node1, CabOrders, :get_my_orders, [])
     assert node1_orders == MapSet.new([3])
@@ -56,7 +56,7 @@ defmodule Test.Multi.CabOrdersTest do
       %{node1 => %{version: 69, orders: MapSet.new([1])}}
     ])
 
-    Process.sleep(3 * Elevator.resend_period())
+    Process.sleep(Elevator.test_convergence_wait_time())
 
     %{version: node1_version, orders: node1_orders} =
       :rpc.call(node1, CabOrders, :get_state, [])[node1]
@@ -69,7 +69,7 @@ defmodule Test.Multi.CabOrdersTest do
       %{node1 => %{version: 67, orders: MapSet.new([1, 2])}}
     ])
 
-    Process.sleep(3 * Elevator.resend_period())
+    Process.sleep(Elevator.test_convergence_wait_time())
 
     %{version: node1_version, orders: node1_orders} =
       :rpc.call(node1, CabOrders, :get_state, [])[node1]
@@ -82,7 +82,7 @@ defmodule Test.Multi.CabOrdersTest do
       %{node1 => %{version: 69, orders: MapSet.new([1, 2])}}
     ])
 
-    Process.sleep(3 * Elevator.resend_period())
+    Process.sleep(Elevator.test_convergence_wait_time())
 
     %{version: node1_version, orders: node1_orders} =
       :rpc.call(node1, CabOrders, :get_state, [])[node1]
@@ -107,7 +107,7 @@ defmodule Test.Multi.CabOrdersTest do
              node3_orders == MapSet.new()
 
     :rpc.cast(node1, CabOrders, :button_press, [1])
-    Process.sleep(3 * Elevator.resend_period())
+    Process.sleep(Elevator.test_convergence_wait_time())
 
     # Ensure that node1's version and order map has propagated across all nodes
     %{version: node1_version, orders: node1_orders} =
