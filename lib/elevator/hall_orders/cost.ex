@@ -8,36 +8,13 @@ defmodule Elevator.HallOrders.Cost do
   def compute_cost({floor, btn_dir}, my_hall_orders) do
     state = Elevator.FSM.State.get_state()
 
-    # Represent state and orders in the format expected by time_to_serve
     cab_orders = CabOrders.get_my_orders()
-    behavior_str = [idle: "idle", moving: "moving", door_open: "doorOpen"][state.behavior]
 
-    elev_state = %{
-      state: %{
-        state: behavior_str,
-        floor: state.floor,
-        direction: state.direction,
-        cabRequests:
-          Enum.map(0..(Elevator.num_floors() - 1), fn floor ->
-            MapSet.member?(cab_orders, floor)
-          end)
-      },
-      hallRequests:
-        Enum.map(
-          0..(Elevator.num_floors() - 1),
-          fn floor ->
-            [
-              MapSet.member?(Map.get(my_hall_orders, floor, MapSet.new()), :hall_up),
-              MapSet.member?(Map.get(my_hall_orders, floor, MapSet.new()), :hall_down)
-            ]
-          end
-        ),
-      newOrder: %{floor: floor, direction: [hall_up: :up, hall_down: :down][btn_dir]}
-    }
-
-    json_input = JSON.encode!(elev_state)
+    payload_map =
+      state_and_orders_to_external_format({floor, btn_dir}, state, cab_orders, my_hall_orders)
 
     try do
+      json_input = JSON.encode!(payload_map)
       {output, 0} = System.cmd(Elevator.time_to_serve_executable(), ["-i", json_input])
       String.to_integer(String.trim(output))
     rescue
@@ -81,5 +58,40 @@ defmodule Elevator.HallOrders.Cost do
       end)
 
     min_node
+  end
+
+  # Represent state and orders in the format expected by the time_to_serve program.
+  defp state_and_orders_to_external_format(
+         {order_floor, order_btn_dir},
+         elev_state,
+         cab_orders,
+         hall_orders
+       ) do
+    behavior_remap = [idle: "idle", moving: "moving", door_open: "doorOpen"][elev_state.behavior]
+    order_dir_remap = [hall_up: :up, hall_down: :down][order_btn_dir]
+
+    cab_orders_bool_table =
+      0..(Elevator.num_floors() - 1)
+      |> Enum.map(fn floor -> MapSet.member?(cab_orders, floor) end)
+
+    hall_orders_bool_table =
+      0..(Elevator.num_floors() - 1)
+      |> Enum.map(fn floor ->
+        [
+          MapSet.member?(Map.get(hall_orders, floor, MapSet.new()), :hall_up),
+          MapSet.member?(Map.get(hall_orders, floor, MapSet.new()), :hall_down)
+        ]
+      end)
+
+    %{
+      state: %{
+        state: behavior_remap,
+        floor: elev_state.floor,
+        direction: elev_state.direction,
+        cabRequests: cab_orders_bool_table
+      },
+      hallRequests: hall_orders_bool_table,
+      newOrder: %{floor: order_floor, direction: order_dir_remap}
+    }
   end
 end
