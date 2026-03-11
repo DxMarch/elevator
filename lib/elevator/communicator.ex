@@ -3,6 +3,7 @@ defmodule Elevator.Communicator do
   Module responsible for all communication with other elevators.
   """
 
+  alias Elevator
   alias Elevator.CabOrders
   alias Elevator.HallOrders
 
@@ -12,7 +13,7 @@ defmodule Elevator.Communicator do
   @type node_id_t :: Elevator.Types.node_id()
   @type hall_orders_t :: Elevator.Types.hall_order_map()
   @type cab_orders_t :: Elevator.Types.cab_order_map()
-  @type state_t :: nil
+  @type state_t :: Elevator.Types.communicator_state_map()
 
   @type communicator_options :: [do_resend: boolean()]
 
@@ -29,25 +30,50 @@ defmodule Elevator.Communicator do
       Process.send_after(self(), :log_debug, 1000)
     end
 
-    {:ok, nil}
+    :net_kernel.monitor_nodes(true)
+
+    state = %{
+      operational: true,
+      connected_nodes: Map.from_keys(Node.list(:connected), Time.utc_now())
+    }
+
+    {:ok, state}
   end
 
   @doc """
   Returns the ID of this node.
   """
   @spec my_id() :: node_id_t()
-  # def my_id, do: GenServer.call(__MODULE__, :self)
   # TODO: decide on this
   def my_id, do: Node.self()
 
+  @doc """
+  Returns a set of alive nodes that are both:
+  a) Connected
+  AND
+  b) Have sent a message within the cutoff period
+  """
   @spec who_is_alive() :: MapSet.t()
   def who_is_alive do
-    MapSet.new([Node.self()] ++ Node.list(:connected))
+    GenServer.call(__MODULE__, :who_is_alive)
+  end
+
+  @doc """
+  Updates the operational key in the state map.
+  """
+  @spec update_operation_status(boolean()) :: :ok
+  def update_operation_status(status) do
+    GenServer.cast(__MODULE__, {:update_operation_status, status})
+  end
+
+  # Updates the timestamp when a message is recieved from a node
+  @spec update_state_map(state_t(), node_id_t()) :: state_t()
+  defp update_state_map(state, from_node) do
+    %{state | connected_nodes: Map.put(state.connected_nodes, from_node, Time.utc_now())}
   end
 
   # Schedules another round of state broadcasting.
   defp schedule_state_broadcast do
-    # TODO: set appropriate time
     time_ms = Elevator.resend_period()
     Process.send_after(self(), :broadcast_state, time_ms)
   end
@@ -55,42 +81,83 @@ defmodule Elevator.Communicator do
   @doc """
   Sends the cab and hall state to all connected nodes.
   """
-  def handle_info(:broadcast_state, id) do
+  def handle_info(:broadcast_state, state) do
     # For periodic execution
     schedule_state_broadcast()
-    cab_state = CabOrders.get_state()
-    hall_state = HallOrders.get_state()
 
-    Node.list(:connected)
-    |> Enum.each(fn ext_node ->
-      GenServer.cast({__MODULE__, ext_node}, {:state_update, hall_state, cab_state})
-    end)
+    if Process.whereis(CabOrders) && Process.whereis(HallOrders) do
+      Task.start(fn ->
+        cab_state = CabOrders.get_state()
+        hall_state = HallOrders.get_state()
 
-    {:noreply, id}
+        Node.list(:connected)
+        |> Enum.each(fn ext_node ->
+          GenServer.cast({__MODULE__, ext_node}, {:state_update, my_id(), hall_state, cab_state})
+        end)
+      end)
+    end
+
+    {:noreply, state}
   end
 
-  def handle_info(:log_debug, id) do
+  # Update the state map when a new node connects
+  def handle_info({:nodeup, node}, state) do
+    {:noreply, update_state_map(state, node)}
+  end
+
+  # Delete node from state map on disconnect
+  def handle_info({:nodedown, node}, state) do
+    {:noreply, %{state | connected_nodes: Map.delete(state.connected_nodes, node)}}
+  end
+
+  def handle_info(:log_debug, state) do
     Process.send_after(self(), :log_debug, 1000)
     Logger.debug("My id: #{my_id()}")
     others = who_is_alive() |> Enum.map(fn x -> "#{x}" end) |> Enum.join(", ")
     Logger.debug("Others: #{others}")
-    {:noreply, id}
+    {:noreply, state}
   end
 
   # --- Handle calls ---
 
-  def handle_call(:self, _, id) do
-    # TODO: Figure out if Node.self() is OK
-    {:reply, Node.self(), id}
+  def handle_call(:self, _, state) do
+    {:reply, my_id(), state}
+  end
+
+  def handle_call(:who_is_alive, _from, state) do
+    cutoff_ms = Elevator.msg_ts_cutoff()
+
+    communcating_nodes =
+      state.connected_nodes
+      |> Map.filter(fn {_k, timestamp} ->
+        Time.diff(Time.utc_now(), timestamp, :millisecond) < cutoff_ms
+      end)
+      |> Map.keys()
+      |> MapSet.new()
+
+    alive_nodes =
+      MapSet.intersection(MapSet.new(Node.list(:connected)), communcating_nodes)
+      |> MapSet.put(my_id())
+
+    {:reply, alive_nodes, state}
   end
 
   # --- Handle casts ---
 
-  @spec handle_cast({:state_update, hall_orders_t(), cab_orders_t()}, state_t()) ::
+  @doc """
+  Sends received hall and cab orders to respective modules, and updates timestamps for when the connected nodes last sent something.
+  """
+  @spec handle_cast({:state_update, node_id_t(), hall_orders_t(), cab_orders_t()}, state_t()) ::
           {:noreply, state_t()}
-  def handle_cast({:state_update, hall_orders, cab_orders}, id) do
+  def handle_cast({:state_update, from, hall_orders, cab_orders}, state) do
     HallOrders.receive_state(hall_orders)
     CabOrders.receive_state(cab_orders)
-    {:noreply, id}
+    new_state = update_state_map(state, from)
+    {:noreply, new_state}
+  end
+
+  @spec handle_cast({:update_operation_status, boolean()}, state_t()) :: state_t()
+  def handle_cast({:update_operation_status, status}, state) do
+    {:noreply, %{state | operational: status}}
   end
 end

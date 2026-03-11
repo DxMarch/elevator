@@ -1,37 +1,19 @@
 defmodule Test.Multi.HallOrders do
   alias Elevator.HallOrders
   alias Elevator.Communicator
+  alias Test.Utils.MultiCluster
   use ExUnit.Case, async: false
 
-  setup ctx do
-    communicator_resend = not Map.get(ctx, :manual_sending, false)
+  setup context do
+    communicator_resend = not Map.get(context, :manual_sending, false)
 
-    {_, node1} = start_and_wait_for_node(:elev1, communicator_resend)
-    {_, node2} = start_and_wait_for_node(:elev2, communicator_resend)
-
-    :erpc.call(Node.self(), Test.Utils.TestCompiled, :start_order_modules, [
-      Elevator.num_floors(),
-      communicator_resend
-    ])
-
-    # Make a clique
-    :erpc.call(node1, Node, :connect, [node2])
+    cluster = MultiCluster.start_three_node_cluster(Elevator.num_floors(), communicator_resend)
 
     on_exit(fn ->
-      # Stop own supervisor
-      if pid = Process.whereis(Elevator.Supervisor) do
-        Process.monitor(pid)
-        Supervisor.stop(pid)
-        # Wait for it to actually be gone before next test starts
-        receive do
-          {:DOWN, _, :process, ^pid, _} -> :ok
-        after
-          1000 -> :ok
-        end
-      end
+      MultiCluster.stop_three_node_cluster(cluster)
     end)
 
-    {:ok, nodes: [node1, node2, Node.self()]}
+    {:ok, nodes: cluster.nodes}
   end
 
   test "test runner self-acceptance" do
@@ -193,41 +175,5 @@ defmodule Test.Multi.HallOrders do
     assert :rpc.call(node2, HallOrders, :receive_state, [node3_state])
 
     # Yay!
-  end
-
-  defp start_and_wait_for_node(name, communicator_resend) do
-    {:ok, peer, node} =
-      :peer.start_link(%{
-        name: name,
-        name_domain: :shortnames
-      })
-
-    wait_until_connected([node])
-    :rpc.call(node, :code, :add_paths, [:code.get_path()])
-
-    :erpc.call(node, Test.Utils.TestCompiled, :start_order_modules, [
-      Elevator.num_floors(),
-      communicator_resend
-    ])
-
-    {peer, node}
-  end
-
-  defp wait_until_connected(nodes, timeout \\ 2000) do
-    deadline = System.monotonic_time(:millisecond) + timeout
-    wait_loop(nodes, deadline)
-  end
-
-  defp wait_loop(nodes, deadline) do
-    if Enum.all?(nodes, fn node -> MapSet.member?(Communicator.who_is_alive(), node) end) do
-      true
-    else
-      if System.monotonic_time(:millisecond) > deadline do
-        flunk("Test timed out waiting for nodes")
-      end
-
-      Process.sleep(50)
-      wait_loop(nodes, deadline)
-    end
   end
 end

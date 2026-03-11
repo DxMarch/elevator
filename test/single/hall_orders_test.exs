@@ -4,14 +4,9 @@ defmodule Test.Single.HallOrders do
   # doctest Elevator
 
   setup_all do
-    children = [
-      Elevator.Communicator,
-      Elevator.CabOrders,
-      {Elevator.HallOrders, Elevator.num_floors()}
-    ]
-
-    opts = [strategy: :one_for_one, name: Elevator.Supervisor]
-    Supervisor.start_link(children, opts)
+    start_supervised!(Elevator.Communicator)
+    start_supervised!(Elevator.CabOrders)
+    start_supervised!({Elevator.HallOrders, Elevator.num_floors()})
     :ok
   end
 

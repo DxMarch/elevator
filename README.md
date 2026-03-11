@@ -1,5 +1,10 @@
 # TTK4145 Elevator
 
+### LOC stats (Elixir)
+**Lib:** <!-- LIB_COUNT -->997<!-- END_LIB_COUNT -->\
+**Test:** <!-- TEST_COUNT -->540<!-- END_TEST_COUNT -->
+
+
 ## Running nodes
 
 Copy `.env.example` to `.env` and fill in the values, then:
@@ -83,3 +88,12 @@ cp scripts/.env.example scripts/.env
 
 Running `open_remotes.sh` again recreates the local tmux layout, while each
 remote pane re-attaches to the same remote `elevator` tmux session.
+
+## Packetloss
+To simulate packetloss run
+```shell
+sudo ./scripts/packetloss.sh <percentage> -ie
+```
+- `-i` is incomming traffic
+- `-o`is outgoing
+- `-e`is Elixir/Erlang and autodetects Beam ports
