@@ -5,11 +5,14 @@ defmodule Elevator.HallOrders do
   alias Elevator.HallOrders.Order
   alias Elevator.HallOrders.Scoring
   alias Elevator.Communicator
+  require Logger
   use GenServer
 
   @type hall_order_map :: Elevator.Types.hall_order_map()
   @type floor :: Elevator.Types.floor()
   @type hall_btn :: Elevator.Types.hall_btn()
+
+  @tracked_key {0, :hall_up}
 
   def start_link(arg) do
     GenServer.start_link(__MODULE__, arg, name: __MODULE__)
@@ -74,7 +77,7 @@ defmodule Elevator.HallOrders do
   end
 
   @doc """
-  Get all orders in same format as get_my_orders. 
+  Get all orders in same format as get_my_orders.
   These are the orders we turn the light on for.
   """
   @spec get_confirmed_orders() :: %{Elevator.Types.floor() => MapSet.t(Elevator.Types.hall_btn())}
@@ -140,6 +143,16 @@ defmodule Elevator.HallOrders do
       end)
       |> Enum.into(%{})
 
+    old_tracked = Map.get(order_map, @tracked_key)
+    new_tracked = Map.get(new_order_map, @tracked_key)
+
+    if old_tracked != new_tracked do
+      Logger.info(fn ->
+        "Tracked hall order #{inspect(@tracked_key)} changed: " <>
+          "#{inspect(old_tracked)} -> #{inspect(new_tracked)}"
+      end)
+    end
+
     {:noreply, new_order_map, {:continue, :hall_update_state}}
   end
 
@@ -149,10 +162,10 @@ defmodule Elevator.HallOrders do
   def handle_cast({:button_press, floor, direction}, order_map) do
     # If in idle or unknown, go to pending. Otherwise, ignore.
     key = {floor, direction}
-    order_state = order_map[key]
+    old_order_state = order_map[key]
 
     order_map =
-      case order_state do
+      case old_order_state do
         :unknown ->
           Map.put(order_map, key, {:pending, MapSet.new([Node.self()])})
 
@@ -162,6 +175,12 @@ defmodule Elevator.HallOrders do
         _ ->
           order_map
       end
+
+    new_order_state = order_map[key]
+
+    Logger.info(fn ->
+      "Hall button press #{inspect(key)}: #{inspect(old_order_state)} -> #{inspect(new_order_state)}"
+    end)
 
     {:noreply, order_map, {:continue, :hall_update_state}}
   end

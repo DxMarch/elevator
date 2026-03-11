@@ -65,6 +65,7 @@ RSYNC=(
   --include='/scripts/'
   --include='/scripts/start.sh'
   --include='/scripts/install.sh'
+  --include='/scripts/packetloss.sh'
   --include='/mix.exs'
   --include='/mix.lock'
   --include='/.env'
