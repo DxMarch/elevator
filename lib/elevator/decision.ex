@@ -17,12 +17,12 @@ defmodule Elevator.Decision do
 
   @doc "Should a request at `btn_floor` and `btn_type` be cleared immediately given elevator state?"
   @spec should_clear_immediately?(
-          Elevator.State.t(),
+          Elevator.FSM.State.t(),
           Elevator.Types.floor(),
           Elevator.Types.btn_type()
         ) :: boolean()
   def should_clear_immediately?(
-        %Elevator.State{floor: floor, direction: direction},
+        %Elevator.FSM.State{floor: floor, direction: direction},
         btn_floor,
         btn_type
       ) do
@@ -48,73 +48,78 @@ defmodule Elevator.Decision do
 
   @doc "Single decision function for elevator behavior.
   Returns both direction and behavior for the current state and order snapshot."
-  @spec next_action(Elevator.Types.combined_order_map(), Elevator.State.t()) ::
+  @spec next_action(Elevator.Types.combined_order_map(), Elevator.FSM.State.t()) ::
           {:down, :moving | :door_open}
           | {:up, :moving | :door_open}
           | {:stop, :idle | :door_open}
   def next_action(
         orders,
-        %Elevator.State{
+        %Elevator.FSM.State{
           direction: direction,
-          floor: floor
+          floor: floor,
+          between_floors: between_floors
         }
       ) do
-    if map_size(orders) == 0 do
-      {:stop, :idle}
-    else
-      btns_at_floor = Map.get(orders, floor, MapSet.new())
+    btns_at_floor = Map.get(orders, floor, MapSet.new())
 
-      case direction do
-        :up ->
-          cond do
-            MapSet.member?(btns_at_floor, :hall_up) or MapSet.member?(btns_at_floor, :cab) ->
-              {:up, :door_open}
+    cond do
+      between_floors and direction == :stop ->
+        {:down, :moving}
 
-            requests_above?(orders, floor) ->
-              {:up, :moving}
+      between_floors ->
+        {direction, :moving}
 
-            MapSet.member?(btns_at_floor, :hall_down) ->
-              {:down, :door_open}
+      map_size(orders) == 0 ->
+        {:stop, :idle}
 
-            requests_below?(orders, floor) ->
-              {:down, :moving}
+      direction == :up ->
+        cond do
+          MapSet.member?(btns_at_floor, :hall_up) or MapSet.member?(btns_at_floor, :cab) ->
+            {:up, :door_open}
 
-            true ->
-              {:stop, :idle}
-          end
+          requests_above?(orders, floor) ->
+            {:up, :moving}
 
-        :down ->
-          cond do
-            MapSet.member?(btns_at_floor, :hall_down) or MapSet.member?(btns_at_floor, :cab) ->
-              {:down, :door_open}
+          MapSet.member?(btns_at_floor, :hall_down) ->
+            {:down, :door_open}
 
-            requests_below?(orders, floor) ->
-              {:down, :moving}
+          requests_below?(orders, floor) ->
+            {:down, :moving}
 
-            MapSet.member?(btns_at_floor, :hall_up) ->
-              {:up, :door_open}
+          true ->
+            {:stop, :idle}
+        end
 
-            requests_above?(orders, floor) ->
-              {:up, :moving}
+      direction == :down ->
+        cond do
+          MapSet.member?(btns_at_floor, :hall_down) or MapSet.member?(btns_at_floor, :cab) ->
+            {:down, :door_open}
 
-            true ->
-              {:stop, :idle}
-          end
+          requests_below?(orders, floor) ->
+            {:down, :moving}
 
-        # there should only be one request in the Stop case. Checking up or down first is arbitrary.
-        :stop ->
-          cond do
-            MapSet.member?(btns_at_floor, :hall_up) -> {:up, :door_open}
-            MapSet.member?(btns_at_floor, :hall_down) -> {:down, :door_open}
-            MapSet.member?(btns_at_floor, :cab) -> {:stop, :door_open}
-            requests_above?(orders, floor) -> {:up, :moving}
-            requests_below?(orders, floor) -> {:down, :moving}
-            true -> {:stop, :idle}
-          end
+          MapSet.member?(btns_at_floor, :hall_up) ->
+            {:up, :door_open}
 
-        _ ->
-          {:stop, :idle}
-      end
+          requests_above?(orders, floor) ->
+            {:up, :moving}
+
+          true ->
+            {:stop, :idle}
+        end
+
+      direction == :stop ->
+        cond do
+          MapSet.member?(btns_at_floor, :hall_up) -> {:up, :door_open}
+          MapSet.member?(btns_at_floor, :hall_down) -> {:down, :door_open}
+          MapSet.member?(btns_at_floor, :cab) -> {:stop, :door_open}
+          requests_above?(orders, floor) -> {:up, :moving}
+          requests_below?(orders, floor) -> {:down, :moving}
+          true -> {:stop, :idle}
+        end
+
+      true ->
+        {:stop, :idle}
     end
   end
 end

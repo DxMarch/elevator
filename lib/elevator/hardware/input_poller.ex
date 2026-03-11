@@ -1,18 +1,17 @@
-defmodule Elevator.Poller do
+defmodule Elevator.Hardware.InputPoller do
   @moduledoc """
-  Polls buttons, floor sensor and external order updates, casts to FSM when new info
+  Polls buttons, floor sensor and external order updates, casts to stateful modules when new info
   """
 
   use GenServer
   require Logger
 
+  alias Elevator.CabOrders
   alias Elevator.HallOrders
-  alias Elevator.Driver
-  alias Elevator.FSM
+  alias Elevator.Hardware.Driver
 
   @floor_poll_interval 50
-  @button_poll_interval 20
-  @hall_order_poll_interval 150
+  @button_poll_interval 50
 
   # Public API
   def start_link(_opts) do
@@ -24,42 +23,27 @@ defmodule Elevator.Poller do
   def init(_state) do
     schedule_button_poll()
     schedule_floor_poll()
-    schedule_hall_order_poll()
 
     {:ok,
      %{
-       prev_floor: :unknown,
-       prev_buttons: MapSet.new(),
-       hall_orders: %{},
-       obstructed: :unknown
+       prev_buttons: MapSet.new()
      }}
   end
 
   @impl true
   def handle_info(:poll_floor, state) do
-    # Polls floor and notifies FSM if we arrive at a new floor
-
-    prev_floor = Map.fetch!(state, :prev_floor)
-    floor = Driver.get_floor_sensor_state()
-
     schedule_floor_poll()
 
-    cond do
-      floor == :between_floors ->
-        {:noreply, state}
+    floor = Driver.get_floor_sensor_state()
+    Elevator.FSM.State.set_floor(floor)
 
-      floor != prev_floor ->
-        FSM.sensed_new_floor(floor)
-        {:noreply, %{state | prev_floor: floor}}
-
-      true ->
-        {:noreply, state}
-    end
+    {:noreply, state}
   end
 
   @impl true
   def handle_info(:poll_buttons, state) do
-    # Polls button and notifies FSM if any are pressed
+    schedule_button_poll()
+    # Polls button and notifies State if any are pressed
 
     prev_buttons = Map.get(state, :prev_buttons, MapSet.new())
 
@@ -74,24 +58,16 @@ defmodule Elevator.Poller do
     new_presses = MapSet.difference(current_buttons, prev_buttons)
 
     Enum.each(new_presses, fn {floor, btn} ->
-      FSM.order_button_pressed(floor, btn)
+      case btn do
+        :cab ->
+          CabOrders.button_press(floor)
+
+        hall_btn ->
+          HallOrders.button_press(floor, hall_btn)
+      end
     end)
 
-    schedule_button_poll()
     {:noreply, %{state | prev_buttons: current_buttons}}
-  end
-
-  @impl true
-  def handle_info(:poll_hall_orders, state) do
-    current_hall_orders = HallOrders.get_my_orders()
-    old_hall_orders = Map.get(state, :hall_orders, Map.new())
-
-    if current_hall_orders != old_hall_orders do
-      FSM.hall_orders_updated()
-    end
-
-    schedule_hall_order_poll()
-    {:noreply, %{state | hall_orders: current_hall_orders}}
   end
 
   # Helpers
@@ -104,16 +80,11 @@ defmodule Elevator.Poller do
   end
 
   # Schedule functions
-
   defp schedule_button_poll do
     Process.send_after(self(), :poll_buttons, @button_poll_interval)
   end
 
   defp schedule_floor_poll do
     Process.send_after(self(), :poll_floor, @floor_poll_interval)
-  end
-
-  defp schedule_hall_order_poll do
-    Process.send_after(self(), :poll_hall_orders, @hall_order_poll_interval)
   end
 end
