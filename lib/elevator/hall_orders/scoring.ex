@@ -1,5 +1,4 @@
 defmodule Elevator.HallOrders.Scoring do
-  alias Elevator.Decision
   alias Elevator.CabOrders
   require Logger
 
@@ -17,11 +16,13 @@ defmodule Elevator.HallOrders.Scoring do
         floor: state.floor,
         direction: state.direction,
         cabRequests:
-          Enum.map(0..Elevator.num_floors(), fn floor -> MapSet.member?(cab_orders, floor) end)
+          Enum.map(0..(Elevator.num_floors() - 1), fn floor ->
+            MapSet.member?(cab_orders, floor)
+          end)
       },
       hallRequests:
         Enum.map(
-          0..Elevator.num_floors(),
+          0..(Elevator.num_floors() - 1),
           fn floor ->
             [
               MapSet.member?(Map.get(my_hall_orders, floor, MapSet.new()), :hall_up),
