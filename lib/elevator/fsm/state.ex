@@ -4,7 +4,6 @@ defmodule Elevator.FSM.State do
   """
   require Logger
   alias Elevator.Hardware.Outputs
-  alias Elevator.Hardware.Driver
   alias Elevator.Types
 
   defstruct direction: :stop,
@@ -41,33 +40,20 @@ defmodule Elevator.FSM.State do
 
   # User API ----------------------------------------
 
-  def set_floor(floor) do
-    GenServer.cast(__MODULE__, {:set_floor, floor})
-  end
+  def set_floor(floor), do: GenServer.cast(__MODULE__, {:set_floor, floor})
 
-  def set_obstruction(obstructed) do
-    GenServer.cast(__MODULE__, {:set_obstruction, obstructed})
-  end
+  def set_obstruction(obstructed), do: GenServer.cast(__MODULE__, {:set_obstruction, obstructed})
 
-  def set_direction(dir) do
-    GenServer.cast(__MODULE__, {:set_direction, dir})
-  end
+  def set_direction(dir), do: GenServer.cast(__MODULE__, {:set_direction, dir})
 
-  def set_behavior(behavior) do
-    GenServer.cast(__MODULE__, {:set_behavior, behavior})
-  end
+  def set_behavior(behavior), do: GenServer.cast(__MODULE__, {:set_behavior, behavior})
 
-  def open_door() do
-    GenServer.cast(__MODULE__, :open_door)
-  end
+  def open_door(), do: GenServer.cast(__MODULE__, :open_door)
 
-  def set_motor_timed_out(timed_out) do
-    GenServer.call(__MODULE__, {:set_motor_timed_out, timed_out})
-  end
+  def set_motor_timed_out(timed_out),
+    do: GenServer.call(__MODULE__, {:set_motor_timed_out, timed_out})
 
-  def get_state() do
-    GenServer.call(__MODULE__, :get_state)
-  end
+  def get_state(), do: GenServer.call(__MODULE__, :get_state)
 
   # Casts ----------------------------------------
 

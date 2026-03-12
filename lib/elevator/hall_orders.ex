@@ -14,6 +14,8 @@ defmodule Elevator.HallOrders do
 
   @tracked_key {0, :hall_up}
 
+  @hall_order_refresh_period 1000
+
   def start_link(arg) do
     GenServer.start_link(__MODULE__, arg, name: __MODULE__)
   end
@@ -34,6 +36,8 @@ defmodule Elevator.HallOrders do
       end)
       |> Enum.map(&{&1, :unknown})
       |> Enum.into(%{})
+
+    Process.send_after(self(), :refresh_hall_orders, @hall_order_refresh_period)
 
     {:ok, state}
   end
@@ -194,6 +198,12 @@ defmodule Elevator.HallOrders do
       end
 
     {:noreply, order_map}
+  end
+
+  @impl true
+  def handle_info(:refresh_hall_orders, order_map) do
+    Process.send_after(self(), :refresh_hall_orders, @hall_order_refresh_period)
+    {:noreply, order_map, {:continue, :hall_update_state}}
   end
 
   # Continue ------------------------------------------------------------
