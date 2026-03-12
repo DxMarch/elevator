@@ -10,7 +10,7 @@ defmodule Elevator.FSM.Action do
   alias Elevator.Decision
 
   @door_open_time 1000
-  @motor_timeout 5000
+  @motor_timeout 4000
   @action_interval 100
 
   def start_link(_arg) do
