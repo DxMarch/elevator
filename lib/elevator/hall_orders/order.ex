@@ -25,17 +25,31 @@ defmodule Elevator.HallOrders.Order do
         }) ::
           hall_order_value()
   def merge_hall_orders(button_key, button_state, other_state, my_hall_orders) do
-    new_button_state = merge_orders(button_key, button_state, other_state, my_hall_orders)
+    {new_button_version, new_button_state} = merge_orders(button_state, other_state)
     # Ensure self is in any barrier set.
-    case new_button_state do
-      {:pending, barrier_set} ->
-        {:pending, MapSet.put(barrier_set, Node.self())}
+    {new_button_version, new_button_state} =
+      case new_button_state do
+        {:pending, barrier_set} ->
+          {new_button_version, {:pending, MapSet.put(barrier_set, Node.self())}}
 
-      {:confirmed, cost_map, barrier_set} ->
-        {:confirmed, cost_map, MapSet.put(barrier_set, Node.self())}
+        _ ->
+          {new_button_version, new_button_state}
+      end
+
+    # Ensure self is in a score map
+    case new_button_state do
+      {:confirmed, cost_map} ->
+        my_id = Communicator.my_id()
+
+        if not Map.has_key?(cost_map, my_id) do
+          {new_button_version,
+           {:confirmed, Map.put(cost_map, my_id, Cost.compute_cost(button_key, my_hall_orders))}}
+        else
+          {new_button_version, new_button_state}
+        end
 
       _ ->
-        new_button_state
+        {new_button_version, new_button_state}
     end
   end
 
@@ -47,69 +61,55 @@ defmodule Elevator.HallOrders.Order do
   @spec update_hall_order(hall_order_key(), hall_order_value(), %{
           Types.floor() => MapSet.t(Types.hall_btn())
         }) :: {boolean(), hall_order_value()}
-  def update_hall_order(key, button_state, confirmed_hall_orders) do
+  def update_hall_order(key, {button_version, button_state}, confirmed_hall_orders) do
     alive = Communicator.who_can_serve()
 
     case button_state do
       {:pending, barrier_set} ->
         if MapSet.intersection(barrier_set, alive) == alive do
           my_cost = Cost.compute_cost(key, confirmed_hall_orders)
-          {true, {:confirmed, %{Node.self() => my_cost}, MapSet.new([Node.self()])}}
+          {true, {button_version, {:confirmed, %{Communicator.my_id() => my_cost}}}}
         else
-          {false, button_state}
+          {false, {button_version, button_state}}
         end
 
       _ ->
-        {false, button_state}
+        {false, {button_version, button_state}}
     end
   end
 
-  defp merge_orders({floor, button_type}, my_state, other_state, my_hall_orders) do
+  defp merge_orders({my_version, my_state}, {other_version, other_state}) do
     # This is the full state machine of the hall order consensus algorithm.
-    case {my_state, other_state} do
-      {:unknown, _} ->
-        other_state
+    cond do
+      my_version > other_version ->
+        {my_version, my_state}
 
-      {my_state, :unknown} ->
-        my_state
+      my_version < other_version ->
+        {other_version, other_state}
 
-      {:idle, {:confirmed, _, _}} ->
-        :idle
+      true ->
+        case {my_state, other_state} do
+          {:idle, other_state} ->
+            {other_version, other_state}
 
-      {:idle, _} ->
-        other_state
+          {_, :idle} ->
+            {my_version, my_state}
 
-      {{:confirmed, _, _}, :idle} ->
-        :idle
+          {{:pending, my_barrier}, {:pending, other_barrier}} ->
+            {my_version, {:pending, MapSet.union(my_barrier, other_barrier)}}
 
-      {_, :idle} ->
-        my_state
+          {{:confirmed, my_cost_map}, {:confirmed, other_cost_map}} ->
+            {my_version, {:confirmed, Cost.merge_cost(my_cost_map, other_cost_map)}}
 
-      {{:pending, my_barrier}, {:pending, other_barrier}} ->
-        {:pending, MapSet.union(my_barrier, other_barrier)}
+          {{:confirmed, _}, _} ->
+            {my_version, my_state}
 
-      # {{:confirmed, score_map, my_barrier}, {:confirmed, score_map, other_barrier}} ->
-      #   {:confirmed, score_map, MapSet.union(my_barrier, other_barrier)}
+          {_, {:confirmed, _}} ->
+            {other_version, other_state}
 
-      # {{:confirmed, my_score_map, _}, {:confirmed, other_score_map, _}} ->
-      #   {:confirmed, Scoring.merge_scores(my_score_map, other_score_map), MapSet.new()}
-
-      {{:confirmed, my_cost_map, my_barrier}, {:confirmed, other_cost_map, other_barrier}} ->
-        # Always union barriers, even when cost maps differ, so the barrier
-        # accumulates correctly as costs converge through exchanges.
-        {:confirmed, Cost.merge_cost(my_cost_map, other_cost_map),
-         MapSet.union(my_barrier, other_barrier)}
-
-      {{:confirmed, _, _}, _} ->
-        my_state
-
-      {{:pending, _}, {:confirmed, cost_map, _}} ->
-        my_cost = Cost.compute_cost({floor, button_type}, my_hall_orders)
-        my_cost_map = Map.put(cost_map, Node.self(), my_cost)
-        {:confirmed, my_cost_map, MapSet.new()}
-
-      _ ->
-        my_state
+          _ ->
+            {my_version, my_state}
+        end
     end
   end
 end

@@ -21,11 +21,12 @@ defmodule Elevator.Types do
 
   @type hall_order_key :: {floor(), hall_btn()}
 
-  @type hall_order_value ::
-          :unknown
-          | :idle
+  @type hall_order_state ::
+          :idle
           | {:pending, MapSet.t()}
-          | {:confirmed, map(), MapSet.t()}
+          | {:confirmed, %{node_id() => integer()}}
+
+  @type hall_order_value :: {non_neg_integer(), hall_order_state()}
 
   @type hall_order_map :: %{
           hall_order_key() => hall_order_value()
