@@ -12,8 +12,6 @@ defmodule Elevator.HallOrders do
   @type floor :: Elevator.Types.floor()
   @type hall_btn :: Elevator.Types.hall_btn()
 
-  @tracked_key {0, :hall_up}
-
   @hall_order_refresh_period 1000
 
   def start_link(arg) do
@@ -135,16 +133,6 @@ defmodule Elevator.HallOrders do
       end)
       |> Enum.into(%{})
 
-    old_tracked = Map.get(order_map, @tracked_key)
-    new_tracked = Map.get(new_order_map, @tracked_key)
-
-    if old_tracked != new_tracked do
-      Logger.info(fn ->
-        "Tracked hall order #{inspect(@tracked_key)} changed: " <>
-          "#{inspect(old_tracked)} -> #{inspect(new_tracked)}"
-      end)
-    end
-
     {:noreply, new_order_map, {:continue, :hall_update_state}}
   end
 
@@ -170,9 +158,11 @@ defmodule Elevator.HallOrders do
 
     new_order_state = order_map[key]
 
-    Logger.info(fn ->
-      "Hall button press #{inspect(key)}: #{inspect(old_order_state)} -> #{inspect(new_order_state)}"
-    end)
+    if old_order_state != new_order_state do
+      Logger.defug(fn ->
+        "hall_button_press floor=#{floor} button=#{direction} from=#{inspect(old_order_state)} to=#{inspect(new_order_state)}"
+      end)
+    end
 
     {:noreply, order_map, {:continue, :hall_update_state}}
   end
