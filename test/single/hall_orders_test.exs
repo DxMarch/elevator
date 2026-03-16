@@ -5,10 +5,10 @@ defmodule Test.Single.HallOrdersTest do
   @max_continue_iterations 100
 
   setup_all do
-    start_supervised!(Elevator.FSM.State)
     start_supervised!(Elevator.Communicator)
     start_supervised!(Elevator.CabOrders)
     start_supervised!({Elevator.HallOrders, Elevator.num_floors()})
+    start_supervised!(Elevator.FSM.State)
     :ok
   end
 
