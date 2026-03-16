@@ -6,7 +6,7 @@ defmodule Elevator.Types do
 
   @type btn_dir :: :up | :down
 
-  @type elev_dir :: :up | :down | :stop
+  @type elev_dir :: :up | :down
 
   @type elev_behavior :: :moving | :idle | :door_open
 

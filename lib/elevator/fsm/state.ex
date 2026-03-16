@@ -6,7 +6,7 @@ defmodule Elevator.FSM.State do
   alias Elevator.Hardware.Outputs
   alias Elevator.Types
 
-  defstruct direction: :stop,
+  defstruct direction: :down,
             behavior: :idle,
             floor: :unknown,
             between_floors: true,
