@@ -3,11 +3,11 @@ defmodule Elevator.HallOrders.Order do
   Logic concerning a single Hall Order.
 
   A hall order is tied to a floor and direction (up/down). It is essentially
-  one of the hall buttons. It is in one of the following states:
-  - unknown: Initial, will transition to any state. Light: off
+  one of the hall buttons. An order has both a version number and a state.
+  State is one of the following:
   - idle: No known order. Light: off
   - pending: Someone pressed a button, but everyone does not know it. Light: off
-  - confirmed: All alive nodes know about the order and has indicated their preference to it. Light on.
+  - confirmed: All alive nodes know about the order and has indicated their cost to serve it. Light on.
   """
 
   alias Elevator.Types
@@ -26,6 +26,7 @@ defmodule Elevator.HallOrders.Order do
           hall_order_value()
   def merge_hall_orders(button_key, button_state, other_state, my_hall_orders) do
     {new_button_version, new_button_state} = merge_orders(button_state, other_state)
+
     # Ensure self is in any barrier set.
     {new_button_version, new_button_state} =
       case new_button_state do
@@ -79,7 +80,6 @@ defmodule Elevator.HallOrders.Order do
   end
 
   defp merge_orders({my_version, my_state}, {other_version, other_state}) do
-    # This is the full state machine of the hall order consensus algorithm.
     cond do
       my_version > other_version ->
         {my_version, my_state}
@@ -89,20 +89,14 @@ defmodule Elevator.HallOrders.Order do
 
       true ->
         case {my_state, other_state} do
-          {:idle, other_state} ->
-            {other_version, other_state}
-
-          {_, :idle} ->
-            {my_version, my_state}
-
           {{:pending, my_barrier}, {:pending, other_barrier}} ->
             {my_version, {:pending, MapSet.union(my_barrier, other_barrier)}}
 
           {{:confirmed, my_cost_map}, {:confirmed, other_cost_map}} ->
             {my_version, {:confirmed, Cost.merge_cost(my_cost_map, other_cost_map)}}
 
-          {{:confirmed, _}, _} ->
-            {my_version, my_state}
+          {:idle, _} ->
+            {other_version, other_state}
 
           {_, {:confirmed, _}} ->
             {other_version, other_state}
