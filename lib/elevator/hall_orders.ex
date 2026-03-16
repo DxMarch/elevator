@@ -1,6 +1,10 @@
 defmodule Elevator.HallOrders do
   @moduledoc """
   Module responsible for all changes occuring to the hall_order part of the state.
+  The events that can change hall orders are:
+  - Button is pressed.
+  - Arrived at floor.
+  - Received hall orders from another node.
   """
   alias Elevator.HallOrders.Order
   alias Elevator.HallOrders.Cost
@@ -43,21 +47,21 @@ defmodule Elevator.HallOrders do
   end
 
   @doc """
-  Callback for receiving the hall order state from another node.
-  Merges the states by updating the individual
+  Receiving the hall order state from another node.
+  Merges the states by updating the individual order status.
   """
   @spec receive_state(hall_order_map()) :: :ok
   def receive_state(other_state), do: GenServer.cast(__MODULE__, {:receive_state, other_state})
 
   @doc """
-  Callback for a button press.
+  Places the corresponding order in pending state if it is in idle. 
   """
   @spec button_press(floor(), hall_btn()) :: :ok
   def button_press(floor, button_type),
     do: GenServer.cast(__MODULE__, {:button_press, floor, button_type})
 
   @doc """
-  Callback for clearing a floor.
+  Goes back to idle if the order is confirmed.
   """
   @spec arrived_at_floor(floor(), :up | :down) :: :ok
   def arrived_at_floor(floor, direction) do
@@ -81,7 +85,7 @@ defmodule Elevator.HallOrders do
   end
 
   @doc """
-  Get all orders in same format as get_my_orders.
+  Get all confirmed orders in same format as get_my_orders.
   These are the orders we turn the light on for.
   """
   @spec get_confirmed_orders() :: %{Elevator.Types.floor() => MapSet.t(Elevator.Types.hall_btn())}
@@ -129,7 +133,6 @@ defmodule Elevator.HallOrders do
     new_order_map =
       Map.keys(order_map)
       |> Enum.map(fn key ->
-        # TODO
         new_value = Order.merge_hall_orders(key, order_map[key], other_order_map[key], my_orders)
         {key, new_value}
       end)
@@ -184,7 +187,6 @@ defmodule Elevator.HallOrders do
     key = {floor, button_type}
     order_value = order_map[key]
 
-    # TODO: Maybe check that it is our order
     order_map =
       case order_value do
         {order_version, {:confirmed, _}} ->
@@ -234,8 +236,7 @@ defmodule Elevator.HallOrders do
     Enum.filter(order_map, fn {_, {_order_version, order_state}} ->
       case order_state do
         {:confirmed, cost_map} ->
-          # Hmm.
-          Cost.min_alive_cost(cost_map, alive) == Node.self()
+          Cost.min_alive_cost(cost_map, alive) == Communicator.my_id()
 
         _ ->
           false
@@ -249,6 +250,7 @@ defmodule Elevator.HallOrders do
           | Enumerable.t({Elevator.Types.hall_order_key(), Elevator.Types.hall_order_value()})
   @spec orders_by_floor(enum_orders()) :: %{floor() => MapSet.t(hall_btn())}
   defp orders_by_floor(orders) do
+    # Restructure order map to the format floor => MapSet(order)
     orders
     |> Enum.map(fn {{floor, btn_type}, _} -> {floor, btn_type} end)
     |> Enum.group_by(fn {floor, _} -> floor end)
