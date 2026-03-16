@@ -52,7 +52,7 @@ defmodule Elevator.HallOrders do
   def receive_state(other_state), do: GenServer.cast(__MODULE__, {:receive_state, other_state})
 
   @doc """
-  Places the corresponding order in pending state if it is in idle.
+  Places the corresponding order in pending state if it is in idle. 
   """
   @spec button_press(floor(), hall_btn()) :: :ok
   def button_press(floor, button_type),
