@@ -12,7 +12,7 @@ defmodule Elevator.FSM.State do
             between_floors: true,
             obstructed: false,
             motor_timed_out: false,
-            door_open_time: Time.utc_now(),
+            door_open_time_ms: Time.utc_now(),
             last_floor_time: nil
 
   @type t :: %__MODULE__{
@@ -22,7 +22,7 @@ defmodule Elevator.FSM.State do
           between_floors: boolean(),
           obstructed: boolean(),
           motor_timed_out: boolean(),
-          door_open_time: Time.t(),
+          door_open_time_ms: Time.t(),
           last_floor_time: Time.t() | nil
         }
 
@@ -48,6 +48,10 @@ defmodule Elevator.FSM.State do
 
   def set_behavior(behavior), do: GenServer.cast(__MODULE__, {:set_behavior, behavior})
 
+  @doc """
+  Opens the door if the elevator is at a floor.
+  Does nothing if the elevator is between floors.
+  """
   def open_door(), do: GenServer.cast(__MODULE__, :open_door)
 
   def set_motor_timed_out(timed_out),
@@ -87,17 +91,12 @@ defmodule Elevator.FSM.State do
   end
 
   @impl true
-  def handle_cast({:set_door_open_time, door_open_time}, state) do
-    {:noreply, %{state | door_open_time: door_open_time}, {:continue, :set_outputs}}
-  end
-
-  @impl true
   def handle_cast(:open_door, state) do
     new_state =
       if state.between_floors do
         state
       else
-        %{state | behavior: :door_open, door_open_time: Time.utc_now()}
+        %{state | behavior: :door_open, door_open_time_ms: Time.utc_now()}
       end
 
     {:noreply, new_state, {:continue, :set_outputs}}

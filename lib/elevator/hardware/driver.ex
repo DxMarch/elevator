@@ -1,8 +1,9 @@
 defmodule Elevator.Hardware.Driver do
   use GenServer
   require Logger
-  @call_timeout 1000
-  @reconnect_interval 1000
+
+  @call_timeout_ms 1000
+  @reconnect_interval_ms 1000
   @button_map %{:hall_up => 0, :hall_down => 1, :cab => 2}
   @state_map %{:on => 1, :off => 0}
   @direction_map %{:up => 1, :down => 255, :stop => 0}
@@ -33,10 +34,10 @@ defmodule Elevator.Hardware.Driver do
 
       {:error, reason} ->
         Logger.warning(
-          "Driver failed to connect (#{reason}), retrying in #{@reconnect_interval}ms..."
+          "Driver failed to connect (#{reason}), retrying in #{@reconnect_interval_ms}ms..."
         )
 
-        Process.sleep(@reconnect_interval)
+        Process.sleep(@reconnect_interval_ms)
         connect(address, port)
     end
   end
@@ -193,7 +194,7 @@ defmodule Elevator.Hardware.Driver do
   def handle_call({:get_order_button_state, floor, order_type}, _from, {socket, addr, port}) do
     :gen_tcp.send(socket, [6, @button_map[order_type], floor, 0])
 
-    case :gen_tcp.recv(socket, 4, @call_timeout) do
+    case :gen_tcp.recv(socket, 4, @call_timeout_ms) do
       {:ok, [6, 0, 0, 0]} -> {:reply, :inactive, {socket, addr, port}}
       {:ok, [6, 1, 0, 0]} -> {:reply, :active, {socket, addr, port}}
       {:error, reason} -> {:stop, reason, {:error, reason}, {socket, addr, port}}
@@ -204,7 +205,7 @@ defmodule Elevator.Hardware.Driver do
   def handle_call(:get_floor_sensor_state, _from, {socket, addr, port}) do
     :gen_tcp.send(socket, [7, 0, 0, 0])
 
-    case :gen_tcp.recv(socket, 4, @call_timeout) do
+    case :gen_tcp.recv(socket, 4, @call_timeout_ms) do
       {:ok, [7, 0, _, 0]} -> {:reply, :between_floors, {socket, addr, port}}
       {:ok, [7, 1, floor, 0]} -> {:reply, floor, {socket, addr, port}}
       {:error, reason} -> {:stop, reason, {:error, reason}, {socket, addr, port}}
@@ -215,7 +216,7 @@ defmodule Elevator.Hardware.Driver do
   def handle_call(:get_stop_button_state, _from, {socket, addr, port}) do
     :gen_tcp.send(socket, [8, 0, 0, 0])
 
-    case :gen_tcp.recv(socket, 4, @call_timeout) do
+    case :gen_tcp.recv(socket, 4, @call_timeout_ms) do
       {:ok, [8, 0, 0, 0]} -> {:reply, :inactive, {socket, addr, port}}
       {:ok, [8, 1, 0, 0]} -> {:reply, :active, {socket, addr, port}}
       {:error, reason} -> {:stop, reason, {:error, reason}, {socket, addr, port}}
@@ -226,7 +227,7 @@ defmodule Elevator.Hardware.Driver do
   def handle_call(:get_obstruction_switch_state, _from, {socket, addr, port}) do
     :gen_tcp.send(socket, [9, 0, 0, 0])
 
-    case :gen_tcp.recv(socket, 4, @call_timeout) do
+    case :gen_tcp.recv(socket, 4, @call_timeout_ms) do
       {:ok, [9, 0, 0, 0]} -> {:reply, :inactive, {socket, addr, port}}
       {:ok, [9, 1, 0, 0]} -> {:reply, :active, {socket, addr, port}}
       {:error, reason} -> {:stop, reason, {:error, reason}, {socket, addr, port}}

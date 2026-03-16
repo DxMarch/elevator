@@ -1,13 +1,14 @@
-defmodule Test.Single.HallOrders do
+defmodule Test.Single.HallOrdersTest do
   use ExUnit.Case, async: false
   # TODO: Maybe doctest
-  # doctest Elevator
+
+  @max_continue_iterations 100
 
   setup_all do
-    start_supervised!(Elevator.FSM.State)
     start_supervised!(Elevator.Communicator)
     start_supervised!(Elevator.CabOrders)
     start_supervised!({Elevator.HallOrders, Elevator.num_floors()})
+    start_supervised!(Elevator.FSM.State)
     :ok
   end
 
@@ -41,9 +42,9 @@ defmodule Test.Single.HallOrders do
   test "clear floor from pending state leaves elevator state unchanged" do
     {:ok, state} = Elevator.HallOrders.init(3)
     id = Node.self()
-    state = Map.put(state, {1, :hall_up}, {:pending, MapSet.new([id])})
+    state = Map.put(state, {1, :hall_up}, {0, {:pending, MapSet.new([id])}})
     assert {:noreply, final_state} = hallorder_cast_full({:arrived_at_floor, 1, :up}, state)
-    assert {:pending, _} = final_state[{1, :hall_up}]
+    assert {_, {:pending, _}} = final_state[{1, :hall_up}]
   end
 
   @tag :hall_orders_single
@@ -97,7 +98,7 @@ defmodule Test.Single.HallOrders do
 
   defp hallorder_continue_full(continue_arg, state, continue_counter \\ 0) do
     # Prevent infinite continue loop
-    assert continue_counter < 100
+    assert continue_counter < @max_continue_iterations
 
     ret = Elevator.HallOrders.handle_continue(continue_arg, state)
 

@@ -1,6 +1,10 @@
 defmodule Test.Utils.MultiCluster do
   @moduledoc false
 
+  @node_shutdown_timeout_ms 1000
+  @cluster_wait_timeout_ms 2000
+  @poll_interval_ms 50
+
   @spec start_three_node_cluster(non_neg_integer(), boolean()) :: %{
           nodes: [node()],
           peers: [pid()]
@@ -47,7 +51,7 @@ defmodule Test.Utils.MultiCluster do
         receive do
           {:DOWN, _, :process, ^pid, _} -> :ok
         after
-          1000 -> :ok
+          @node_shutdown_timeout_ms -> :ok
         end
       end
     end
@@ -87,12 +91,12 @@ defmodule Test.Utils.MultiCluster do
     {peer, node}
   end
 
-  defp wait_until_connected(nodes, timeout \\ 2000) do
+  defp wait_until_connected(nodes, timeout \\ @cluster_wait_timeout_ms) do
     deadline = System.monotonic_time(:millisecond) + timeout
     wait_connected_loop(nodes, deadline)
   end
 
-  defp wait_until_disconnected(nodes, timeout \\ 2000) do
+  defp wait_until_disconnected(nodes, timeout \\ @cluster_wait_timeout_ms) do
     deadline = System.monotonic_time(:millisecond) + timeout
     wait_disconnected_loop(nodes, deadline)
   end
@@ -105,7 +109,7 @@ defmodule Test.Utils.MultiCluster do
         raise "Test timed out waiting for nodes"
       end
 
-      Process.sleep(50)
+      Process.sleep(@poll_interval_ms)
       wait_connected_loop(nodes, deadline)
     end
   end
@@ -118,7 +122,7 @@ defmodule Test.Utils.MultiCluster do
         raise "Test timed out waiting for node disconnect"
       end
 
-      Process.sleep(50)
+      Process.sleep(@poll_interval_ms)
       wait_disconnected_loop(nodes, deadline)
     end
   end

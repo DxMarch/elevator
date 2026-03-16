@@ -3,6 +3,8 @@ defmodule Test.Utils.TestCompiled do
   This module exists because to run :rpc-calls, the called code has to be compiled, not .exs.
   So put code here if it is the endpoint of an RPC for testing that is not suitable for lib/.
   """
+  def convergence_wait_ms, do: 3 * Elevator.resend_period_ms()
+
   def start_order_modules(num_floors, do_resend) do
     children = [
       {Elevator.Communicator, [do_resend: do_resend]},

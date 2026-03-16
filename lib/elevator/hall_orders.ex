@@ -16,7 +16,7 @@ defmodule Elevator.HallOrders do
   @type floor :: Elevator.Types.floor()
   @type hall_btn :: Elevator.Types.hall_btn()
 
-  @hall_order_refresh_period 1000
+  @hall_order_refresh_period_ms 1000
 
   def start_link(arg) do
     GenServer.start_link(__MODULE__, arg, name: __MODULE__)
@@ -39,14 +39,14 @@ defmodule Elevator.HallOrders do
       |> Enum.map(&{&1, {0, :idle}})
       |> Enum.into(%{})
 
-    Process.send_after(self(), :refresh_hall_orders, @hall_order_refresh_period)
+    Process.send_after(self(), :refresh_hall_orders, @hall_order_refresh_period_ms)
 
     {:ok, state}
   end
 
   @doc """
-  Receiving the hall order state from another node.
-  Merges the states by updating the individual order status.
+  Receives the hall order state from another node and merges it into local state.
+  Each order is merged individually using the consensus algorithm in `HallOrders.Order`.
   """
   @spec receive_state(hall_order_map()) :: :ok
   def receive_state(other_state), do: GenServer.cast(__MODULE__, {:receive_state, other_state})
@@ -115,6 +115,7 @@ defmodule Elevator.HallOrders do
     {:reply, confirmed_orders, order_map}
   end
 
+  @impl true
   def handle_call(:get_state, _, order_map) do
     {:reply, order_map, order_map}
   end
@@ -149,7 +150,7 @@ defmodule Elevator.HallOrders do
 
     {old_order_version, old_order_state} = old_order_value
 
-    order_map =
+    new_order_map =
       case old_order_state do
         :idle ->
           Map.put(order_map, key, {old_order_version + 1, {:pending, MapSet.new([Node.self()])}})
@@ -158,7 +159,7 @@ defmodule Elevator.HallOrders do
           order_map
       end
 
-    new_order_value = order_map[key]
+    new_order_value = new_order_map[key]
 
     if old_order_value != new_order_value do
       Logger.debug(fn ->
@@ -166,7 +167,7 @@ defmodule Elevator.HallOrders do
       end)
     end
 
-    {:noreply, order_map, {:continue, :hall_update_state}}
+    {:noreply, new_order_map, {:continue, :hall_update_state}}
   end
 
   @impl true
@@ -177,7 +178,7 @@ defmodule Elevator.HallOrders do
     key = {floor, button_type}
     order_value = order_map[key]
 
-    order_map =
+    new_order_map =
       case order_value do
         {order_version, {:confirmed, _}} ->
           Map.put(order_map, key, {order_version + 1, :idle})
@@ -186,12 +187,12 @@ defmodule Elevator.HallOrders do
           order_map
       end
 
-    {:noreply, order_map}
+    {:noreply, new_order_map}
   end
 
   @impl true
   def handle_info(:refresh_hall_orders, order_map) do
-    Process.send_after(self(), :refresh_hall_orders, @hall_order_refresh_period)
+    Process.send_after(self(), :refresh_hall_orders, @hall_order_refresh_period_ms)
     {:noreply, order_map, {:continue, :hall_update_state}}
   end
 

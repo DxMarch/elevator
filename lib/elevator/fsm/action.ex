@@ -9,8 +9,8 @@ defmodule Elevator.FSM.Action do
   alias Elevator.HallOrders
   alias Elevator.Decision
 
-  @motor_timeout 4000
-  @action_interval 100
+  @motor_timeout_ms 4000
+  @action_interval_ms 100
 
   def start_link(_arg) do
     pid = spawn_link(fn -> poll_action() end)
@@ -32,7 +32,7 @@ defmodule Elevator.FSM.Action do
     poll_door_timer()
     check_motor_timeout()
     decide_and_take_action()
-    Process.sleep(@action_interval)
+    Process.sleep(@action_interval_ms)
     poll_action()
   end
 
@@ -53,7 +53,7 @@ defmodule Elevator.FSM.Action do
           false
 
         last_floor_time ->
-          Time.diff(Time.utc_now(), last_floor_time, :millisecond) > @motor_timeout
+          Time.diff(Time.utc_now(), last_floor_time, :millisecond) > @motor_timeout_ms
       end
 
     State.set_motor_timed_out(timed_out)
@@ -69,9 +69,6 @@ defmodule Elevator.FSM.Action do
       orders = get_my_orders()
 
       {new_direction, new_behavior} = Decision.next_action(orders, state)
-
-      # Logger.debug("Deciding on behavior from state:\n #{inspect(state)}\n Orders: #{inspect(orders)}")
-      # Logger.debug("Got behavior #{new_direction} and #{new_behavior}")
 
       cond do
         state.behavior == :door_open ->

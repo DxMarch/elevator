@@ -10,7 +10,7 @@ defmodule Elevator.HallOrders.Cost do
   alias Elevator.FSM.State
   require Logger
 
-  @travel_duration 2500
+  @travel_duration_ms 2500
   @max_simulation_steps 256
   @unreachable_cost 30000
 
@@ -85,7 +85,8 @@ defmodule Elevator.HallOrders.Cost do
         fn {node1, cost1}, {node2, cost2} ->
           cost1 < cost2 or (cost1 == cost2 and node1 < node2)
         end,
-        fn -> {:nonode@nohost, Inf} end
+        # Fallback when no alive costs exist
+        fn -> {:nonode@nohost, :infinity} end
       )
 
     min_node
@@ -129,7 +130,13 @@ defmodule Elevator.HallOrders.Cost do
                   behavior: :moving
               }
 
-              do_simulate(orders, next_state, target, time_ms + @travel_duration, steps_left - 1)
+              do_simulate(
+                orders,
+                next_state,
+                target,
+                time_ms + @travel_duration_ms,
+                steps_left - 1
+              )
 
             :error ->
               @unreachable_cost
@@ -189,6 +196,7 @@ defmodule Elevator.HallOrders.Cost do
         orders
 
       true ->
+        # No reason to continue up: clear hall down when turning around
         clear_button(orders, floor, :hall_down)
     end
   end

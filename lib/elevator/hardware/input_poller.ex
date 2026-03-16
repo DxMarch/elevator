@@ -10,9 +10,9 @@ defmodule Elevator.Hardware.InputPoller do
   alias Elevator.HallOrders
   alias Elevator.Hardware.Driver
 
-  @floor_poll_interval 50
-  @button_poll_interval 20
-  @obstruction_poll_interval 500
+  @floor_poll_interval_ms 50
+  @button_poll_interval_ms 20
+  @obstruction_poll_interval_ms 500
 
   # Public API
   def start_link(_opts) do
@@ -53,9 +53,7 @@ defmodule Elevator.Hardware.InputPoller do
   @impl true
   def handle_info(:poll_buttons, state) do
     schedule_button_poll()
-    # Polls button and notifies State if any are pressed
-
-    prev_buttons = Map.get(state, :prev_buttons, MapSet.new())
+    # Polls button and notifies Cab- and HallOrders if any are pressed
 
     current_buttons =
       for floor <- 0..(Elevator.num_floors() - 1),
@@ -65,7 +63,7 @@ defmodule Elevator.Hardware.InputPoller do
       end
 
     # Only notify on new presses (in current but not in previous)
-    new_presses = MapSet.difference(current_buttons, prev_buttons)
+    new_presses = MapSet.difference(current_buttons, state.prev_buttons)
 
     Enum.each(new_presses, fn {floor, btn} ->
       case btn do
@@ -91,14 +89,14 @@ defmodule Elevator.Hardware.InputPoller do
 
   # Schedule functions
   defp schedule_button_poll do
-    Process.send_after(self(), :poll_buttons, @button_poll_interval)
+    Process.send_after(self(), :poll_buttons, @button_poll_interval_ms)
   end
 
   defp schedule_floor_poll do
-    Process.send_after(self(), :poll_floor, @floor_poll_interval)
+    Process.send_after(self(), :poll_floor, @floor_poll_interval_ms)
   end
 
   defp schedule_obstruction_poll do
-    Process.send_after(self(), :poll_obstruction, @obstruction_poll_interval)
+    Process.send_after(self(), :poll_obstruction, @obstruction_poll_interval_ms)
   end
 end

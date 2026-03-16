@@ -5,7 +5,9 @@ defmodule Test.Single.CostTest do
   alias Elevator.FSM.State
   alias Elevator.HallOrders.Cost
 
-  @travel_duration 2500
+  @travel_duration_ms 2500
+  @unreachable_cost 30000
+  @state_settle_ms 10
 
   setup do
     start_supervised!({CabOrders, []})
@@ -31,19 +33,20 @@ defmodule Test.Single.CostTest do
     set_state(floor: 0, direction: :up, behavior: :idle)
 
     assert Cost.compute_cost({1, :hall_up}, %{}) ==
-             @travel_duration + Elevator.door_open_duration_ms()
+             @travel_duration_ms + Elevator.door_open_duration_ms()
   end
 
   test "unknown floor yields unreachable cost" do
     set_state(floor: :unknown, direction: :down, behavior: :idle)
 
-    assert Cost.compute_cost({1, :hall_up}, %{}) == 30000
+    assert Cost.compute_cost({1, :hall_up}, %{}) == @unreachable_cost
   end
 
   defp set_state(opts) do
     State.set_direction(Keyword.fetch!(opts, :direction))
     State.set_behavior(Keyword.fetch!(opts, :behavior))
     State.set_floor(Keyword.fetch!(opts, :floor))
-    Process.sleep(10)
+    # Wait for GenServer casts to settle
+    Process.sleep(@state_settle_ms)
   end
 end

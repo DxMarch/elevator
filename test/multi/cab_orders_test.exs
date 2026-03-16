@@ -1,6 +1,7 @@
 defmodule Test.Multi.CabOrdersTest do
   alias Elevator.CabOrders
   alias Test.Utils.MultiCluster
+  alias Test.Utils.TestCompiled, as: TestUtils
 
   use ExUnit.Case, async: false
 
@@ -38,13 +39,13 @@ defmodule Test.Multi.CabOrdersTest do
       %{node1 => %{version: 420, orders: MapSet.new([3])}}
     ])
 
-    Process.sleep(Elevator.test_convergence_wait_time())
+    Process.sleep(TestUtils.convergence_wait_ms())
 
     node1_orders = :rpc.call(node1, CabOrders, :get_my_orders, [])
     assert node1_orders == MapSet.new([3])
   end
 
-  test "elevator ingores lower version numbers", %{nodes: [node1, node2, node3]} do
+  test "elevator ignores lower version numbers", %{nodes: [node1, node2, node3]} do
     %{version: node1_version, orders: node1_orders} =
       :rpc.call(node1, CabOrders, :get_state, [])[node1]
 
@@ -56,7 +57,7 @@ defmodule Test.Multi.CabOrdersTest do
       %{node1 => %{version: 69, orders: MapSet.new([1])}}
     ])
 
-    Process.sleep(Elevator.test_convergence_wait_time())
+    Process.sleep(TestUtils.convergence_wait_ms())
 
     %{version: node1_version, orders: node1_orders} =
       :rpc.call(node1, CabOrders, :get_state, [])[node1]
@@ -69,7 +70,7 @@ defmodule Test.Multi.CabOrdersTest do
       %{node1 => %{version: 67, orders: MapSet.new([1, 2])}}
     ])
 
-    Process.sleep(Elevator.test_convergence_wait_time())
+    Process.sleep(TestUtils.convergence_wait_ms())
 
     %{version: node1_version, orders: node1_orders} =
       :rpc.call(node1, CabOrders, :get_state, [])[node1]
@@ -82,7 +83,7 @@ defmodule Test.Multi.CabOrdersTest do
       %{node1 => %{version: 69, orders: MapSet.new([1, 2])}}
     ])
 
-    Process.sleep(Elevator.test_convergence_wait_time())
+    Process.sleep(TestUtils.convergence_wait_ms())
 
     %{version: node1_version, orders: node1_orders} =
       :rpc.call(node1, CabOrders, :get_state, [])[node1]
@@ -91,7 +92,7 @@ defmodule Test.Multi.CabOrdersTest do
     assert node1_orders == MapSet.new([1])
   end
 
-  test "cab order states progate", %{nodes: [node1, node2, node3]} do
+  test "cab order states propagate", %{nodes: [node1, node2, node3]} do
     %{version: node1_version, orders: node1_orders} =
       :rpc.call(node1, CabOrders, :get_state, [])[node1]
 
@@ -107,7 +108,7 @@ defmodule Test.Multi.CabOrdersTest do
              node3_orders == MapSet.new()
 
     :rpc.cast(node1, CabOrders, :button_press, [1])
-    Process.sleep(Elevator.test_convergence_wait_time())
+    Process.sleep(TestUtils.convergence_wait_ms())
 
     # Ensure that node1's version and order map has propagated across all nodes
     %{version: node1_version, orders: node1_orders} =
