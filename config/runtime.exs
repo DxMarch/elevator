@@ -26,7 +26,7 @@ gossip_secret = env!("GOSSIP_SECRET", :string, "change_me_in_dotenv")
 
 config :libcluster,
   topologies: [
-    simple_elevator: [
+    elevator: [
       strategy: Cluster.Strategy.Gossip,
       config: [secret: gossip_secret]
     ]

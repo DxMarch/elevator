@@ -51,9 +51,13 @@ defmodule Elevator.HallOrders.Order do
     alive = Communicator.who_can_serve()
 
     case button_state do
-      {:pending, ^alive} ->
-        my_cost = Cost.compute_cost(key, confirmed_hall_orders)
-        {true, {:confirmed, %{Node.self() => my_cost}, MapSet.new([Node.self()])}}
+      {:pending, barrier_set} ->
+        if MapSet.intersection(barrier_set, alive) == alive do
+          my_cost = Cost.compute_cost(key, confirmed_hall_orders)
+          {true, {:confirmed, %{Node.self() => my_cost}, MapSet.new([Node.self()])}}
+        else
+          {false, button_state}
+        end
 
       _ ->
         {false, button_state}

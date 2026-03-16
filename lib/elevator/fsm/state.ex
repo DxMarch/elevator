@@ -4,21 +4,26 @@ defmodule Elevator.FSM.State do
   """
   require Logger
   alias Elevator.Hardware.Outputs
-  alias Elevator.Hardware.Driver
   alias Elevator.Types
 
   defstruct direction: :stop,
             behavior: :idle,
             floor: :unknown,
             between_floors: true,
-            door_open_time: Time.utc_now()
+            obstructed: false,
+            motor_timed_out: false,
+            door_open_time: Time.utc_now(),
+            last_floor_time: nil
 
   @type t :: %__MODULE__{
           direction: Types.elev_dir(),
           behavior: Types.elev_behavior(),
           floor: :unknown | Types.floor(),
           between_floors: boolean(),
-          door_open_time: Time.t()
+          obstructed: boolean(),
+          motor_timed_out: boolean(),
+          door_open_time: Time.t(),
+          last_floor_time: Time.t() | nil
         }
 
   use GenServer
@@ -33,27 +38,25 @@ defmodule Elevator.FSM.State do
     GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
   end
 
-  def set_floor(floor) do
-    GenServer.cast(__MODULE__, {:set_floor, floor})
-  end
+  # User API ----------------------------------------
 
-  def set_direction(dir) do
-    GenServer.cast(__MODULE__, {:set_direction, dir})
-  end
+  def set_floor(floor), do: GenServer.cast(__MODULE__, {:set_floor, floor})
 
-  def set_behavior(behavior) do
-    GenServer.cast(__MODULE__, {:set_behavior, behavior})
-  end
+  def set_obstruction(obstructed), do: GenServer.cast(__MODULE__, {:set_obstruction, obstructed})
 
-  def open_door() do
-    GenServer.cast(__MODULE__, :open_door)
-  end
+  def set_direction(dir), do: GenServer.cast(__MODULE__, {:set_direction, dir})
 
-  def get_state() do
-    GenServer.call(__MODULE__, :get_state)
-  end
+  def set_behavior(behavior), do: GenServer.cast(__MODULE__, {:set_behavior, behavior})
+
+  def open_door(), do: GenServer.cast(__MODULE__, :open_door)
+
+  def set_motor_timed_out(timed_out),
+    do: GenServer.call(__MODULE__, {:set_motor_timed_out, timed_out})
+
+  def get_state(), do: GenServer.call(__MODULE__, :get_state)
 
   # Casts ----------------------------------------
+
   @impl true
   def handle_cast({:set_floor, floor}, state) do
     new_state =
@@ -62,10 +65,15 @@ defmodule Elevator.FSM.State do
           %{state | between_floors: true}
 
         _ ->
-          %{state | between_floors: false, floor: floor}
+          %{state | between_floors: false, floor: floor, last_floor_time: Time.utc_now()}
       end
 
     {:noreply, new_state, {:continue, :set_outputs}}
+  end
+
+  @impl true
+  def handle_cast({:set_obstruction, obstructed}, state) do
+    {:noreply, %{state | obstructed: obstructed}}
   end
 
   @impl true
@@ -102,6 +110,13 @@ defmodule Elevator.FSM.State do
   end
 
   # Calls ----------------------------------------
+
+  @impl true
+  def handle_call({:set_motor_timed_out, timed_out}, _from, state) do
+    new_state = %{state | motor_timed_out: timed_out}
+    {:reply, :ok, new_state}
+  end
+
   @impl true
   def handle_call(:get_state, _from, state) do
     {:reply, state, state}

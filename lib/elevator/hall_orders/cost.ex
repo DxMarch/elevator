@@ -53,9 +53,13 @@ defmodule Elevator.HallOrders.Cost do
     alive_costs = Enum.filter(cost_map, fn {node, _} -> MapSet.member?(alive_set, node) end)
 
     {min_node, _} =
-      Enum.min(alive_costs, fn {node1, cost1}, {node2, cost2} ->
-        cost1 < cost2 or (cost1 == cost2 and node1 < node2)
-      end)
+      Enum.min(
+        alive_costs,
+        fn {node1, cost1}, {node2, cost2} ->
+          cost1 < cost2 or (cost1 == cost2 and node1 < node2)
+        end,
+        fn -> {:nonode@nohost, Inf} end
+      )
 
     min_node
   end

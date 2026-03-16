@@ -3,6 +3,8 @@
 #
 # Lines starting with # and blank lines are ignored.
 
+19  student@10.100.23.29
+21  student@10.100.23.172
 24  student@10.100.23.34
 25  student@10.100.23.35
 26  student@10.100.23.36  # does not have a physical elevator
