@@ -48,6 +48,10 @@ defmodule Elevator.FSM.State do
 
   def set_behavior(behavior), do: GenServer.cast(__MODULE__, {:set_behavior, behavior})
 
+  @doc """
+  Opens the door if the elevator is at a floor.
+  Does nothing if the elevator is between floors.
+  """
   def open_door(), do: GenServer.cast(__MODULE__, :open_door)
 
   def set_motor_timed_out(timed_out),

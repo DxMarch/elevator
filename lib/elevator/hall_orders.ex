@@ -12,6 +12,7 @@ defmodule Elevator.HallOrders do
   @type floor :: Elevator.Types.floor()
   @type hall_btn :: Elevator.Types.hall_btn()
 
+  # Key tracked for debug logging only
   @tracked_key {0, :hall_up}
 
   @hall_order_refresh_period_ms 1000
@@ -43,8 +44,8 @@ defmodule Elevator.HallOrders do
   end
 
   @doc """
-  Callback for receiving the hall order state from another node.
-  Merges the states by updating the individual
+  Receives the hall order state from another node and merges it into local state.
+  Each order is merged individually using the consensus algorithm in `HallOrders.Order`.
   """
   @spec receive_state(hall_order_map()) :: :ok
   def receive_state(other_state), do: GenServer.cast(__MODULE__, {:receive_state, other_state})
@@ -58,6 +59,7 @@ defmodule Elevator.HallOrders do
 
   @doc """
   Callback for clearing a floor.
+  Only clears `confirmed` orders, not pending ones.
   """
   @spec arrived_at_floor(floor(), :up | :down) :: :ok
   def arrived_at_floor(floor, direction) do
@@ -113,6 +115,7 @@ defmodule Elevator.HallOrders do
     {:reply, confirmed_orders, order_map}
   end
 
+  @impl true
   def handle_call(:get_state, _, order_map) do
     {:reply, order_map, order_map}
   end
@@ -184,7 +187,7 @@ defmodule Elevator.HallOrders do
     order_value = order_map[key]
 
     # TODO: Maybe check that it is our order
-    order_map =
+    new_order_map =
       case order_value do
         {order_version, {:confirmed, _}} ->
           Map.put(order_map, key, {order_version + 1, :idle})
@@ -193,7 +196,7 @@ defmodule Elevator.HallOrders do
           order_map
       end
 
-    {:noreply, order_map}
+    {:noreply, new_order_map}
   end
 
   @impl true

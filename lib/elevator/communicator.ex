@@ -60,7 +60,8 @@ defmodule Elevator.Communicator do
   end
 
   @doc """
-  Updates the operational key in the state map.
+  Updates the `operational` part of the state.
+  Signals to peers whether this node can serve orders.
   """
   @spec update_operation_status(boolean()) :: :ok
   def update_operation_status(status) do
@@ -111,10 +112,12 @@ defmodule Elevator.Communicator do
   end
 
   # Delete node from state map on disconnect
+  @impl true
   def handle_info({:nodedown, node}, state) do
     {:noreply, %{state | connected_nodes: Map.delete(state.connected_nodes, node)}}
   end
 
+  @impl true
   def handle_info(:log_debug, state) do
     Process.send_after(self(), :log_debug, 1000)
     Logger.debug("My id: #{my_id()}")

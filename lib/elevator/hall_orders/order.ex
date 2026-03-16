@@ -53,9 +53,9 @@ defmodule Elevator.HallOrders.Order do
   end
 
   @doc """
-  Maybe update a hall order based on its own state.
-  This may happen for example when the order autonomously transitions from pending to
-  confirmed when only one elevator is alive.
+  Advances a pending order to confirmed if the barrier set is full.
+  Computes and records this node's cost at the point of confirmation.
+  Returns `{true, new_value}` if the state changed, `{false, unchanged}` otherwise.
   """
   @spec update_hall_order(hall_order_key(), hall_order_value(), %{
           Types.floor() => MapSet.t(Types.hall_btn())
