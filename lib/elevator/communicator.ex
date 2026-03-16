@@ -116,16 +116,12 @@ defmodule Elevator.Communicator do
   def handle_info(:log_debug, state) do
     Process.send_after(self(), :log_debug, 1000)
     Logger.debug("My id: #{my_id()}")
-    others = who_can_serve() |> Enum.map(fn x -> "#{x}" end) |> Enum.join(", ")
+    others = who_can_serve() |> Enum.map(fn node -> "#{node}" end) |> Enum.join(", ")
     Logger.debug("Others: #{others}")
     {:noreply, state}
   end
 
   # --- Handle calls ---
-
-  def handle_call(:self, _, state) do
-    {:reply, my_id(), state}
-  end
 
   def handle_call(:who_can_serve, _from, state) do
     cutoff_ms = Elevator.msg_cutoff_ms()
@@ -165,7 +161,7 @@ defmodule Elevator.Communicator do
     {:noreply, new_state}
   end
 
-  @spec handle_cast({:update_operation_status, boolean()}, state_t()) :: state_t()
+  @spec handle_cast({:update_operation_status, boolean()}, state_t()) :: {:noreply, state_t()}
   def handle_cast({:update_operation_status, status}, state) do
     {:noreply, %{state | operational: status}}
   end

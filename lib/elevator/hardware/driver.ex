@@ -1,6 +1,6 @@
 defmodule Elevator.Hardware.Driver do
   use GenServer
-  @call_timeout 1000
+  @call_timeout_ms 1000
   @button_map %{:hall_up => 0, :hall_down => 1, :cab => 2}
   @state_map %{:on => 1, :off => 0}
   @direction_map %{:up => 1, :down => 255, :stop => 0}
@@ -176,7 +176,7 @@ defmodule Elevator.Hardware.Driver do
     :gen_tcp.send(socket, [6, @button_map[order_type], floor, 0])
 
     button_state =
-      case :gen_tcp.recv(socket, 4, @call_timeout) do
+      case :gen_tcp.recv(socket, 4, @call_timeout_ms) do
         {:ok, [6, 0, 0, 0]} -> :inactive
         {:ok, [6, 1, 0, 0]} -> :active
       end
@@ -189,7 +189,7 @@ defmodule Elevator.Hardware.Driver do
     :gen_tcp.send(socket, [7, 0, 0, 0])
 
     floor_state =
-      case :gen_tcp.recv(socket, 4, @call_timeout) do
+      case :gen_tcp.recv(socket, 4, @call_timeout_ms) do
         {:ok, [7, 0, _, 0]} -> :between_floors
         {:ok, [7, 1, floor, 0]} -> floor
       end
@@ -202,7 +202,7 @@ defmodule Elevator.Hardware.Driver do
     :gen_tcp.send(socket, [8, 0, 0, 0])
 
     stop_state =
-      case :gen_tcp.recv(socket, 4, @call_timeout) do
+      case :gen_tcp.recv(socket, 4, @call_timeout_ms) do
         {:ok, [8, 0, 0, 0]} -> :inactive
         {:ok, [8, 1, 0, 0]} -> :active
       end
@@ -215,7 +215,7 @@ defmodule Elevator.Hardware.Driver do
     :gen_tcp.send(socket, [9, 0, 0, 0])
 
     obstruction_state =
-      case :gen_tcp.recv(socket, 4, @call_timeout) do
+      case :gen_tcp.recv(socket, 4, @call_timeout_ms) do
         {:ok, [9, 0, 0, 0]} -> :inactive
         {:ok, [9, 1, 0, 0]} -> :active
       end
