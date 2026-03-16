@@ -34,7 +34,7 @@ defmodule Elevator.HallOrders do
           _ -> [{floor, :hall_up}, {floor, :hall_down}]
         end
       end)
-      |> Enum.map(&{&1, :unknown})
+      |> Enum.map(&{&1, {0, :idle}})
       |> Enum.into(%{})
 
     Process.send_after(self(), :refresh_hall_orders, @hall_order_refresh_period)
@@ -102,9 +102,9 @@ defmodule Elevator.HallOrders do
   @impl true
   def handle_call(:get_confirmed_orders, _from, order_map) do
     confirmed_orders =
-      Enum.filter(order_map, fn {_, order_state} ->
+      Enum.filter(order_map, fn {_, {_order_version, order_state}} ->
         case order_state do
-          {:confirmed, _, _} -> true
+          {:confirmed, _} -> true
           _ -> false
         end
       end)
@@ -152,26 +152,25 @@ defmodule Elevator.HallOrders do
   @spec handle_cast({:button_press, floor(), hall_btn()}, hall_order_map()) ::
           {:noreply, hall_order_map(), {:continue, :hall_update_state}}
   def handle_cast({:button_press, floor, direction}, order_map) do
-    # If in idle or unknown, go to pending. Otherwise, ignore.
+    # If in idle, go to pending. Otherwise, ignore.
     key = {floor, direction}
-    old_order_state = order_map[key]
+    old_order_value = order_map[key]
+
+    {old_order_version, old_order_state} = old_order_value
 
     order_map =
       case old_order_state do
-        :unknown ->
-          Map.put(order_map, key, {:pending, MapSet.new([Node.self()])})
-
         :idle ->
-          Map.put(order_map, key, {:pending, MapSet.new([Node.self()])})
+          Map.put(order_map, key, {old_order_version + 1, {:pending, MapSet.new([Node.self()])}})
 
         _ ->
           order_map
       end
 
-    new_order_state = order_map[key]
+    new_order_value = order_map[key]
 
     Logger.info(fn ->
-      "Hall button press #{inspect(key)}: #{inspect(old_order_state)} -> #{inspect(new_order_state)}"
+      "Hall button press #{inspect(key)}: #{inspect(old_order_value)} -> #{inspect(new_order_value)}"
     end)
 
     {:noreply, order_map, {:continue, :hall_update_state}}
@@ -179,19 +178,17 @@ defmodule Elevator.HallOrders do
 
   @impl true
   def handle_cast({:arrived_at_floor, floor, direction}, order_map) do
-    # If in confirmed or unknown, go to idle. Otherwise, ignore.
+    # If in confirmed, go to idle. Otherwise, ignore.
     # TODO: Find out if barrier set should be full as well?
     button_type = [up: :hall_up, down: :hall_down][direction]
     key = {floor, button_type}
-    order_state = order_map[key]
+    order_value = order_map[key]
 
+    # TODO: Maybe check that it is our order
     order_map =
-      case order_state do
-        :unknown ->
-          Map.put(order_map, key, :idle)
-
-        {:confirmed, _, _} ->
-          Map.put(order_map, key, :idle)
+      case order_value do
+        {order_version, {:confirmed, _}} ->
+          Map.put(order_map, key, {order_version + 1, :idle})
 
         _ ->
           order_map
@@ -234,15 +231,11 @@ defmodule Elevator.HallOrders do
   end
 
   defp my_orders_from_order_map(order_map, alive) do
-    Enum.filter(order_map, fn {_, order_state} ->
+    Enum.filter(order_map, fn {_, {_order_version, order_state}} ->
       case order_state do
-        {:confirmed, cost_map, barrier_set} ->
+        {:confirmed, cost_map} ->
           # Hmm.
-          if MapSet.intersection(barrier_set, alive) != alive do
-            false
-          else
-            Cost.min_alive_cost(cost_map, alive) == Node.self()
-          end
+          Cost.min_alive_cost(cost_map, alive) == Node.self()
 
         _ ->
           false
