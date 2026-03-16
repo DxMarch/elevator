@@ -16,7 +16,7 @@ defmodule Elevator.Application do
       Elevator.Hardware.InputPoller
     ]
 
-    opts = [strategy: :one_for_one, name: Elevator.Supervisor]
+    opts = [strategy: :rest_for_one, name: Elevator.Supervisor]
     Supervisor.start_link(children, opts)
   end
 end

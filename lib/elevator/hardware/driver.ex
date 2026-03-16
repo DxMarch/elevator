@@ -1,6 +1,8 @@
 defmodule Elevator.Hardware.Driver do
   use GenServer
+  require Logger
   @call_timeout 1000
+  @reconnect_interval 1000
   @button_map %{:hall_up => 0, :hall_down => 1, :cab => 2}
   @state_map %{:on => 1, :off => 0}
   @direction_map %{:up => 1, :down => 255, :stop => 0}
@@ -19,8 +21,24 @@ defmodule Elevator.Hardware.Driver do
 
   @impl true
   def init([address, port]) do
-    {:ok, socket} = :gen_tcp.connect(address, port, [{:active, false}])
-    {:ok, socket}
+    socket = connect(address, port)
+    {:ok, {socket, address, port}}
+  end
+
+  defp connect(address, port) do
+    case :gen_tcp.connect(address, port, [{:active, false}]) do
+      {:ok, socket} ->
+        Logger.info("Driver connected to elevator server at #{inspect(address)}:#{port}")
+        socket
+
+      {:error, reason} ->
+        Logger.warning(
+          "Driver failed to connect (#{reason}), retrying in #{@reconnect_interval}ms..."
+        )
+
+        Process.sleep(@reconnect_interval)
+        connect(address, port)
+    end
   end
 
   # User API ----------------------------------------------
@@ -141,95 +159,87 @@ defmodule Elevator.Hardware.Driver do
 
   # Casts  ----------------------------------------------
   @impl true
-  def handle_cast({:set_motor_direction, direction}, socket) do
+  def handle_cast({:set_motor_direction, direction}, {socket, addr, port}) do
     :gen_tcp.send(socket, [1, @direction_map[direction], 0, 0])
-    {:noreply, socket}
+    {:noreply, {socket, addr, port}}
   end
 
   @impl true
-  def handle_cast({:set_order_button_light, button_type, floor, state}, socket) do
+  def handle_cast({:set_order_button_light, button_type, floor, state}, {socket, addr, port}) do
     :gen_tcp.send(socket, [2, @button_map[button_type], floor, @state_map[state]])
-    {:noreply, socket}
+    {:noreply, {socket, addr, port}}
   end
 
   @impl true
-  def handle_cast({:set_floor_indicator, floor}, socket) do
+  def handle_cast({:set_floor_indicator, floor}, {socket, addr, port}) do
     :gen_tcp.send(socket, [3, floor, 0, 0])
-    {:noreply, socket}
+    {:noreply, {socket, addr, port}}
   end
 
   @impl true
-  def handle_cast({:set_door_open_light, state}, socket) do
+  def handle_cast({:set_door_open_light, state}, {socket, addr, port}) do
     :gen_tcp.send(socket, [4, @state_map[state], 0, 0])
-    {:noreply, socket}
+    {:noreply, {socket, addr, port}}
   end
 
   @impl true
-  def handle_cast({:set_stop_button_light, state}, socket) do
+  def handle_cast({:set_stop_button_light, state}, {socket, addr, port}) do
     :gen_tcp.send(socket, [5, @state_map[state], 0, 0])
-    {:noreply, socket}
+    {:noreply, {socket, addr, port}}
   end
 
   # Calls  ----------------------------------------------
   @impl true
-  def handle_call({:get_order_button_state, floor, order_type}, _from, socket) do
+  def handle_call({:get_order_button_state, floor, order_type}, _from, {socket, addr, port}) do
     :gen_tcp.send(socket, [6, @button_map[order_type], floor, 0])
 
-    button_state =
-      case :gen_tcp.recv(socket, 4, @call_timeout) do
-        {:ok, [6, 0, 0, 0]} -> :inactive
-        {:ok, [6, 1, 0, 0]} -> :active
-      end
-
-    {:reply, button_state, socket}
+    case :gen_tcp.recv(socket, 4, @call_timeout) do
+      {:ok, [6, 0, 0, 0]} -> {:reply, :inactive, {socket, addr, port}}
+      {:ok, [6, 1, 0, 0]} -> {:reply, :active, {socket, addr, port}}
+      {:error, reason} -> {:stop, reason, {:error, reason}, {socket, addr, port}}
+    end
   end
 
   @impl true
-  def handle_call(:get_floor_sensor_state, _from, socket) do
+  def handle_call(:get_floor_sensor_state, _from, {socket, addr, port}) do
     :gen_tcp.send(socket, [7, 0, 0, 0])
 
-    floor_state =
-      case :gen_tcp.recv(socket, 4, @call_timeout) do
-        {:ok, [7, 0, _, 0]} -> :between_floors
-        {:ok, [7, 1, floor, 0]} -> floor
-      end
-
-    {:reply, floor_state, socket}
+    case :gen_tcp.recv(socket, 4, @call_timeout) do
+      {:ok, [7, 0, _, 0]} -> {:reply, :between_floors, {socket, addr, port}}
+      {:ok, [7, 1, floor, 0]} -> {:reply, floor, {socket, addr, port}}
+      {:error, reason} -> {:stop, reason, {:error, reason}, {socket, addr, port}}
+    end
   end
 
   @impl true
-  def handle_call(:get_stop_button_state, _from, socket) do
+  def handle_call(:get_stop_button_state, _from, {socket, addr, port}) do
     :gen_tcp.send(socket, [8, 0, 0, 0])
 
-    stop_state =
-      case :gen_tcp.recv(socket, 4, @call_timeout) do
-        {:ok, [8, 0, 0, 0]} -> :inactive
-        {:ok, [8, 1, 0, 0]} -> :active
-      end
-
-    {:reply, stop_state, socket}
+    case :gen_tcp.recv(socket, 4, @call_timeout) do
+      {:ok, [8, 0, 0, 0]} -> {:reply, :inactive, {socket, addr, port}}
+      {:ok, [8, 1, 0, 0]} -> {:reply, :active, {socket, addr, port}}
+      {:error, reason} -> {:stop, reason, {:error, reason}, {socket, addr, port}}
+    end
   end
 
   @impl true
-  def handle_call(:get_obstruction_switch_state, _from, socket) do
+  def handle_call(:get_obstruction_switch_state, _from, {socket, addr, port}) do
     :gen_tcp.send(socket, [9, 0, 0, 0])
 
-    obstruction_state =
-      case :gen_tcp.recv(socket, 4, @call_timeout) do
-        {:ok, [9, 0, 0, 0]} -> :inactive
-        {:ok, [9, 1, 0, 0]} -> :active
-      end
-
-    {:reply, obstruction_state, socket}
+    case :gen_tcp.recv(socket, 4, @call_timeout) do
+      {:ok, [9, 0, 0, 0]} -> {:reply, :inactive, {socket, addr, port}}
+      {:ok, [9, 1, 0, 0]} -> {:reply, :active, {socket, addr, port}}
+      {:error, reason} -> {:stop, reason, {:error, reason}, {socket, addr, port}}
+    end
   end
 
   @impl true
-  def handle_call(:ping, _from, socket) when is_port(socket) do
-    {:reply, :ok, socket}
+  def handle_call(:ping, _from, {socket, addr, port}) when is_port(socket) do
+    {:reply, :ok, {socket, addr, port}}
   end
 
   @impl true
-  def handle_call(:ping, _from, socket) do
-    {:reply, {:error, :not_connected}, socket}
+  def handle_call(:ping, _from, state) do
+    {:reply, {:error, :not_connected}, state}
   end
 end
