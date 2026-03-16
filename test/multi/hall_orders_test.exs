@@ -2,6 +2,7 @@ defmodule Test.Multi.HallOrders do
   alias Elevator.HallOrders
   alias Elevator.Communicator
   alias Test.Utils.MultiCluster
+  alias Test.Utils.TestCompiled, as: TestUtils
   use ExUnit.Case, async: false
 
   setup context do
@@ -114,7 +115,7 @@ defmodule Test.Multi.HallOrders do
   test "communicator causes convergence", %{nodes: [node1, node2, node3]} do
     :rpc.call(node1, HallOrders, :button_press, [2, :hall_up])
 
-    Process.sleep(Elevator.test_convergence_wait_time())
+    Process.sleep(TestUtils.convergence_wait_ms())
 
     node1_orders = :rpc.call(node1, HallOrders, :get_my_orders, [])
     node2_orders = :rpc.call(node2, HallOrders, :get_my_orders, [])
@@ -136,7 +137,7 @@ defmodule Test.Multi.HallOrders do
 
     :rpc.call(who_arrives, HallOrders, :arrived_at_floor, [2, :up])
 
-    Process.sleep(Elevator.test_convergence_wait_time())
+    Process.sleep(TestUtils.convergence_wait_ms())
 
     node1_state = :rpc.call(node1, HallOrders, :get_state, [])
     node2_state = :rpc.call(node2, HallOrders, :get_state, [])

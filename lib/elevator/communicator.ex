@@ -76,7 +76,7 @@ defmodule Elevator.Communicator do
 
   # Schedules another round of state broadcasting.
   defp schedule_state_broadcast do
-    time_ms = Elevator.resend_period()
+    time_ms = Elevator.resend_period_ms()
     Process.send_after(self(), :broadcast_state, time_ms)
   end
 
@@ -128,7 +128,7 @@ defmodule Elevator.Communicator do
   end
 
   def handle_call(:who_can_serve, _from, state) do
-    cutoff_ms = Elevator.msg_ts_cutoff()
+    cutoff_ms = Elevator.msg_cutoff_ms()
 
     communicating_nodes =
       state.connected_nodes
