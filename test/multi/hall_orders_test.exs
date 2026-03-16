@@ -1,4 +1,4 @@
-defmodule Test.Multi.HallOrders do
+defmodule Test.Multi.HallOrdersTest do
   alias Elevator.HallOrders
   alias Elevator.Communicator
   alias Test.Utils.MultiCluster

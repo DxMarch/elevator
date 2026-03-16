@@ -196,6 +196,7 @@ defmodule Elevator.HallOrders.Cost do
         orders
 
       true ->
+        # No reason to continue up: clear hall down when turning around
         clear_button(orders, floor, :hall_down)
     end
   end

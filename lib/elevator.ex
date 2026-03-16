@@ -19,9 +19,4 @@ defmodule Elevator do
   def msg_cutoff_ms do
     @msg_cutoff_ms
   end
-
-  def time_to_serve_executable do
-    {:ok, path} = Application.fetch_env(:elevator, :time_to_serve_executable)
-    path
-  end
 end

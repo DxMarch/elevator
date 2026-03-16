@@ -45,7 +45,7 @@ defmodule Test.Multi.CabOrdersTest do
     assert node1_orders == MapSet.new([3])
   end
 
-  test "elevator ingores lower version numbers", %{nodes: [node1, node2, node3]} do
+  test "elevator ignores lower version numbers", %{nodes: [node1, node2, node3]} do
     %{version: node1_version, orders: node1_orders} =
       :rpc.call(node1, CabOrders, :get_state, [])[node1]
 
@@ -92,7 +92,7 @@ defmodule Test.Multi.CabOrdersTest do
     assert node1_orders == MapSet.new([1])
   end
 
-  test "cab order states progate", %{nodes: [node1, node2, node3]} do
+  test "cab order states propagate", %{nodes: [node1, node2, node3]} do
     %{version: node1_version, orders: node1_orders} =
       :rpc.call(node1, CabOrders, :get_state, [])[node1]
 
