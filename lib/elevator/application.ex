@@ -10,9 +10,9 @@ defmodule Elevator.Application do
       Elevator.Communicator,
       {Elevator.HallOrders, Elevator.num_floors()},
       Elevator.CabOrders,
-      {Elevator.Hardware.Driver, [{127, 0, 0, 1}, driver_port]},
       Elevator.FSM.State,
       Elevator.FSM.Action,
+      {Elevator.Hardware.Driver, [{127, 0, 0, 1}, driver_port]},
       Elevator.Hardware.InputPoller
     ]
 

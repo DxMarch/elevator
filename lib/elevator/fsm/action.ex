@@ -9,7 +9,6 @@ defmodule Elevator.FSM.Action do
   alias Elevator.HallOrders
   alias Elevator.Decision
 
-  @door_open_time 1000
   @motor_timeout 4000
   @action_interval 100
 
@@ -100,7 +99,7 @@ defmodule Elevator.FSM.Action do
     if state.behavior == :door_open and
          Time.after?(
            Time.utc_now(),
-           Time.add(state.door_open_time, @door_open_time, :millisecond)
+           Time.add(state.door_open_time, Elevator.door_open_duration_ms(), :millisecond)
          ) do
       if state.obstructed do
         State.open_door()
