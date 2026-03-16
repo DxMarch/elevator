@@ -12,6 +12,7 @@ defmodule Elevator.CabOrders do
     GenServer.start_link(__MODULE__, arg, name: __MODULE__)
   end
 
+  @impl true
   @spec init(any()) :: {:ok, state_t()}
   def init(_arg \\ []) do
     state = %{Communicator.my_id() => %{version: 0, orders: MapSet.new()}}
@@ -50,18 +51,20 @@ defmodule Elevator.CabOrders do
   end
 
   # --- Handle calls ---
-
+  @impl true
   def handle_call(:get_my_orders, _from, state) do
     orders = state[Communicator.my_id()].orders
     {:reply, orders, state}
   end
 
+  @impl true
   def handle_call(:get_state, _from, state) do
     {:reply, state, state}
   end
 
   # --- Handle casts ---
 
+  @impl true
   @spec handle_cast({:receive_state, state_t()}, state_t()) :: {:noreply, state_t()}
   def handle_cast({:receive_state, other_state}, state) do
     new_state =
@@ -78,6 +81,7 @@ defmodule Elevator.CabOrders do
     {:noreply, new_state}
   end
 
+  @impl true
   @spec handle_cast({:button_press, floor_t()}, state_t()) :: {:noreply, state_t()}
   def handle_cast({:button_press, floor}, state) do
     new_state =
@@ -88,6 +92,7 @@ defmodule Elevator.CabOrders do
     {:noreply, new_state}
   end
 
+  @impl true
   @spec handle_cast({:arrived_at_floor, floor_t()}, state_t()) :: {:noreply, state_t()}
   def handle_cast({:arrived_at_floor, floor}, state) do
     new_state =

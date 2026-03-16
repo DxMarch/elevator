@@ -4,7 +4,6 @@ defmodule Elevator.HallOrders.Order do
 
   A hall order is tied to a floor and direction (up/down). It is essentially
   one of the hall buttons. It is in one of the following states:
-  - unknown: Initial, will transition to any state. Light: off
   - idle: No known order. Light: off
   - pending: Someone pressed a button, but everyone does not know it. Light: off
   - confirmed: All alive nodes know about the order and has indicated their preference to it. Light on.

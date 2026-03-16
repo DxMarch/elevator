@@ -31,7 +31,7 @@ defmodule Elevator.FSM.Action do
 
   defp poll_action() do
     poll_door_timer()
-    check_motor_timeout_ms()
+    check_motor_timeout()
     decide_and_take_action()
     Process.sleep(@action_interval_ms)
     poll_action()
@@ -45,7 +45,7 @@ defmodule Elevator.FSM.Action do
     Decision.combine_hall_and_cab(hall_orders, pressed_cab_floors)
   end
 
-  defp check_motor_timeout_ms() do
+  defp check_motor_timeout() do
     state = State.get_state()
 
     timed_out =

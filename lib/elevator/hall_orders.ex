@@ -14,7 +14,7 @@ defmodule Elevator.HallOrders do
 
   @tracked_key {0, :hall_up}
 
-  @hall_order_refresh_period 1000
+  @hall_order_refresh_period_ms 1000
 
   def start_link(arg) do
     GenServer.start_link(__MODULE__, arg, name: __MODULE__)
@@ -37,7 +37,7 @@ defmodule Elevator.HallOrders do
       |> Enum.map(&{&1, {0, :idle}})
       |> Enum.into(%{})
 
-    Process.send_after(self(), :refresh_hall_orders, @hall_order_refresh_period)
+    Process.send_after(self(), :refresh_hall_orders, @hall_order_refresh_period_ms)
 
     {:ok, state}
   end
@@ -129,7 +129,6 @@ defmodule Elevator.HallOrders do
     new_order_map =
       Map.keys(order_map)
       |> Enum.map(fn key ->
-        # TODO
         new_value = Order.merge_hall_orders(key, order_map[key], other_order_map[key], my_orders)
         {key, new_value}
       end)
@@ -158,7 +157,7 @@ defmodule Elevator.HallOrders do
 
     {old_order_version, old_order_state} = old_order_value
 
-    order_map =
+    new_order_map =
       case old_order_state do
         :idle ->
           Map.put(order_map, key, {old_order_version + 1, {:pending, MapSet.new([Node.self()])}})
@@ -167,13 +166,13 @@ defmodule Elevator.HallOrders do
           order_map
       end
 
-    new_order_value = order_map[key]
+    new_order_value = new_order_map[key]
 
     Logger.info(fn ->
       "Hall button press #{inspect(key)}: #{inspect(old_order_value)} -> #{inspect(new_order_value)}"
     end)
 
-    {:noreply, order_map, {:continue, :hall_update_state}}
+    {:noreply, new_order_map, {:continue, :hall_update_state}}
   end
 
   @impl true
@@ -199,7 +198,7 @@ defmodule Elevator.HallOrders do
 
   @impl true
   def handle_info(:refresh_hall_orders, order_map) do
-    Process.send_after(self(), :refresh_hall_orders, @hall_order_refresh_period)
+    Process.send_after(self(), :refresh_hall_orders, @hall_order_refresh_period_ms)
     {:noreply, order_map, {:continue, :hall_update_state}}
   end
 
@@ -234,7 +233,6 @@ defmodule Elevator.HallOrders do
     Enum.filter(order_map, fn {_, {_order_version, order_state}} ->
       case order_state do
         {:confirmed, cost_map} ->
-          # Hmm.
           Cost.min_alive_cost(cost_map, alive) == Node.self()
 
         _ ->

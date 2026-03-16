@@ -3,7 +3,8 @@ defmodule Elevator.HallOrders.Cost do
   require Logger
 
   @doc """
-  Maybe even random numbers?
+  Compute the cost of serving an order.
+  Returns the estimated serve time in ms.
   """
   def compute_cost({floor, btn_dir}, my_hall_orders) do
     state = Elevator.FSM.State.get_state()
@@ -24,7 +25,7 @@ defmodule Elevator.HallOrders.Cost do
   end
 
   @doc """
-  Merge two cost maps. 
+  Merge two cost maps.
   Uses pessimistic merge: If two conflicting costs for the same node are found, keep the higher one.
   """
   def merge_cost(cost_map_1, cost_map_2) do
@@ -58,7 +59,8 @@ defmodule Elevator.HallOrders.Cost do
         fn {node1, cost1}, {node2, cost2} ->
           cost1 < cost2 or (cost1 == cost2 and node1 < node2)
         end,
-        fn -> {:nonode@nohost, Inf} end
+        # Fallback when no alive costs exist
+        fn -> {:nonode@nohost, :infinity} end
       )
 
     min_node
