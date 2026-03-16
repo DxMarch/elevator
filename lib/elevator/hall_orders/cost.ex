@@ -17,6 +17,7 @@ defmodule Elevator.HallOrders.Cost do
   @type floor_t :: Elevator.Types.floor()
   @type hall_btn_t :: Elevator.Types.hall_btn()
   @type combined_orders_t :: Elevator.Types.combined_order_map()
+  @type cost_map_t :: %{node() => non_neg_integer()}
 
   @spec compute_cost({floor_t(), hall_btn_t()}, %{floor_t() => MapSet.t(hall_btn_t())}) ::
           non_neg_integer()
@@ -51,8 +52,7 @@ defmodule Elevator.HallOrders.Cost do
   Merge two cost maps.
   Uses pessimistic merge: If two conflicting costs for the same node are found, keep the higher one.
   """
-  @spec merge_cost(%{node() => non_neg_integer()}, %{node() => non_neg_integer()}) ::
-          %{node() => non_neg_integer()}
+  @spec merge_cost(cost_map_t(), cost_map_t()) :: cost_map_t()
   def merge_cost(cost_map_1, cost_map_2) do
     MapSet.new(Map.keys(cost_map_1) ++ Map.keys(cost_map_2))
     |> Enum.map(fn node ->
@@ -75,7 +75,7 @@ defmodule Elevator.HallOrders.Cost do
   @doc """
   Returns the node with the lowest cost for a given cost map and alive set.
   """
-  @spec min_alive_cost(%{node() => non_neg_integer()}, MapSet.t(node())) :: node()
+  @spec min_alive_cost(cost_map_t(), MapSet.t(node())) :: node()
   def min_alive_cost(cost_map, alive_set) do
     alive_costs = Enum.filter(cost_map, fn {node, _} -> MapSet.member?(alive_set, node) end)
 
@@ -173,7 +173,6 @@ defmodule Elevator.HallOrders.Cost do
 
   defp move_one_floor(_, _), do: :error
 
-  # Equivalent to clearRequestType=inDirn in cost_fns.
   defp clear_requests_at_floor_in_direction(orders, floor, direction) do
     orders
     |> clear_button(floor, :cab)
@@ -186,7 +185,7 @@ defmodule Elevator.HallOrders.Cost do
       button_present?(orders, floor, :hall_up) ->
         clear_button(orders, floor, :hall_up)
 
-      requests_above?(orders, floor) ->
+      Decision.requests_above?(orders, floor) ->
         orders
 
       true ->
@@ -199,7 +198,7 @@ defmodule Elevator.HallOrders.Cost do
       button_present?(orders, floor, :hall_down) ->
         clear_button(orders, floor, :hall_down)
 
-      requests_below?(orders, floor) ->
+      Decision.requests_below?(orders, floor) ->
         orders
 
       true ->
@@ -235,13 +234,5 @@ defmodule Elevator.HallOrders.Cost do
           orders
         end
     end
-  end
-
-  defp requests_above?(reqs, floor) do
-    Enum.any?(reqs, fn {f, _} -> f > floor end)
-  end
-
-  defp requests_below?(reqs, floor) do
-    Enum.any?(reqs, fn {f, _} -> f < floor end)
   end
 end

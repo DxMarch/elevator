@@ -5,11 +5,11 @@ defmodule Elevator.Decision do
   These functions are intentionally pure to make them easy to unit test.
   """
 
-  defp requests_above?(reqs, floor) do
+  def requests_above?(reqs, floor) do
     Enum.any?(reqs, fn {f, _} -> f > floor end)
   end
 
-  defp requests_below?(reqs, floor) do
+  def requests_below?(reqs, floor) do
     Enum.any?(reqs, fn {f, _} -> f < floor end)
   end
 
