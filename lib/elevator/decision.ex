@@ -5,13 +5,11 @@ defmodule Elevator.Decision do
   These functions are intentionally pure to make them easy to unit test.
   """
 
-  # Private helpers
-
-  defp requests_above?(reqs, floor) do
+  def requests_above?(reqs, floor) do
     Enum.any?(reqs, fn {f, _} -> f > floor end)
   end
 
-  defp requests_below?(reqs, floor) do
+  def requests_below?(reqs, floor) do
     Enum.any?(reqs, fn {f, _} -> f < floor end)
   end
 
@@ -31,7 +29,6 @@ defmodule Elevator.Decision do
       btn_type == :cab -> true
       direction == :up and btn_type == :hall_up -> true
       direction == :down and btn_type == :hall_down -> true
-      direction == :stop -> true
       true -> false
     end
   end
@@ -49,9 +46,7 @@ defmodule Elevator.Decision do
   @doc "Single decision function for elevator behavior.
   Returns both direction and behavior for the current state and order snapshot."
   @spec next_action(Elevator.Types.combined_order_map(), Elevator.FSM.State.t()) ::
-          {:down, :moving | :door_open}
-          | {:up, :moving | :door_open}
-          | {:stop, :idle | :door_open}
+          {Elevator.Types.elev_dir(), :moving | :door_open | :idle}
   def next_action(
         orders,
         %Elevator.FSM.State{
@@ -61,16 +56,14 @@ defmodule Elevator.Decision do
         }
       ) do
     btns_at_floor = Map.get(orders, floor, MapSet.new())
+    direction = if direction in [:up, :down], do: direction, else: :down
 
     cond do
-      between_floors and direction == :stop ->
-        {:down, :moving}
-
       between_floors ->
         {direction, :moving}
 
       map_size(orders) == 0 ->
-        {:stop, :idle}
+        {direction, :idle}
 
       direction == :up ->
         cond do
@@ -87,7 +80,7 @@ defmodule Elevator.Decision do
             {:down, :moving}
 
           true ->
-            {:stop, :idle}
+            {:up, :idle}
         end
 
       direction == :down ->
@@ -105,21 +98,11 @@ defmodule Elevator.Decision do
             {:up, :moving}
 
           true ->
-            {:stop, :idle}
-        end
-
-      direction == :stop ->
-        cond do
-          MapSet.member?(btns_at_floor, :hall_up) -> {:up, :door_open}
-          MapSet.member?(btns_at_floor, :hall_down) -> {:down, :door_open}
-          MapSet.member?(btns_at_floor, :cab) -> {:stop, :door_open}
-          requests_above?(orders, floor) -> {:up, :moving}
-          requests_below?(orders, floor) -> {:down, :moving}
-          true -> {:stop, :idle}
+            {:down, :idle}
         end
 
       true ->
-        {:stop, :idle}
+        {:down, :idle}
     end
   end
 end

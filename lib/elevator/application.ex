@@ -10,13 +10,13 @@ defmodule Elevator.Application do
       Elevator.Communicator,
       {Elevator.HallOrders, Elevator.num_floors()},
       Elevator.CabOrders,
-      {Elevator.Hardware.Driver, [{127, 0, 0, 1}, driver_port]},
       Elevator.FSM.State,
       Elevator.FSM.Action,
+      {Elevator.Hardware.Driver, [{127, 0, 0, 1}, driver_port]},
       Elevator.Hardware.InputPoller
     ]
 
-    opts = [strategy: :one_for_one, name: Elevator.Supervisor]
+    opts = [strategy: :rest_for_one, name: Elevator.Supervisor]
     Supervisor.start_link(children, opts)
   end
 end

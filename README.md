@@ -1,8 +1,8 @@
 # TTK4145 Elevator
 
 ### LOC stats (Elixir)
-**Lib:** <!-- LIB_COUNT -->1115<!-- END_LIB_COUNT -->\
-**Test:** <!-- TEST_COUNT -->546<!-- END_TEST_COUNT -->
+**Lib:** <!-- LIB_COUNT -->1214<!-- END_LIB_COUNT -->\
+**Test:** <!-- TEST_COUNT -->582<!-- END_TEST_COUNT -->
 
 
 ## Running nodes

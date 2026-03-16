@@ -3,27 +3,27 @@ defmodule Test.Single.DecisionTest do
 
   alias Elevator.Decision
 
-  test "unknown floor, :down -> stop,idle" do
+  test "unknown floor, :down -> down,idle" do
     orders = %{}
     state = %Elevator.FSM.State{floor: :unknown, direction: :down, between_floors: false}
-    assert Decision.next_action(orders, state) == {:stop, :idle}
+    assert Decision.next_action(orders, state) == {:down, :idle}
   end
 
-  test "no requests -> stop,idle" do
+  test "no requests -> keep direction,idle" do
     orders = %{}
-    state = %Elevator.FSM.State{floor: 1, direction: :stop, between_floors: false}
-    assert Decision.next_action(orders, state) == {:stop, :idle}
+    state = %Elevator.FSM.State{floor: 1, direction: :up, between_floors: false}
+    assert Decision.next_action(orders, state) == {:up, :idle}
   end
 
   test "nearest above -> up,moving" do
     orders = %{3 => MapSet.new([:cab]), 4 => MapSet.new([:hall_up])}
-    state = %Elevator.FSM.State{floor: 1, direction: :stop, between_floors: false}
+    state = %Elevator.FSM.State{floor: 1, direction: :up, between_floors: false}
     assert Decision.next_action(orders, state) == {:up, :moving}
   end
 
   test "nearest below -> down,moving" do
     orders = %{0 => MapSet.new([:cab]), 2 => MapSet.new([:cab])}
-    state = %Elevator.FSM.State{floor: 3, direction: :stop, between_floors: false}
+    state = %Elevator.FSM.State{floor: 3, direction: :down, between_floors: false}
     assert Decision.next_action(orders, state) == {:down, :moving}
   end
 
@@ -33,21 +33,21 @@ defmodule Test.Single.DecisionTest do
     assert Decision.next_action(orders, state) == {:up, :moving}
   end
 
-  test "same floor cab -> stop,door_open" do
+  test "same floor cab while moving up -> up,door_open" do
     orders = %{2 => MapSet.new([:cab])}
-    state = %Elevator.FSM.State{floor: 2, direction: :stop, between_floors: false}
-    assert Decision.next_action(orders, state) == {:stop, :door_open}
-  end
-
-  test "same floor hall_up -> up,door_open" do
-    orders = %{1 => MapSet.new([:hall_up])}
-    state = %Elevator.FSM.State{floor: 1, direction: :stop, between_floors: false}
+    state = %Elevator.FSM.State{floor: 2, direction: :up, between_floors: false}
     assert Decision.next_action(orders, state) == {:up, :door_open}
   end
 
-  test "same floor hall_down -> down,door_open" do
+  test "same floor hall_up while idle up -> up,door_open" do
+    orders = %{1 => MapSet.new([:hall_up])}
+    state = %Elevator.FSM.State{floor: 1, direction: :up, between_floors: false}
+    assert Decision.next_action(orders, state) == {:up, :door_open}
+  end
+
+  test "same floor hall_down while idle down -> down,door_open" do
     orders = %{1 => MapSet.new([:hall_down])}
-    state = %Elevator.FSM.State{floor: 1, direction: :stop, between_floors: false}
+    state = %Elevator.FSM.State{floor: 1, direction: :down, between_floors: false}
     assert Decision.next_action(orders, state) == {:down, :door_open}
   end
 
@@ -81,13 +81,13 @@ defmodule Test.Single.DecisionTest do
     moving = %Elevator.FSM.State{floor: 2, direction: :up, behavior: :moving}
     assert Decision.should_clear_immediately?(moving, 2, :cab)
 
-    door_open_stop = %Elevator.FSM.State{
+    door_open_down = %Elevator.FSM.State{
       floor: 2,
-      direction: :stop,
+      direction: :down,
       behavior: :door_open,
       between_floors: false
     }
 
-    assert Decision.should_clear_immediately?(door_open_stop, 2, :hall_down)
+    assert Decision.should_clear_immediately?(door_open_down, 2, :hall_down)
   end
 end
