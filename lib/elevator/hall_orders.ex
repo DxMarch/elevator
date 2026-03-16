@@ -92,14 +92,6 @@ defmodule Elevator.HallOrders do
   # Calls ------------------------------------------------------------
 
   @impl true
-  @doc """
-  Get confirmed orders in same format as get_my_orders
-  """
-  @spec get_confirmed_orders() :: %{Elevator.Types.floor() => MapSet.t(Elevator.Types.hall_btn())}
-  def get_confirmed_orders do
-    GenServer.call(__MODULE__, :get_confirmed_orders)
-  end
-
   def handle_call(:get_my_orders, _from, order_map) do
     alive = Communicator.who_can_serve()
 
