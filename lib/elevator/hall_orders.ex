@@ -104,7 +104,7 @@ defmodule Elevator.HallOrders do
     confirmed_orders =
       Enum.filter(order_map, fn {_, {_order_version, order_state}} ->
         case order_state do
-          {:confirmed, _, _} -> true
+          {:confirmed, _} -> true
           _ -> false
         end
       end)
@@ -182,12 +182,12 @@ defmodule Elevator.HallOrders do
     # TODO: Find out if barrier set should be full as well?
     button_type = [up: :hall_up, down: :hall_down][direction]
     key = {floor, button_type}
-    {order_version, order_state} = order_map[key]
+    order_value = order_map[key]
 
     # TODO: Maybe check that it is our order
     order_map =
-      case order_state do
-        {:confirmed, _} ->
+      case order_value do
+        {order_version, {:confirmed, _}} ->
           Map.put(order_map, key, {order_version + 1, :idle})
 
         _ ->
