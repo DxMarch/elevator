@@ -36,6 +36,13 @@ defmodule Test.Single.CostTest do
              @travel_duration_ms + Elevator.door_open_duration_ms()
   end
 
+  test "one floor away request includes current open-door delay" do
+    set_state(floor: 0, direction: :up, behavior: :door_open)
+
+    assert Cost.compute_cost({1, :hall_up}, %{}) ==
+             2 * Elevator.door_open_duration_ms() + @travel_duration_ms
+  end
+
   test "unknown floor yields unreachable cost" do
     set_state(floor: :unknown, direction: :down, behavior: :idle)
 
