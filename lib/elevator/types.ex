@@ -24,12 +24,11 @@ defmodule Elevator.Types do
   @type hall_order_state ::
           :idle
           | {:pending, MapSet.t()}
-          | {:confirmed, %{node_id() => integer()}}
-
-  @type hall_order_value :: {non_neg_integer(), hall_order_state()}
+          | {:handling, %{node_id() => integer()}}
+          | {:arrived, MapSet.t()}
 
   @type hall_order_map :: %{
-          hall_order_key() => hall_order_value()
+          hall_order_key() => hall_order_state()
         }
 
   @type cab_orders_snapshot :: %{

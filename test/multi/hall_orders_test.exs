@@ -26,12 +26,12 @@ defmodule Test.Multi.HallOrdersTest do
     # Node 1 gets a button call
     :rpc.call(node1, HallOrders, :button_press, [0, :hall_up])
     node1_state = :rpc.call(node1, HallOrders, :get_state, [])
-    assert {_, {:pending, _}} = node1_state[{0, :hall_up}]
+    assert {:pending, _} = node1_state[{0, :hall_up}]
 
     # Node 1 sends their orders to node 2
     assert :rpc.call(node2, HallOrders, :receive_state, [node1_state]) == :ok
     node2_state = :rpc.call(node2, HallOrders, :get_state, [])
-    assert {_, {:pending, barrier2}} = node2_state[{0, :hall_up}]
+    assert {:pending, barrier2} = node2_state[{0, :hall_up}]
 
     assert MapSet.member?(barrier2, node1)
     assert MapSet.member?(barrier2, node2)
@@ -40,7 +40,7 @@ defmodule Test.Multi.HallOrdersTest do
     # Node 1 sends their orders to node 3
     assert :rpc.call(node3, HallOrders, :receive_state, [node1_state]) == :ok
     node3_state = :rpc.call(node3, HallOrders, :get_state, [])
-    assert {_, {:pending, barrier3}} = node3_state[{0, :hall_up}]
+    assert {:pending, barrier3} = node3_state[{0, :hall_up}]
 
     assert MapSet.member?(barrier3, node1)
     assert MapSet.member?(barrier3, node3)
@@ -51,7 +51,7 @@ defmodule Test.Multi.HallOrdersTest do
     assert :rpc.call(node1, HallOrders, :receive_state, [node3_state]) == :ok
 
     node1_state = :rpc.call(node1, HallOrders, :get_state, [])
-    assert {_, {:confirmed, _}} = node1_state[{0, :hall_up}]
+    assert {:handling, _} = node1_state[{0, :hall_up}]
 
     clique_exchange_states([node1, node2, node3])
 
@@ -61,7 +61,7 @@ defmodule Test.Multi.HallOrdersTest do
 
     # All should have converged on the alive set
     assert node1_state == node2_state and node2_state == node3_state
-    assert {_, {:confirmed, _}} = node1_state[{0, :hall_up}]
+    assert {:handling, _} = node1_state[{0, :hall_up}]
     converged_state = node1_state
 
     # ... so another exchange run should not affect the result
@@ -82,7 +82,7 @@ defmodule Test.Multi.HallOrdersTest do
     clique_exchange_states(nodes)
 
     node1_state = :rpc.call(node1, HallOrders, :get_state, [])
-    assert {_, {:confirmed, _}} = node1_state[{1, :hall_down}]
+    assert {:handling, _} = node1_state[{1, :hall_down}]
 
     # Assume node3 arrives at the floor
     :rpc.call(node3, HallOrders, :arrived_at_floor, [1, :down])
@@ -93,9 +93,9 @@ defmodule Test.Multi.HallOrdersTest do
     node2_state = :rpc.call(node2, HallOrders, :get_state, [])
     node3_state = :rpc.call(node3, HallOrders, :get_state, [])
 
-    assert {_, :idle} = node1_state[{1, :hall_down}]
-    assert {_, :idle} = node2_state[{1, :hall_down}]
-    assert {_, :idle} = node3_state[{1, :hall_down}]
+    assert :idle = node1_state[{1, :hall_down}]
+    assert :idle = node2_state[{1, :hall_down}]
+    assert :idle = node3_state[{1, :hall_down}]
   end
 
   @tag :manual_sending
@@ -143,7 +143,7 @@ defmodule Test.Multi.HallOrdersTest do
     node3_state = :rpc.call(node3, HallOrders, :get_state, [])
 
     assert node1_state == node2_state and node2_state == node3_state
-    assert {_, :idle} = node1_state[{2, :hall_up}]
+    assert :idle = node1_state[{2, :hall_up}]
   end
 
   defp clique_exchange_states([node1, node2, node3]) do

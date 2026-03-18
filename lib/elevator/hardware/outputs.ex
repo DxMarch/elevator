@@ -45,7 +45,9 @@ defmodule Elevator.Hardware.Outputs do
   end
 
   defp set_floor_light(state) do
-    Driver.set_floor_indicator(state.floor)
+    if state.floor != :unknown do
+      Driver.set_floor_indicator(state.floor)
+    end
   end
 
   defp get_light_orders() do
