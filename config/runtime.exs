@@ -12,17 +12,9 @@ driver_port =
     _ -> 15_657
   end
 
-config :elevator, driver_port: driver_port
-
-{:ok, cwd} = File.cwd()
-
-config :elevator, time_to_serve_executable: "#{cwd}/server/time_to_serve"
-
-# ------------------------------------------------------------------
-# Cluster topology
-# ------------------------------------------------------------------
-
 gossip_secret = env!("GOSSIP_SECRET", :string, "change_me_in_dotenv")
+
+config :elevator, driver_port: driver_port
 
 config :libcluster,
   topologies: [
