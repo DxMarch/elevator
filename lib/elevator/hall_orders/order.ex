@@ -10,19 +10,19 @@ defmodule Elevator.HallOrders.Order do
   - confirmed: All alive nodes know about the order and has indicated their cost to serve it. Light on.
   - arrived: A node is signalling that the order has been served. Light: off
   """
-
-  alias Elevator.Types
   alias Elevator.HallOrders.Cost
   alias Elevator.Communicator
 
-  @type hall_order_key :: Elevator.Types.hall_order_key()
-  @type hall_order_state :: Elevator.Types.hall_order_state()
+  @type floor :: Elevator.floor()
+  @type hall_button :: Elevator.HallOrders.hall_button()
+  @type hall_button_type :: Elevator.HallOrders.hall_button_type()
+  @type hall_order_state :: Elevator.HallOrders.hall_order_state()
 
   @doc """
   Update a hall order based on an incoming hall order from another node.
   """
-  @spec merge_hall_orders(hall_order_key(), hall_order_state(), hall_order_state(), %{
-          Types.floor() => MapSet.t(Types.hall_btn())
+  @spec merge_hall_orders(hall_button(), hall_order_state(), hall_order_state(), %{
+          floor() => MapSet.t(hall_button_type())
         }) ::
           hall_order_state()
   def merge_hall_orders(order_key, order_state, other_order_state, my_hall_orders) do
@@ -65,8 +65,8 @@ defmodule Elevator.HallOrders.Order do
   Computes and records this node's cost at the point of confirmation.
   Returns `{true, new_value}` if the state changed, `{false, unchanged}` otherwise.
   """
-  @spec update_hall_order(hall_order_key(), hall_order_state(), %{
-          Types.floor() => MapSet.t(Types.hall_btn())
+  @spec update_hall_order(hall_button(), hall_order_state(), %{
+          floor() => MapSet.t(hall_button_type())
         }) :: {boolean(), hall_order_state()}
   def update_hall_order(order_key, order_state, confirmed_hall_orders) do
     alive = Communicator.who_is_alive()

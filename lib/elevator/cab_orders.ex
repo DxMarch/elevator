@@ -4,8 +4,14 @@ defmodule Elevator.CabOrders do
   """
   use GenServer
 
-  @type cab_order_map :: Elevator.Types.cab_order_map()
-  @type floor :: Elevator.Types.floor()
+  @type floor :: Elevator.floor()
+
+  @type cab_orders_snapshot :: %{
+          version: non_neg_integer(),
+          orders: MapSet.t(floor())
+        }
+
+  @type cab_order_map :: %{Node.t() => cab_orders_snapshot()}
 
   @spec start_link(any()) :: GenServer.on_start()
   def start_link(arg) do

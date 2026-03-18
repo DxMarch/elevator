@@ -10,9 +10,21 @@ defmodule Elevator.Communicator do
   require Logger
   use GenServer
 
-  @type state_map :: Elevator.Types.communicator_state_map()
+  @type hall_order_map :: Elevator.HallOrders.hall_order_map()
+  @type cab_order_map :: Elevator.CabOrders.cab_order_map()
 
-  @type communicator_message :: Elevator.Types.communicator_message()
+  @type state_map :: %{
+          operational: boolean(),
+          connected_nodes: %{Node.t() => %{operational: boolean(), timestamp: Time.t()}}
+        }
+
+  @type communicator_message :: %{
+          from: Node.t(),
+          operational: boolean(),
+          hall_order_map: hall_order_map(),
+          cab_order_map: cab_order_map()
+        }
+
   @type communicator_options :: [do_resend: boolean()]
 
   @resend_period_ms 50

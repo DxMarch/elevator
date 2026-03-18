@@ -6,7 +6,6 @@ defmodule Elevator.Hardware.Outputs do
   require Logger
   alias Elevator.Communicator
   alias Elevator.Hardware.Driver
-  alias Elevator.Types
   alias Elevator.FSM
 
   @spec init() :: :ok
@@ -16,7 +15,7 @@ defmodule Elevator.Hardware.Outputs do
     Driver.set_motor_direction(:stop)
   end
 
-  @spec set_outputs(FSM.State.t(), Types.combined_order_map()) :: any()
+  @spec set_outputs(FSM.State.t(), Elevator.combined_order_map()) :: any()
   def set_outputs(state, light_orders) do
     set_door_light(state)
     set_motors(state)
@@ -45,7 +44,7 @@ defmodule Elevator.Hardware.Outputs do
   end
 
   defp set_order_lights(orders) do
-    for floor <- 0..(Elevator.num_floors() - 1), btn <- Types.btn_types() do
+    for floor <- 0..(Elevator.num_floors() - 1), btn <- Elevator.button_types() do
       lights = Map.get(orders, floor, MapSet.new())
       state = if MapSet.member?(lights, btn), do: :on, else: :off
       Driver.set_order_button_light(btn, floor, state)

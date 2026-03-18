@@ -14,12 +14,12 @@ defmodule Elevator.HallOrders.Cost do
   @max_simulation_steps 256
   @unreachable_cost 30000
 
-  @type floor :: Elevator.Types.floor()
-  @type hall_btn :: Elevator.Types.hall_btn()
-  @type combined_order_map :: Elevator.Types.combined_order_map()
-  @type cost_map :: Elevator.Types.hall_order_cost_map()
+  @type floor :: Elevator.floor()
+  @type hall_button_type :: Elevator.HallOrders.hall_button_type()
+  @type combined_order_map :: Elevator.combined_order_map()
+  @type cost_map :: Elevator.HallOrders.hall_order_cost_map()
 
-  @spec compute_cost({floor(), hall_btn()}, %{floor() => MapSet.t(hall_btn())}) ::
+  @spec compute_cost({floor(), hall_button_type()}, %{floor() => MapSet.t(hall_button_type())}) ::
           non_neg_integer()
   def compute_cost({floor, btn_dir}, my_hall_orders) do
     try do
@@ -96,7 +96,7 @@ defmodule Elevator.HallOrders.Cost do
     end
   end
 
-  @spec simulate_cost_until_served(combined_order_map(), State.t(), {floor(), hall_btn()}) ::
+  @spec simulate_cost_until_served(combined_order_map(), State.t(), {floor(), hall_button_type()}) ::
           non_neg_integer()
   defp simulate_cost_until_served(_orders, %{floor: :unknown}, _target), do: @unreachable_cost
 

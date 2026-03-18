@@ -6,7 +6,6 @@ defmodule Elevator.FSM.State do
   its floor, direction, behavior, and fault conditions. 
   """
   require Logger
-  alias Elevator.Types
 
   defstruct direction: :down,
             behavior: :moving,
@@ -17,10 +16,13 @@ defmodule Elevator.FSM.State do
             door_open_time_ms: Time.utc_now(),
             last_floor_time: Time.utc_now()
 
+  @type floor :: Elevator.floor()
+  @type elev_behavior :: :moving | :idle | :door_open
+
   @type t :: %__MODULE__{
-          direction: Types.elev_dir(),
-          behavior: Types.elev_behavior(),
-          floor: :unknown | Types.floor(),
+          direction: :up | :down,
+          behavior: elev_behavior(),
+          floor: :unknown | Elevator.floor(),
           between_floors: boolean(),
           obstructed: boolean(),
           motor_timed_out: boolean(),
@@ -46,7 +48,7 @@ defmodule Elevator.FSM.State do
   @doc """
   Updates floor and between_floors status.
   """
-  @spec set_floor(:between_floors | Types.floor()) :: :ok
+  @spec set_floor(:between_floors | floor()) :: :ok
   def set_floor(floor), do: GenServer.cast(__MODULE__, {:set_floor, floor})
 
   @doc """
@@ -57,10 +59,10 @@ defmodule Elevator.FSM.State do
   def set_obstruction(obstruction_switch),
     do: GenServer.cast(__MODULE__, {:set_obstruction, obstruction_switch})
 
-  @spec set_direction(Types.elev_dir()) :: :ok
+  @spec set_direction(:up | :down) :: :ok
   def set_direction(dir), do: GenServer.cast(__MODULE__, {:set_direction, dir})
 
-  @spec set_behavior(Types.elev_behavior()) :: :ok
+  @spec set_behavior(elev_behavior()) :: :ok
   def set_behavior(behavior), do: GenServer.cast(__MODULE__, {:set_behavior, behavior})
 
   @doc """

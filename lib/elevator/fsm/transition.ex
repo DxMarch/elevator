@@ -8,7 +8,6 @@ defmodule Elevator.FSM.Transition do
   """
   require Logger
 
-  alias Elevator.Types
   alias Elevator.CabOrders
   alias Elevator.FSM.State
   alias Elevator.HallOrders
@@ -60,7 +59,7 @@ defmodule Elevator.FSM.Transition do
     Decision.combine_hall_and_cab(hall_orders, pressed_cab_floors)
   end
 
-  @spec decide_and_update_state(Elevator.FSM.State.t(), Types.combined_order_map()) :: any()
+  @spec decide_and_update_state(Elevator.FSM.State.t(), Elevator.combined_order_map()) :: any()
   defp decide_and_update_state(state, orders) when not state.motor_timed_out do
     {new_direction, new_behavior} = Decision.next_action(orders, state)
 

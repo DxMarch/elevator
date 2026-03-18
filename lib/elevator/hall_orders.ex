@@ -12,9 +12,19 @@ defmodule Elevator.HallOrders do
   require Logger
   use GenServer
 
-  @type hall_order_map :: Elevator.Types.hall_order_map()
-  @type floor :: Elevator.Types.floor()
-  @type hall_btn :: Elevator.Types.hall_btn()
+  @type floor :: Elevator.floor()
+
+  @type hall_button_type :: :hall_down | :hall_up
+  @type hall_button :: {floor(), hall_button_type()}
+
+  @type hall_order_cost_map :: %{Node.t() => non_neg_integer()}
+  @type hall_order_state ::
+          :idle
+          | {:pending, MapSet.t()}
+          | {:handling, hall_order_map()}
+          | {:arrived, MapSet.t()}
+
+  @type hall_order_map :: %{hall_button() => hall_order_state()}
 
   @hall_order_refresh_period_ms 1000
 
@@ -56,7 +66,7 @@ defmodule Elevator.HallOrders do
   @doc """
   Places the corresponding order in pending state if it is in idle. 
   """
-  @spec button_press(floor(), hall_btn()) :: :ok
+  @spec button_press(floor(), hall_button_type()) :: :ok
   def button_press(floor, button_type),
     do: GenServer.cast(__MODULE__, {:button_press, floor, button_type})
 
@@ -77,7 +87,7 @@ defmodule Elevator.HallOrders do
   @doc """
   Retrieve only the orders we are going to take.
   """
-  @spec get_my_orders() :: %{Elevator.Types.floor() => MapSet.t(Elevator.Types.hall_btn())}
+  @spec get_my_orders() :: %{floor() => MapSet.t(hall_button_type())}
   def get_my_orders do
     GenServer.call(__MODULE__, :get_my_orders)
   end
@@ -86,7 +96,7 @@ defmodule Elevator.HallOrders do
   Get all confirmed orders in same format as get_my_orders.
   These are the orders we turn the light on for.
   """
-  @spec get_confirmed_orders() :: %{Elevator.Types.floor() => MapSet.t(Elevator.Types.hall_btn())}
+  @spec get_confirmed_orders() :: %{floor() => MapSet.t(hall_button_type())}
   def get_confirmed_orders do
     GenServer.call(__MODULE__, :get_confirmed_orders)
   end
@@ -141,7 +151,7 @@ defmodule Elevator.HallOrders do
   end
 
   @impl true
-  @spec handle_cast({:button_press, floor(), hall_btn()}, hall_order_map()) ::
+  @spec handle_cast({:button_press, floor(), hall_button()}, hall_order_map()) ::
           {:noreply, hall_order_map(), {:continue, :hall_update_state}}
   def handle_cast({:button_press, floor, direction}, order_map) do
     # If in idle, go to pending. Otherwise, ignore.
@@ -242,16 +252,16 @@ defmodule Elevator.HallOrders do
   end
 
   @type enum_orders ::
-          Elevator.Types.hall_order_map()
-          | Enumerable.t({Elevator.Types.hall_order_key(), Elevator.Types.hall_order_state()})
-  @spec orders_by_floor(enum_orders()) :: %{floor() => MapSet.t(hall_btn())}
+          hall_order_map()
+          | Enumerable.t({hall_button(), hall_order_state()})
+  @spec orders_by_floor(enum_orders()) :: %{floor() => MapSet.t(hall_button())}
   defp orders_by_floor(orders) do
-    # Restructure order map to the format floor => MapSet(order)
+    # Restructure order map to the format floor => MapSet(button_type)
     orders
-    |> Enum.map(fn {{floor, btn_type}, _} -> {floor, btn_type} end)
+    |> Enum.map(fn {{floor, button_type}, _} -> {floor, button_type} end)
     |> Enum.group_by(fn {floor, _} -> floor end)
     |> Enum.map(fn {floor, order_list} ->
-      {floor, MapSet.new(Enum.map(order_list, fn {_, btn_type} -> btn_type end))}
+      {floor, MapSet.new(Enum.map(order_list, fn {_, button_type} -> button_type end))}
     end)
     |> Enum.into(%{})
   end

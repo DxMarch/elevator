@@ -5,40 +5,20 @@ defmodule Elevator.Decision do
   These functions are intentionally pure to make them easy to unit test.
   """
 
-  @spec requests_above?(Elevator.Types.combined_order_map(), Elevator.Types.floor()) :: boolean()
+  @spec requests_above?(Elevator.combined_order_map(), Elevator.floor()) :: boolean()
   def requests_above?(reqs, floor) do
     Enum.any?(reqs, fn {f, _} -> f > floor end)
   end
 
-  @spec requests_below?(Elevator.Types.combined_order_map(), Elevator.Types.floor()) :: boolean()
+  @spec requests_below?(Elevator.combined_order_map(), Elevator.floor()) :: boolean()
   def requests_below?(reqs, floor) do
     Enum.any?(reqs, fn {f, _} -> f < floor end)
   end
 
-  @doc "Should a request at `btn_floor` and `btn_type` be cleared immediately given elevator state?"
-  @spec should_clear_immediately?(
-          Elevator.FSM.State.t(),
-          Elevator.Types.floor(),
-          Elevator.Types.btn_type()
-        ) :: boolean()
-  def should_clear_immediately?(
-        %Elevator.FSM.State{floor: floor, direction: direction},
-        btn_floor,
-        btn_type
-      ) do
-    cond do
-      floor != btn_floor -> false
-      btn_type == :cab -> true
-      direction == :up and btn_type == :hall_up -> true
-      direction == :down and btn_type == :hall_down -> true
-      true -> false
-    end
-  end
-
   @spec combine_hall_and_cab(
-          Elevator.Types.combined_order_map(),
-          MapSet.t(Elevator.Types.floor())
-        ) :: Elevator.Types.combined_order_map()
+          Elevator.combined_order_map(),
+          MapSet.t(Elevator.floor())
+        ) :: Elevator.combined_order_map()
   def combine_hall_and_cab(hall_orders, cab_floors) do
     Enum.reduce(cab_floors, hall_orders, fn floor, acc ->
       Map.update(acc, floor, MapSet.new([:cab]), &MapSet.put(&1, :cab))
@@ -47,8 +27,8 @@ defmodule Elevator.Decision do
 
   @doc "Single decision function for elevator behavior.
   Returns both direction and behavior for the current state and order snapshot."
-  @spec next_action(Elevator.Types.combined_order_map(), Elevator.FSM.State.t()) ::
-          {Elevator.Types.elev_dir(), :moving | :door_open | :idle}
+  @spec next_action(Elevator.combined_order_map(), Elevator.FSM.State.t()) ::
+          {:up | :down, :moving | :door_open | :idle}
   def next_action(
         orders,
         %Elevator.FSM.State{

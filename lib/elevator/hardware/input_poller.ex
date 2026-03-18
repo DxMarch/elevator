@@ -69,7 +69,7 @@ defmodule Elevator.Hardware.InputPoller do
   # Helpers --------------------------------------------------
 
   defp get_pressed_buttons_at_floor(floor) do
-    Elevator.Types.btn_types()
+    Elevator.button_types()
     |> Enum.filter(fn btn ->
       Driver.get_order_button_state(floor, btn) == :active
     end)
