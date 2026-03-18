@@ -79,17 +79,21 @@ defmodule Elevator.HallOrders.Cost do
   def min_alive_cost(cost_map, alive_set) do
     alive_costs = Enum.filter(cost_map, fn {node, _} -> MapSet.member?(alive_set, node) end)
 
-    {min_node, _} =
-      Enum.min(
-        alive_costs,
-        fn {node1, cost1}, {node2, cost2} ->
-          cost1 < cost2 or (cost1 == cost2 and node1 < node2)
-        end,
-        # Fallback when no alive costs exist
-        fn -> {:nonode@nohost, :infinity} end
-      )
+    if Enum.count(alive_costs) != MapSet.size(alive_set) do
+      nil
+    else
+      {min_node, _} =
+        Enum.min(
+          alive_costs,
+          fn {node1, cost1}, {node2, cost2} ->
+            cost1 < cost2 or (cost1 == cost2 and node1 < node2)
+          end,
+          # Fallback when no alive costs exist
+          fn -> {:nonode@nohost, :infinity} end
+        )
 
-    min_node
+      min_node
+    end
   end
 
   @spec simulate_cost_until_served(combined_orders_t(), State.t(), {floor_t(), hall_btn_t()}) ::

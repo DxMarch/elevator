@@ -225,6 +225,12 @@ defmodule Elevator.HallOrders do
     Enum.filter(order_map, fn {_, order_state} ->
       case order_state do
         {:handling, cost_map} ->
+          if Cost.min_alive_cost(cost_map, alive) == Communicator.my_id() do
+            Logger.debug(
+              "\nCost map: #{inspect(cost_map)}\nAlive: #{inspect(alive)}\nI (#{inspect(Communicator.my_id())}) am the one to serve"
+            )
+          end
+
           Cost.min_alive_cost(cost_map, alive) == Communicator.my_id()
 
         _ ->
@@ -236,7 +242,7 @@ defmodule Elevator.HallOrders do
 
   @type enum_orders ::
           Elevator.Types.hall_order_map()
-          | Enumerable.t({Elevator.Types.hall_order_key(), Elevator.Types.hall_order_value()})
+          | Enumerable.t({Elevator.Types.hall_order_key(), Elevator.Types.hall_order_state()})
   @spec orders_by_floor(enum_orders()) :: %{floor() => MapSet.t(hall_btn())}
   defp orders_by_floor(orders) do
     # Restructure order map to the format floor => MapSet(order)
