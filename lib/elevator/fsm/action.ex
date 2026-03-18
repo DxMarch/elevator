@@ -96,7 +96,7 @@ defmodule Elevator.FSM.Action do
     if state.behavior == :door_open and
          Time.after?(
            Time.utc_now(),
-           Time.add(state.door_open_time, Elevator.door_open_duration_ms(), :millisecond)
+           Time.add(state.door_open_time_ms, Elevator.door_open_duration_ms(), :millisecond)
          ) do
       if state.obstructed do
         State.open_door()
