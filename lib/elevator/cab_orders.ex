@@ -51,7 +51,7 @@ defmodule Elevator.CabOrders do
     GenServer.cast(__MODULE__, {:arrived_at_floor, floor})
   end
 
-  # --- Handle calls ---
+  # Calls --------------------------------------------------
   @impl true
   def handle_call(:get_my_orders, _from, state) do
     orders = state[Communicator.my_id()].orders
@@ -63,7 +63,7 @@ defmodule Elevator.CabOrders do
     {:reply, state, state}
   end
 
-  # --- Handle casts ---
+  # Casts --------------------------------------------------
 
   @impl true
   @spec handle_cast({:receive_state, state_t()}, state_t()) :: {:noreply, state_t()}

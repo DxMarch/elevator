@@ -46,7 +46,7 @@ defmodule Elevator.FSM.Transition do
     loop()
   end
 
-  # Helpers ----------------------------------------------------------
+  # Helpers --------------------------------------------------
 
   defp get_my_orders() do
     hall_orders = HallOrders.get_my_orders()

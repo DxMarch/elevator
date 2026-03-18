@@ -92,7 +92,7 @@ defmodule Elevator.HallOrders do
     GenServer.call(__MODULE__, :get_confirmed_orders)
   end
 
-  # Calls ------------------------------------------------------------
+  # Calls --------------------------------------------------
 
   @impl true
   def handle_call(:get_my_orders, _from, order_map) do
@@ -121,7 +121,7 @@ defmodule Elevator.HallOrders do
     {:reply, order_map, order_map}
   end
 
-  # Casts ------------------------------------------------------------
+  # Casts --------------------------------------------------
 
   @impl true
   @spec handle_cast({:receive_state, hall_order_map()}, hall_order_map()) ::
@@ -195,7 +195,7 @@ defmodule Elevator.HallOrders do
     {:noreply, order_map, {:continue, :hall_update_state}}
   end
 
-  # Continue ------------------------------------------------------------
+  # Continue --------------------------------------------------
 
   @doc """
   May advance some states, in which case continue is called until convergence.

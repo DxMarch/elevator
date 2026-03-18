@@ -41,7 +41,7 @@ defmodule Elevator.FSM.State do
     GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
   end
 
-  # User API ----------------------------------------
+  # User API --------------------------------------------------
 
   @spec set_floor(:between_floors | Types.floor()) :: :ok
   def set_floor(floor), do: GenServer.cast(__MODULE__, {:set_floor, floor})
@@ -74,7 +74,7 @@ defmodule Elevator.FSM.State do
   @spec get_state() :: t()
   def get_state(), do: GenServer.call(__MODULE__, :get_state)
 
-  # Casts ----------------------------------------
+  # Casts --------------------------------------------------
 
   @impl true
   def handle_cast({:set_floor, floor}, state) do
@@ -124,7 +124,7 @@ defmodule Elevator.FSM.State do
     {:noreply, new_state}
   end
 
-  # Calls ----------------------------------------
+  # Calls --------------------------------------------------
 
   @impl true
   def handle_call(:get_state, _from, state) do

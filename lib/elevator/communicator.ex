@@ -132,7 +132,7 @@ defmodule Elevator.Communicator do
     {:noreply, state}
   end
 
-  # --- Handle calls ---
+  # Calls --------------------------------------------------
 
   @impl true
   def handle_call(:who_can_serve, _from, state) do
@@ -172,7 +172,7 @@ defmodule Elevator.Communicator do
     {:reply, communicating_nodes, state}
   end
 
-  # --- Handle casts ---
+  # Casts --------------------------------------------------
 
   @doc """
   Sends received hall and cab orders to respective modules, and updates timestamps for when the connected nodes last sent something.
