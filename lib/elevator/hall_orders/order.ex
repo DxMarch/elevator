@@ -120,6 +120,9 @@ defmodule Elevator.HallOrders.Order do
       {{:handling, _}, _} ->
         my_state
 
+      {{:arrived, my_barrier}, {:arrived, other_barrier}} ->
+        {:arrived, MapSet.union(my_barrier, other_barrier)}
+
       {{:arrived, _}, :idle} ->
         other_state
 

@@ -16,44 +16,44 @@ defmodule Test.Single.HallOrdersTest do
   test "initializes state with idle values" do
     {:ok, state} = Elevator.HallOrders.init(3)
     assert map_size(state) == 4
-    assert {_, :idle} = state[{0, :hall_up}]
-    assert {_, :idle} = state[{1, :hall_up}]
-    assert {_, :idle} = state[{1, :hall_down}]
-    assert {_, :idle} = state[{2, :hall_down}]
+    assert :idle = state[{0, :hall_up}]
+    assert :idle = state[{1, :hall_up}]
+    assert :idle = state[{1, :hall_down}]
+    assert :idle = state[{2, :hall_down}]
   end
 
   @tag :hall_orders_single
   test "button press puts single elevator confirmed state" do
     {:ok, state} = Elevator.HallOrders.init(3)
     assert {:noreply, final_state} = hallorder_cast_full({:button_press, 0, :hall_up}, state)
-    assert {_, {:handling, _}} = final_state[{0, :hall_up}]
+    assert {:handling, _} = final_state[{0, :hall_up}]
   end
 
   @tag :hall_orders_single
   test "arrive at floor from confirmed state puts elevator in idle state" do
     {:ok, state} = Elevator.HallOrders.init(3)
     id = Node.self()
-    state = Map.put(state, {1, :hall_down}, {1, {:handling, %{id => 5}}})
+    state = Map.put(state, {1, :hall_down}, {:handling, %{id => 5}})
     assert {:noreply, final_state} = hallorder_cast_full({:arrived_at_floor, 1, :down}, state)
-    assert {_, :idle} = final_state[{1, :hall_down}]
+    assert :idle = final_state[{1, :hall_down}]
   end
 
   @tag :hall_orders_single
-  test "clear floor from pending state leaves elevator state unchanged" do
+  test "clear floor from pending state should not put order in idle" do
     {:ok, state} = Elevator.HallOrders.init(3)
     id = Node.self()
-    state = Map.put(state, {1, :hall_up}, {0, {:pending, MapSet.new([id])}})
+    state = Map.put(state, {1, :hall_up}, {:pending, MapSet.new([id])})
     assert {:noreply, final_state} = hallorder_cast_full({:arrived_at_floor, 1, :up}, state)
-    assert {_, {:pending, _}} = final_state[{1, :hall_up}]
+    assert {:handling, _} = final_state[{1, :hall_up}]
   end
 
   @tag :hall_orders_single
   test "clear floor from other direction leaves elevator state unchanged" do
     {:ok, state} = Elevator.HallOrders.init(3)
     id = Node.self()
-    state = Map.put(state, {1, :hall_up}, {1, {:handling, %{id => 5}}})
+    state = Map.put(state, {1, :hall_up}, {:handling, %{id => 5}})
     assert {:noreply, final_state} = hallorder_cast_full({:arrived_at_floor, 1, :down}, state)
-    assert {_, {:handling, _}} = final_state[{1, :hall_up}]
+    assert {:handling, _} = final_state[{1, :hall_up}]
   end
 
   @tag :hall_orders_single

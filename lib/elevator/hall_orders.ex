@@ -185,7 +185,7 @@ defmodule Elevator.HallOrders do
           order_map
       end
 
-    {:noreply, new_order_map}
+    {:noreply, new_order_map, {:continue, :hall_update_state}}
   end
 
   @impl true
