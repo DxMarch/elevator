@@ -32,10 +32,10 @@ defmodule Elevator.HallOrders.Order do
     new_order_state =
       case new_order_state do
         {:pending, barrier_set} ->
-          {:pending, MapSet.put(barrier_set, Node.self())}
+          {:pending, MapSet.put(barrier_set, Communicator.my_id())}
 
         {:arrived, barrier_set} ->
-          {:arrived, MapSet.put(barrier_set, Node.self())}
+          {:arrived, MapSet.put(barrier_set, Communicator.my_id())}
 
         _ ->
           new_order_state
