@@ -1,6 +1,9 @@
 defmodule Elevator.FSM.State do
   @moduledoc """
-  Module storing the elevator state.
+  GenServer holding the physical state of the elevator.
+
+  Acts as the single source of truth for what the elevator *is* right now -
+  its floor, direction, behavior, and fault conditions. 
   """
   require Logger
   alias Elevator.Types
