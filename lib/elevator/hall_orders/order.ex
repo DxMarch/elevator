@@ -3,11 +3,12 @@ defmodule Elevator.HallOrders.Order do
   Logic concerning a single Hall Order.
 
   A hall order is tied to a floor and direction (up/down). It is essentially
-  one of the hall buttons. An order has both a version number and a state.
-  State is one of the following:
+  one of the hall buttons.
+  The state of an order is one of the following:
   - idle: No known order. Light: off
   - pending: Someone pressed a button, but everyone does not know it. Light: off
   - confirmed: All alive nodes know about the order and has indicated their cost to serve it. Light on.
+  - arrived: A node is signalling that the order has been served. Light: off
   """
 
   alias Elevator.Types
