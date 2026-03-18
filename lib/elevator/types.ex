@@ -46,4 +46,11 @@ defmodule Elevator.Types do
           operational: boolean(),
           connected_nodes: %{Node.t() => %{operational: boolean(), timestamp: Time.t()}}
         }
+
+  @type communicator_message :: %{
+          from: Node.t(),
+          operational: boolean(),
+          hall_order_map: hall_order_map(),
+          cab_order_map: cab_order_map()
+        }
 end

@@ -49,8 +49,9 @@ defmodule Elevator.HallOrders do
   Receives the hall order state from another node and merges it into local state.
   Each order is merged individually using the consensus algorithm in `HallOrders.Order`.
   """
-  @spec receive_state(hall_order_map()) :: :ok
-  def receive_state(other_state), do: GenServer.cast(__MODULE__, {:receive_state, other_state})
+  @spec receive_external(hall_order_map()) :: :ok
+  def receive_external(other_order_map),
+    do: GenServer.cast(__MODULE__, {:receive_external, other_order_map})
 
   @doc """
   Places the corresponding order in pending state if it is in idle. 
@@ -124,9 +125,9 @@ defmodule Elevator.HallOrders do
   # Casts --------------------------------------------------
 
   @impl true
-  @spec handle_cast({:receive_state, hall_order_map()}, hall_order_map()) ::
+  @spec handle_cast({:receive_external, hall_order_map()}, hall_order_map()) ::
           {:noreply, hall_order_map(), {:continue, :hall_update_state}}
-  def handle_cast({:receive_state, other_order_map}, order_map) do
+  def handle_cast({:receive_external, other_order_map}, order_map) do
     who_can_serve = Communicator.who_can_serve()
     my_orders = my_orders_from_order_map(order_map, who_can_serve)
 

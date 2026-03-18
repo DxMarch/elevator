@@ -36,9 +36,9 @@ defmodule Elevator.CabOrders do
     GenServer.call(__MODULE__, :get_my_orders)
   end
 
-  @spec receive_state(state_t()) :: :ok
-  def receive_state(other_state) do
-    GenServer.cast(__MODULE__, {:receive_state, other_state})
+  @spec receive_external(state_t()) :: :ok
+  def receive_external(other_order_map) do
+    GenServer.cast(__MODULE__, {:receive_external, other_order_map})
   end
 
   @spec button_press(floor_t()) :: :ok
@@ -66,8 +66,8 @@ defmodule Elevator.CabOrders do
   # Casts --------------------------------------------------
 
   @impl true
-  @spec handle_cast({:receive_state, state_t()}, state_t()) :: {:noreply, state_t()}
-  def handle_cast({:receive_state, other_state}, state) do
+  @spec handle_cast({:receive_external, state_t()}, state_t()) :: {:noreply, state_t()}
+  def handle_cast({:receive_external, other_state}, state) do
     new_state =
       Enum.reduce(other_state, state, fn {node_id, received}, acc ->
         current = Map.get(state, node_id, %{version: -1, orders: MapSet.new()})
