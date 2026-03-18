@@ -75,7 +75,8 @@ defmodule Elevator.FSM.State do
   end
 
   @impl true
-  def handle_cast({:set_obstruction, obstructed}, state) do
+  def handle_cast({:set_obstruction, obstruction_switch}, state) do
+    obstructed = obstruction_switch and state.behavior == :door_open
     {:noreply, %{state | obstructed: obstructed}}
   end
 

@@ -98,7 +98,7 @@ defmodule Elevator.HallOrders.Cost do
   end
 
   def update_obstructed_cost(cost_map, state)
-      when state.obstructed and state.behavior == :door_open do
+      when state.obstructed do
     Map.update!(cost_map, Communicator.my_id(), fn _ -> @unreachable_cost end)
   end
 
@@ -108,7 +108,7 @@ defmodule Elevator.HallOrders.Cost do
           non_neg_integer()
   defp simulate_cost_until_served(_orders, %{floor: :unknown}, _target), do: @unreachable_cost
 
-  defp simulate_cost_until_served(_orders, %{obstructed: true, behavior: :door_open}, _target),
+  defp simulate_cost_until_served(_orders, %{obstructed: true}, _target),
     do: @unreachable_cost
 
   defp simulate_cost_until_served(orders, state, target) do
