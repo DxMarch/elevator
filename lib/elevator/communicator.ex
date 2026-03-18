@@ -80,8 +80,8 @@ defmodule Elevator.Communicator do
         message = %{
           from: Node.self(),
           operational: state.operational,
-          hall_order_map: HallOrders.get_state(),
-          cab_order_map: CabOrders.get_state()
+          hall_order_map: HallOrders.get_order_map(),
+          cab_order_map: CabOrders.get_order_map()
         }
 
         Node.list(:connected)

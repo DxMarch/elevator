@@ -14,12 +14,12 @@ defmodule Elevator.HallOrders.Cost do
   @max_simulation_steps 256
   @unreachable_cost 30000
 
-  @type floor_t :: Elevator.Types.floor()
-  @type hall_btn_t :: Elevator.Types.hall_btn()
-  @type combined_orders_t :: Elevator.Types.combined_order_map()
-  @type cost_map_t :: %{node() => non_neg_integer()}
+  @type floor :: Elevator.Types.floor()
+  @type hall_btn :: Elevator.Types.hall_btn()
+  @type combined_order_map :: Elevator.Types.combined_order_map()
+  @type cost_map :: Elevator.Types.hall_order_cost_map()
 
-  @spec compute_cost({floor_t(), hall_btn_t()}, %{floor_t() => MapSet.t(hall_btn_t())}) ::
+  @spec compute_cost({floor(), hall_btn()}, %{floor() => MapSet.t(hall_btn())}) ::
           non_neg_integer()
   def compute_cost({floor, btn_dir}, my_hall_orders) do
     try do
@@ -52,7 +52,7 @@ defmodule Elevator.HallOrders.Cost do
   Merge two cost maps.
   Uses pessimistic merge: If two conflicting costs for the same node are found, keep the higher one.
   """
-  @spec merge_cost(cost_map_t(), cost_map_t()) :: cost_map_t()
+  @spec merge_cost(cost_map(), cost_map()) :: cost_map()
   def merge_cost(cost_map_1, cost_map_2) do
     MapSet.new(Map.keys(cost_map_1) ++ Map.keys(cost_map_2))
     |> Enum.map(fn node ->
@@ -75,7 +75,7 @@ defmodule Elevator.HallOrders.Cost do
   @doc """
   Returns the node with the lowest cost for a given cost map and alive set.
   """
-  @spec min_alive_cost(cost_map_t(), MapSet.t(node())) :: node()
+  @spec min_alive_cost(cost_map(), MapSet.t(node())) :: node()
   def min_alive_cost(cost_map, alive_set) do
     alive_costs = Enum.filter(cost_map, fn {node, _} -> MapSet.member?(alive_set, node) end)
 
@@ -96,7 +96,7 @@ defmodule Elevator.HallOrders.Cost do
     end
   end
 
-  @spec simulate_cost_until_served(combined_orders_t(), State.t(), {floor_t(), hall_btn_t()}) ::
+  @spec simulate_cost_until_served(combined_order_map(), State.t(), {floor(), hall_btn()}) ::
           non_neg_integer()
   defp simulate_cost_until_served(_orders, %{floor: :unknown}, _target), do: @unreachable_cost
 

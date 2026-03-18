@@ -71,10 +71,8 @@ defmodule Elevator.HallOrders do
   @doc """
   Retrieve the full hall order state map
   """
-  @spec get_state() :: hall_order_map()
-  def get_state do
-    GenServer.call(__MODULE__, :get_state)
-  end
+  @spec get_order_map() :: hall_order_map()
+  def get_order_map(), do: GenServer.call(__MODULE__, :get_order_map)
 
   @doc """
   Retrieve only the orders we are going to take.
@@ -118,7 +116,7 @@ defmodule Elevator.HallOrders do
   end
 
   @impl true
-  def handle_call(:get_state, _, order_map) do
+  def handle_call(:get_order_map, _, order_map) do
     {:reply, order_map, order_map}
   end
 

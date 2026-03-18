@@ -19,10 +19,12 @@ defmodule Elevator.Types do
 
   @type hall_order_key :: {floor(), hall_btn()}
 
+  @type hall_order_cost_map :: %{Node.t() => non_neg_integer()}
+
   @type hall_order_state ::
           :idle
           | {:pending, MapSet.t()}
-          | {:handling, %{Node.t() => integer()}}
+          | {:handling, hall_order_map()}
           | {:arrived, MapSet.t()}
 
   @type hall_order_map :: %{
