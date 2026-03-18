@@ -36,7 +36,7 @@ defmodule Elevator.HallOrders do
           _ -> [{floor, :hall_up}, {floor, :hall_down}]
         end
       end)
-      |> Enum.map(&{&1, {0, :idle}})
+      |> Enum.map(&{&1, :idle})
       |> Enum.into(%{})
 
     Process.send_after(self(), :refresh_hall_orders, @hall_order_refresh_period_ms)
@@ -104,9 +104,9 @@ defmodule Elevator.HallOrders do
   @impl true
   def handle_call(:get_confirmed_orders, _from, order_map) do
     confirmed_orders =
-      Enum.filter(order_map, fn {_, {_order_version, order_state}} ->
+      Enum.filter(order_map, fn {_, order_state} ->
         case order_state do
-          {:confirmed, _} -> true
+          {:handling, _} -> true
           _ -> false
         end
       end)
@@ -146,24 +146,23 @@ defmodule Elevator.HallOrders do
   def handle_cast({:button_press, floor, direction}, order_map) do
     # If in idle, go to pending. Otherwise, ignore.
     key = {floor, direction}
-    old_order_value = order_map[key]
 
-    {old_order_version, old_order_state} = old_order_value
+    old_order_state = order_map[key]
 
     new_order_map =
       case old_order_state do
         :idle ->
-          Map.put(order_map, key, {old_order_version + 1, {:pending, MapSet.new([Node.self()])}})
+          Map.put(order_map, key, {:pending, MapSet.new([Communicator.my_id()])})
 
         _ ->
           order_map
       end
 
-    new_order_value = new_order_map[key]
+    new_order_state = new_order_map[key]
 
-    if old_order_value != new_order_value do
+    if old_order_state != new_order_state do
       Logger.debug(fn ->
-        "hall_button_press floor=#{floor} button=#{direction} from=#{inspect(old_order_value)} to=#{inspect(new_order_value)}"
+        "hall_button_press floor=#{floor} button=#{direction} from=#{inspect(old_order_state)} to=#{inspect(new_order_state)}"
       end)
     end
 
@@ -172,16 +171,15 @@ defmodule Elevator.HallOrders do
 
   @impl true
   def handle_cast({:arrived_at_floor, floor, direction}, order_map) do
-    # If in confirmed, go to idle. Otherwise, ignore.
     # TODO: Find out if barrier set should be full as well?
     button_type = [up: :hall_up, down: :hall_down][direction]
     key = {floor, button_type}
-    order_value = order_map[key]
+    order_state = order_map[key]
 
     new_order_map =
-      case order_value do
-        {order_version, {:confirmed, _}} ->
-          Map.put(order_map, key, {order_version + 1, :idle})
+      case order_state do
+        {:handling, _} ->
+          Map.put(order_map, key, {:arrived, MapSet.new([Communicator.my_id()])})
 
         _ ->
           order_map
@@ -224,9 +222,9 @@ defmodule Elevator.HallOrders do
   end
 
   defp my_orders_from_order_map(order_map, alive) do
-    Enum.filter(order_map, fn {_, {_order_version, order_state}} ->
+    Enum.filter(order_map, fn {_, order_state} ->
       case order_state do
-        {:confirmed, cost_map} ->
+        {:handling, cost_map} ->
           Cost.min_alive_cost(cost_map, alive) == Communicator.my_id()
 
         _ ->

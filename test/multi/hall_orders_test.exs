@@ -51,7 +51,7 @@ defmodule Test.Multi.HallOrdersTest do
     assert :rpc.call(node1, HallOrders, :receive_state, [node3_state]) == :ok
 
     node1_state = :rpc.call(node1, HallOrders, :get_state, [])
-    assert {_, {:confirmed, _}} = node1_state[{0, :hall_up}]
+    assert {_, {:handling, _}} = node1_state[{0, :hall_up}]
 
     clique_exchange_states([node1, node2, node3])
 
@@ -61,7 +61,7 @@ defmodule Test.Multi.HallOrdersTest do
 
     # All should have converged on the alive set
     assert node1_state == node2_state and node2_state == node3_state
-    assert {_, {:confirmed, _}} = node1_state[{0, :hall_up}]
+    assert {_, {:handling, _}} = node1_state[{0, :hall_up}]
     converged_state = node1_state
 
     # ... so another exchange run should not affect the result
@@ -82,7 +82,7 @@ defmodule Test.Multi.HallOrdersTest do
     clique_exchange_states(nodes)
 
     node1_state = :rpc.call(node1, HallOrders, :get_state, [])
-    assert {_, {:confirmed, _}} = node1_state[{1, :hall_down}]
+    assert {_, {:handling, _}} = node1_state[{1, :hall_down}]
 
     # Assume node3 arrives at the floor
     :rpc.call(node3, HallOrders, :arrived_at_floor, [1, :down])
