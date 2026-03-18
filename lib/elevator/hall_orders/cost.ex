@@ -97,13 +97,6 @@ defmodule Elevator.HallOrders.Cost do
     end
   end
 
-  def update_obstructed_cost(cost_map, state)
-      when state.obstructed do
-    Map.update!(cost_map, Communicator.my_id(), fn _ -> @unreachable_cost end)
-  end
-
-  def update_obstructed_cost(cost_map, _state), do: cost_map
-
   @spec simulate_cost_until_served(combined_orders_t(), State.t(), {floor_t(), hall_btn_t()}) ::
           non_neg_integer()
   defp simulate_cost_until_served(_orders, %{floor: :unknown}, _target), do: @unreachable_cost

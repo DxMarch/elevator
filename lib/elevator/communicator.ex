@@ -59,6 +59,10 @@ defmodule Elevator.Communicator do
     GenServer.call(__MODULE__, :who_can_serve)
   end
 
+  def who_is_alive do
+    GenServer.call(__MODULE__, :who_is_alive)
+  end
+
   @doc """
   Updates the `operational` part of the state.
   Signals to peers whether this node can serve orders.
@@ -148,6 +152,22 @@ defmodule Elevator.Communicator do
       end
 
     {:reply, operational_nodes, state}
+  end
+
+  @impl true
+  def handle_call(:who_is_alive, _from, state) do
+    cutoff_ms = Elevator.msg_cutoff_ms()
+
+    communicating_nodes =
+      state.connected_nodes
+      |> Map.filter(fn {_k, %{timestamp: timestamp}} ->
+        Time.diff(Time.utc_now(), timestamp, :millisecond) < cutoff_ms
+      end)
+      |> Map.keys()
+      |> MapSet.new()
+
+    communicating_nodes = MapSet.put(communicating_nodes, my_id())
+    {:reply, communicating_nodes, state}
   end
 
   # --- Handle casts ---

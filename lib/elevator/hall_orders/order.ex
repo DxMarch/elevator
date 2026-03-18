@@ -69,7 +69,7 @@ defmodule Elevator.HallOrders.Order do
           Types.floor() => MapSet.t(Types.hall_btn())
         }) :: {boolean(), hall_order_state()}
   def update_hall_order(order_key, order_state, confirmed_hall_orders) do
-    alive = Communicator.who_can_serve()
+    alive = Communicator.who_is_alive()
 
     {did_change, new_state} =
       case order_state do
