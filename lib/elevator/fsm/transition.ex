@@ -88,7 +88,7 @@ defmodule Elevator.FSM.Transition do
     State.set_motor_timed_out(timed_out)
   end
 
-  defp check_door_timer(state) do
+  defp check_door_timer(state) when state.behavior == :door_open do
     timed_out =
       Time.diff(Time.utc_now(), state.door_open_time_ms, :millisecond) >
         Elevator.door_open_duration_ms()
@@ -104,4 +104,6 @@ defmodule Elevator.FSM.Transition do
         :ok
     end
   end
+
+  defp check_door_timer(_), do: :ok
 end

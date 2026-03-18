@@ -5,7 +5,6 @@ defmodule Elevator.HallOrders.Cost do
   Cost is estimated by simulating the local elevator with current requests plus the candidate hall request.
   """
 
-  alias Elevator.Communicator
   alias Elevator.CabOrders
   alias Elevator.Decision
   alias Elevator.FSM.State

@@ -6,7 +6,7 @@ defmodule Elevator.FSM.State do
   alias Elevator.Types
 
   defstruct direction: :down,
-            behavior: :idle,
+            behavior: :moving,
             floor: :unknown,
             between_floors: true,
             obstructed: false,
@@ -54,7 +54,7 @@ defmodule Elevator.FSM.State do
   def open_door(), do: GenServer.cast(__MODULE__, :open_door)
 
   def set_motor_timed_out(timed_out),
-    do: GenServer.call(__MODULE__, {:set_motor_timed_out, timed_out})
+    do: GenServer.cast(__MODULE__, {:set_motor_timed_out, timed_out})
 
   def get_state(), do: GenServer.call(__MODULE__, :get_state)
 
@@ -102,13 +102,13 @@ defmodule Elevator.FSM.State do
     {:noreply, new_state}
   end
 
-  # Calls ----------------------------------------
-
   @impl true
-  def handle_call({:set_motor_timed_out, timed_out}, _from, state) do
+  def handle_cast({:set_motor_timed_out, timed_out}, state) do
     new_state = %{state | motor_timed_out: timed_out}
-    {:reply, :ok, new_state}
+    {:noreply, new_state}
   end
+
+  # Calls ----------------------------------------
 
   @impl true
   def handle_call(:get_state, _from, state) do
