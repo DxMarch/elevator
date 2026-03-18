@@ -100,10 +100,17 @@ defmodule Elevator.HallOrders.Cost do
     normalized_state =
       if state.direction in [:up, :down], do: state, else: %{state | direction: :down}
 
+    initial_time_ms =
+      if normalized_state.behavior == :door_open and elem(target, 0) != normalized_state.floor do
+        Elevator.door_open_duration_ms()
+      else
+        0
+      end
+
     if target_cleared?(orders, target) do
       0
     else
-      do_simulate(orders, normalized_state, target, 0, @max_simulation_steps)
+      do_simulate(orders, normalized_state, target, initial_time_ms, @max_simulation_steps)
     end
   end
 
