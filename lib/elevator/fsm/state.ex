@@ -3,7 +3,6 @@ defmodule Elevator.FSM.State do
   Module storing the elevator state.
   """
   require Logger
-  alias Elevator.Hardware.Outputs
   alias Elevator.Types
 
   defstruct direction: :down,
@@ -31,7 +30,7 @@ defmodule Elevator.FSM.State do
   @impl true
   def init(_arg) do
     state = %Elevator.FSM.State{}
-    {:ok, state, {:continue, :set_outputs}}
+    {:ok, state}
   end
 
   def start_link(_args) do
@@ -72,7 +71,7 @@ defmodule Elevator.FSM.State do
           %{state | between_floors: false, floor: floor, last_floor_time: Time.utc_now()}
       end
 
-    {:noreply, new_state, {:continue, :set_outputs}}
+    {:noreply, new_state}
   end
 
   @impl true
@@ -82,12 +81,12 @@ defmodule Elevator.FSM.State do
 
   @impl true
   def handle_cast({:set_direction, dir}, state) do
-    {:noreply, %{state | direction: dir}, {:continue, :set_outputs}}
+    {:noreply, %{state | direction: dir}}
   end
 
   @impl true
   def handle_cast({:set_behavior, behavior}, state) do
-    {:noreply, %{state | behavior: behavior}, {:continue, :set_outputs}}
+    {:noreply, %{state | behavior: behavior}}
   end
 
   @impl true
@@ -99,13 +98,7 @@ defmodule Elevator.FSM.State do
         %{state | behavior: :door_open, door_open_time_ms: Time.utc_now()}
       end
 
-    {:noreply, new_state, {:continue, :set_outputs}}
-  end
-
-  @impl true
-  def handle_continue(:set_outputs, state) do
-    Outputs.set_outputs(state)
-    {:noreply, state}
+    {:noreply, new_state}
   end
 
   # Calls ----------------------------------------

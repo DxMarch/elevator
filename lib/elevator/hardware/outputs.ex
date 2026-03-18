@@ -4,9 +4,6 @@ defmodule Elevator.Hardware.Outputs do
   """
 
   require Logger
-  alias Elevator.CabOrders
-  alias Elevator.Decision
-  alias Elevator.HallOrders
   alias Elevator.Communicator
   alias Elevator.Hardware.Driver
   alias Elevator.Types
@@ -18,8 +15,8 @@ defmodule Elevator.Hardware.Outputs do
     Driver.set_motor_direction(:stop)
   end
 
-  @spec set_outputs(FSM.State.t()) :: any()
-  def set_outputs(state) do
+  @spec set_outputs(FSM.State.t(), Types.combined_order_map()) :: any()
+  def set_outputs(state, light_orders) do
     set_door_light(state)
     set_motors(state)
     set_floor_light(state)
@@ -28,10 +25,7 @@ defmodule Elevator.Hardware.Outputs do
     operational = not (door_blocked or state.motor_timed_out)
     Communicator.update_operation_status(operational)
 
-    Task.start(fn ->
-      orders = get_light_orders()
-      set_order_lights(orders)
-    end)
+    set_order_lights(light_orders)
   end
 
   defp set_motors(elev_state) do
@@ -48,12 +42,6 @@ defmodule Elevator.Hardware.Outputs do
     if state.floor != :unknown do
       Driver.set_floor_indicator(state.floor)
     end
-  end
-
-  defp get_light_orders() do
-    hall_orders = HallOrders.get_confirmed_orders()
-    pressed_cab_floors = CabOrders.get_my_orders()
-    Decision.combine_hall_and_cab(hall_orders, pressed_cab_floors)
   end
 
   defp set_order_lights(orders) do
