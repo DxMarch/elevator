@@ -14,8 +14,6 @@ defmodule Elevator.Types do
 
   @type btn_type :: :cab | hall_btn()
 
-  @type node_id :: Node.t()
-
   @spec btn_types() :: [btn_type()]
   def btn_types(), do: [:hall_up, :hall_down, :cab]
 
@@ -24,7 +22,7 @@ defmodule Elevator.Types do
   @type hall_order_state ::
           :idle
           | {:pending, MapSet.t()}
-          | {:handling, %{node_id() => integer()}}
+          | {:handling, %{Node.t() => integer()}}
           | {:arrived, MapSet.t()}
 
   @type hall_order_map :: %{
@@ -37,7 +35,7 @@ defmodule Elevator.Types do
         }
 
   @type cab_order_map :: %{
-          node_id() => cab_orders_snapshot()
+          Node.t() => cab_orders_snapshot()
         }
 
   @type combined_order_map :: %{
@@ -46,6 +44,6 @@ defmodule Elevator.Types do
 
   @type communicator_state_map :: %{
           operational: boolean(),
-          connected_nodes: %{node_id() => %{operational: boolean(), timestamp: Time.t()}}
+          connected_nodes: %{Node.t() => %{operational: boolean(), timestamp: Time.t()}}
         }
 end

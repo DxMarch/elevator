@@ -32,10 +32,10 @@ defmodule Elevator.HallOrders.Order do
     new_order_state =
       case new_order_state do
         {:pending, barrier_set} ->
-          {:pending, MapSet.put(barrier_set, Communicator.my_id())}
+          {:pending, MapSet.put(barrier_set, Node.self())}
 
         {:arrived, barrier_set} ->
-          {:arrived, MapSet.put(barrier_set, Communicator.my_id())}
+          {:arrived, MapSet.put(barrier_set, Node.self())}
 
         _ ->
           new_order_state
@@ -45,7 +45,7 @@ defmodule Elevator.HallOrders.Order do
     new_order_state =
       case new_order_state do
         {:handling, cost_map} ->
-          my_id = Communicator.my_id()
+          my_id = Node.self()
 
           if not Map.has_key?(cost_map, my_id) do
             {:handling, Map.put(cost_map, my_id, Cost.compute_cost(order_key, my_hall_orders))}
@@ -76,7 +76,7 @@ defmodule Elevator.HallOrders.Order do
         {:pending, barrier_set} ->
           if MapSet.intersection(barrier_set, alive) == alive do
             my_cost = Cost.compute_cost(order_key, confirmed_hall_orders)
-            {true, {:handling, %{Communicator.my_id() => my_cost}}}
+            {true, {:handling, %{Node.self() => my_cost}}}
           else
             {false, order_state}
           end

@@ -16,7 +16,7 @@ defmodule Elevator.CabOrders do
   @impl true
   @spec init(any()) :: {:ok, state_t()}
   def init(_arg \\ []) do
-    state = %{Communicator.my_id() => %{version: 0, orders: MapSet.new()}}
+    state = %{Node.self() => %{version: 0, orders: MapSet.new()}}
     {:ok, state}
   end
 
@@ -54,7 +54,7 @@ defmodule Elevator.CabOrders do
   # Calls --------------------------------------------------
   @impl true
   def handle_call(:get_my_orders, _from, state) do
-    orders = state[Communicator.my_id()].orders
+    orders = state[Node.self()].orders
     {:reply, orders, state}
   end
 
@@ -86,7 +86,7 @@ defmodule Elevator.CabOrders do
   @spec handle_cast({:button_press, floor_t()}, state_t()) :: {:noreply, state_t()}
   def handle_cast({:button_press, floor}, state) do
     new_state =
-      Map.update!(state, Communicator.my_id(), fn %{version: old_version, orders: old_orders} ->
+      Map.update!(state, Node.self(), fn %{version: old_version, orders: old_orders} ->
         %{version: old_version + 1, orders: MapSet.put(old_orders, floor)}
       end)
 
@@ -97,7 +97,7 @@ defmodule Elevator.CabOrders do
   @spec handle_cast({:arrived_at_floor, floor_t()}, state_t()) :: {:noreply, state_t()}
   def handle_cast({:arrived_at_floor, floor}, state) do
     new_state =
-      Map.update!(state, Communicator.my_id(), fn %{version: old_version, orders: old_orders} ->
+      Map.update!(state, Node.self(), fn %{version: old_version, orders: old_orders} ->
         %{version: old_version + 1, orders: MapSet.delete(old_orders, floor)}
       end)
 

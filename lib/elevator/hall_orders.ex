@@ -153,7 +153,7 @@ defmodule Elevator.HallOrders do
     new_order_map =
       case old_order_state do
         :idle ->
-          Map.put(order_map, key, {:pending, MapSet.new([Communicator.my_id()])})
+          Map.put(order_map, key, {:pending, MapSet.new([Node.self()])})
 
         _ ->
           order_map
@@ -180,7 +180,7 @@ defmodule Elevator.HallOrders do
     new_order_map =
       case order_state do
         {:handling, _} ->
-          Map.put(order_map, key, {:arrived, MapSet.new([Communicator.my_id()])})
+          Map.put(order_map, key, {:arrived, MapSet.new([Node.self()])})
 
         _ ->
           order_map
@@ -195,7 +195,7 @@ defmodule Elevator.HallOrders do
     {:noreply, order_map, {:continue, :hall_update_state}}
   end
 
-  # Continue --------------------------------------------------
+  # Continues --------------------------------------------------
 
   @doc """
   May advance some states, in which case continue is called until convergence.
@@ -227,13 +227,13 @@ defmodule Elevator.HallOrders do
     Enum.filter(order_map, fn {_, order_state} ->
       case order_state do
         {:handling, cost_map} ->
-          if Cost.min_alive_cost(cost_map, alive) == Communicator.my_id() do
+          if Cost.min_alive_cost(cost_map, alive) == Node.self() do
             Logger.debug(
-              "\nCost map: #{inspect(cost_map)}\nAlive: #{inspect(alive)}\nI (#{inspect(Communicator.my_id())}) am the one to serve"
+              "\nCost map: #{inspect(cost_map)}\nAlive: #{inspect(alive)}\nI (#{inspect(Node.self())}) am the one to serve"
             )
           end
 
-          Cost.min_alive_cost(cost_map, alive) == Communicator.my_id()
+          Cost.min_alive_cost(cost_map, alive) == Node.self()
 
         _ ->
           false

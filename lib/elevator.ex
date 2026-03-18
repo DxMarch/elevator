@@ -1,6 +1,5 @@
 defmodule Elevator do
   @num_floors 4
-  @resend_period_ms 50
   @msg_cutoff_ms 10000
   @door_open_duration_ms 1000
 
@@ -12,11 +11,6 @@ defmodule Elevator do
   @spec door_open_duration_ms() :: pos_integer()
   def door_open_duration_ms do
     @door_open_duration_ms
-  end
-
-  @spec resend_period_ms() :: pos_integer()
-  def resend_period_ms do
-    @resend_period_ms
   end
 
   @spec msg_cutoff_ms() :: pos_integer()

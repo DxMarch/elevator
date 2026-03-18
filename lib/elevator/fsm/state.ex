@@ -43,6 +43,9 @@ defmodule Elevator.FSM.State do
 
   # User API --------------------------------------------------
 
+  @doc """
+  Updates floor and between_floors status.
+  """
   @spec set_floor(:between_floors | Types.floor()) :: :ok
   def set_floor(floor), do: GenServer.cast(__MODULE__, {:set_floor, floor})
 

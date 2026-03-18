@@ -28,7 +28,7 @@ defmodule Test.Single.CabOrdersTest do
     {:ok, state} = CabOrders.init()
 
     state =
-      Map.update(state, Communicator.my_id(), Communicator.my_id(), fn _old ->
+      Map.update(state, Node.self(), Node.self(), fn _old ->
         %{version: 1, orders: MapSet.new([1])}
       end)
 
@@ -49,12 +49,12 @@ defmodule Test.Single.CabOrdersTest do
 
   test "version number increments correctly" do
     {:ok, state} = CabOrders.init()
-    assert state[Communicator.my_id()].version == 0
+    assert state[Node.self()].version == 0
     assert {:noreply, state} = CabOrders.handle_cast({:arrived_at_floor, 1}, state)
-    assert state[Communicator.my_id()].version == 1
+    assert state[Node.self()].version == 1
     assert {:noreply, state} = CabOrders.handle_cast({:button_press, 1}, state)
-    assert state[Communicator.my_id()].version == 2
+    assert state[Node.self()].version == 2
     assert {:noreply, state} = CabOrders.handle_cast({:button_press, 1}, state)
-    assert state[Communicator.my_id()].version == 3
+    assert state[Node.self()].version == 3
   end
 end

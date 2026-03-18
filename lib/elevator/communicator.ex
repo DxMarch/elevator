@@ -10,12 +10,13 @@ defmodule Elevator.Communicator do
   require Logger
   use GenServer
 
-  @type node_id_t :: Elevator.Types.node_id()
   @type hall_orders_t :: Elevator.Types.hall_order_map()
   @type cab_orders_t :: Elevator.Types.cab_order_map()
   @type state_t :: Elevator.Types.communicator_state_map()
 
   @type communicator_options :: [do_resend: boolean(), do_logging: boolean()]
+
+  @resend_period_ms 50
 
   @spec start_link(communicator_options()) :: GenServer.on_start()
   def start_link(arg \\ [do_resend: true, do_logging: false]) do
@@ -44,48 +45,37 @@ defmodule Elevator.Communicator do
   end
 
   @doc """
-  Returns the ID of this node.
-  """
-  @spec my_id() :: node_id_t()
-  def my_id, do: Node.self()
-
-  @doc """
   Returns a set of alive nodes that are both:
   a) Connected
   AND
   b) Have sent a message within the cutoff period
   """
-  @spec who_can_serve() :: MapSet.t()
-  def who_can_serve do
-    GenServer.call(__MODULE__, :who_can_serve)
-  end
+  @spec who_can_serve() :: MapSet.t(Node.t())
+  def who_can_serve, do: GenServer.call(__MODULE__, :who_can_serve)
 
-  @spec who_is_alive() :: MapSet.t(node_id_t())
-  def who_is_alive do
-    GenServer.call(__MODULE__, :who_is_alive)
-  end
+  @spec who_is_alive() :: MapSet.t(Node.t())
+  def who_is_alive, do: GenServer.call(__MODULE__, :who_is_alive)
 
   @doc """
   Updates the `operational` part of the state.
   Signals to peers whether this node can serve orders.
   """
   @spec update_operation_status(boolean()) :: :ok
-  def update_operation_status(status) do
-    GenServer.cast(__MODULE__, {:update_operation_status, status})
-  end
+  def update_operation_status(status),
+    do: GenServer.cast(__MODULE__, {:update_operation_status, status})
 
   # Updates the timestamp when a message is received from a node
-  @spec update_state_map(state_t(), node_id_t(), boolean()) :: state_t()
+  @spec update_state_map(state_t(), Node.t(), boolean()) :: state_t()
   defp update_state_map(state, from_node, operational) do
     from_node_map = %{operational: operational, timestamp: Time.utc_now()}
     %{state | connected_nodes: Map.put(state.connected_nodes, from_node, from_node_map)}
   end
 
   # Schedules another round of state broadcasting.
-  defp schedule_state_broadcast do
-    time_ms = Elevator.resend_period_ms()
-    Process.send_after(self(), :broadcast_state, time_ms)
-  end
+  defp schedule_state_broadcast,
+    do: Process.send_after(self(), :broadcast_state, @resend_period_ms)
+
+  # Infos --------------------------------------------------
 
   @doc """
   Sends the cab and hall state to all connected nodes.
@@ -103,7 +93,7 @@ defmodule Elevator.Communicator do
         Node.list(:connected)
         |> GenServer.abcast(
           __MODULE__,
-          {:state_update, my_id(), state.operational, hall_state, cab_state}
+          {:state_update, Node.self(), state.operational, hall_state, cab_state}
         )
       end)
     end
@@ -126,7 +116,7 @@ defmodule Elevator.Communicator do
   @impl true
   def handle_info(:log_debug, state) do
     Process.send_after(self(), :log_debug, 1000)
-    Logger.debug("My id: #{my_id()}")
+    Logger.debug("My id: #{Node.self()}")
     others = who_can_serve() |> Enum.map(fn node -> "#{node}" end) |> Enum.join(", ")
     Logger.debug("Others: #{others}")
     {:noreply, state}
@@ -148,7 +138,7 @@ defmodule Elevator.Communicator do
 
     operational_nodes =
       if state.operational do
-        MapSet.put(communicating_nodes, my_id())
+        MapSet.put(communicating_nodes, Node.self())
       else
         communicating_nodes
       end
@@ -168,7 +158,7 @@ defmodule Elevator.Communicator do
       |> Map.keys()
       |> MapSet.new()
 
-    communicating_nodes = MapSet.put(communicating_nodes, my_id())
+    communicating_nodes = MapSet.put(communicating_nodes, Node.self())
     {:reply, communicating_nodes, state}
   end
 
@@ -179,7 +169,7 @@ defmodule Elevator.Communicator do
   """
   @impl true
   @spec handle_cast(
-          {:state_update, node_id_t(), boolean(), hall_orders_t(), cab_orders_t()},
+          {:state_update, Node.t(), boolean(), hall_orders_t(), cab_orders_t()},
           state_t()
         ) ::
           {:noreply, state_t()}
