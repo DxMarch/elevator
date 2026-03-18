@@ -5,10 +5,12 @@ defmodule Elevator.Decision do
   These functions are intentionally pure to make them easy to unit test.
   """
 
+  @spec requests_above?(Elevator.Types.combined_order_map(), Elevator.Types.floor()) :: boolean()
   def requests_above?(reqs, floor) do
     Enum.any?(reqs, fn {f, _} -> f > floor end)
   end
 
+  @spec requests_below?(Elevator.Types.combined_order_map(), Elevator.Types.floor()) :: boolean()
   def requests_below?(reqs, floor) do
     Enum.any?(reqs, fn {f, _} -> f < floor end)
   end

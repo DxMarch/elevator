@@ -32,33 +32,46 @@ defmodule Elevator.FSM.State do
 
   @impl true
   def init(_arg) do
-    state = %Elevator.FSM.State{}
+    state = %__MODULE__{}
     {:ok, state}
   end
 
+  @spec start_link(any()) :: GenServer.on_start()
   def start_link(_args) do
     GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
   end
 
   # User API ----------------------------------------
 
+  @spec set_floor(:between_floors | Types.floor()) :: :ok
   def set_floor(floor), do: GenServer.cast(__MODULE__, {:set_floor, floor})
 
-  def set_obstruction(obstructed), do: GenServer.cast(__MODULE__, {:set_obstruction, obstructed})
+  @doc """
+  Sets obstructed to true if door is open and obstruction switch is on.
+  Otherwise, obstructed is set to false.
+  """
+  @spec set_obstruction(boolean()) :: :ok
+  def set_obstruction(obstruction_switch),
+    do: GenServer.cast(__MODULE__, {:set_obstruction, obstruction_switch})
 
+  @spec set_direction(Types.elev_dir()) :: :ok
   def set_direction(dir), do: GenServer.cast(__MODULE__, {:set_direction, dir})
 
+  @spec set_behavior(Types.elev_behavior()) :: :ok
   def set_behavior(behavior), do: GenServer.cast(__MODULE__, {:set_behavior, behavior})
 
   @doc """
   Opens the door if the elevator is at a floor.
   Does nothing if the elevator is between floors.
   """
+  @spec open_door() :: :ok
   def open_door(), do: GenServer.cast(__MODULE__, :open_door)
 
+  @spec set_motor_timed_out(boolean()) :: :ok
   def set_motor_timed_out(timed_out),
     do: GenServer.cast(__MODULE__, {:set_motor_timed_out, timed_out})
 
+  @spec get_state() :: t()
   def get_state(), do: GenServer.call(__MODULE__, :get_state)
 
   # Casts ----------------------------------------

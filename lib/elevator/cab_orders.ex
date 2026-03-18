@@ -8,6 +8,7 @@ defmodule Elevator.CabOrders do
   @type state_t :: Elevator.Types.cab_order_map()
   @type floor_t :: Elevator.Types.floor()
 
+  @spec start_link(any()) :: GenServer.on_start()
   def start_link(arg) do
     GenServer.start_link(__MODULE__, arg, name: __MODULE__)
   end

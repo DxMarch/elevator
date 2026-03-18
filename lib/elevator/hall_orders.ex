@@ -18,6 +18,7 @@ defmodule Elevator.HallOrders do
 
   @hall_order_refresh_period_ms 1000
 
+  @spec start_link(any()) :: GenServer.on_start()
   def start_link(arg) do
     GenServer.start_link(__MODULE__, arg, name: __MODULE__)
   end

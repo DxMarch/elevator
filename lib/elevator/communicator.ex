@@ -17,6 +17,7 @@ defmodule Elevator.Communicator do
 
   @type communicator_options :: [do_resend: boolean(), do_logging: boolean()]
 
+  @spec start_link(communicator_options()) :: GenServer.on_start()
   def start_link(arg \\ [do_resend: true, do_logging: false]) do
     GenServer.start_link(__MODULE__, arg, name: __MODULE__)
   end
@@ -59,6 +60,7 @@ defmodule Elevator.Communicator do
     GenServer.call(__MODULE__, :who_can_serve)
   end
 
+  @spec who_is_alive() :: MapSet.t(node_id_t())
   def who_is_alive do
     GenServer.call(__MODULE__, :who_is_alive)
   end

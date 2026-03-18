@@ -18,12 +18,14 @@ defmodule Elevator.FSM.Transition do
   @motor_timeout_ms 3500
   @transition_interval_ms 100
 
+  @spec start_link(any()) :: {:ok, pid()}
   def start_link(_arg) do
     pid = spawn_link(fn -> loop() end)
 
     {:ok, pid}
   end
 
+  @spec child_spec(any()) :: Supervisor.child_spec()
   def child_spec(opts) do
     %{
       id: __MODULE__,

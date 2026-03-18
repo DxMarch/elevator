@@ -9,6 +9,7 @@ defmodule Elevator.Hardware.Outputs do
   alias Elevator.Types
   alias Elevator.FSM
 
+  @spec init() :: :ok
   def init() do
     Driver.set_stop_button_light(:off)
     Driver.set_door_open_light(:off)
