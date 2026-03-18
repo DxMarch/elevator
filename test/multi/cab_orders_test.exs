@@ -35,7 +35,7 @@ defmodule Test.Multi.CabOrdersTest do
     node1_orders = :rpc.call(node1, CabOrders, :get_my_orders, [])
     assert node1_orders == MapSet.new()
 
-    :rpc.call(node2, CabOrders, :receive_state, [
+    :rpc.call(node2, CabOrders, :receive_external, [
       %{node1 => %{version: 420, orders: MapSet.new([3])}}
     ])
 
@@ -47,46 +47,46 @@ defmodule Test.Multi.CabOrdersTest do
 
   test "elevator ignores lower version numbers", %{nodes: [node1, node2, node3]} do
     %{version: node1_version, orders: node1_orders} =
-      :rpc.call(node1, CabOrders, :get_state, [])[node1]
+      :rpc.call(node1, CabOrders, :get_order_map, [])[node1]
 
     assert node1_version == 0
     assert node1_orders == MapSet.new()
 
     # Higher version number should overwrite
-    :rpc.cast(node2, CabOrders, :receive_state, [
+    :rpc.cast(node2, CabOrders, :receive_external, [
       %{node1 => %{version: 69, orders: MapSet.new([1])}}
     ])
 
     Process.sleep(TestUtils.convergence_wait_ms())
 
     %{version: node1_version, orders: node1_orders} =
-      :rpc.call(node1, CabOrders, :get_state, [])[node1]
+      :rpc.call(node1, CabOrders, :get_order_map, [])[node1]
 
     assert node1_version == 69
     assert node1_orders == MapSet.new([1])
 
     # Lower version number should be ignored
-    :rpc.cast(node3, CabOrders, :receive_state, [
+    :rpc.cast(node3, CabOrders, :receive_external, [
       %{node1 => %{version: 67, orders: MapSet.new([1, 2])}}
     ])
 
     Process.sleep(TestUtils.convergence_wait_ms())
 
     %{version: node1_version, orders: node1_orders} =
-      :rpc.call(node1, CabOrders, :get_state, [])[node1]
+      :rpc.call(node1, CabOrders, :get_order_map, [])[node1]
 
     assert node1_version == 69
     assert node1_orders == MapSet.new([1])
 
     # Same version number should be ignored
-    :rpc.cast(node3, CabOrders, :receive_state, [
+    :rpc.cast(node3, CabOrders, :receive_external, [
       %{node1 => %{version: 69, orders: MapSet.new([1, 2])}}
     ])
 
     Process.sleep(TestUtils.convergence_wait_ms())
 
     %{version: node1_version, orders: node1_orders} =
-      :rpc.call(node1, CabOrders, :get_state, [])[node1]
+      :rpc.call(node1, CabOrders, :get_order_map, [])[node1]
 
     assert node1_version == 69
     assert node1_orders == MapSet.new([1])
@@ -94,13 +94,13 @@ defmodule Test.Multi.CabOrdersTest do
 
   test "cab order states propagate", %{nodes: [node1, node2, node3]} do
     %{version: node1_version, orders: node1_orders} =
-      :rpc.call(node1, CabOrders, :get_state, [])[node1]
+      :rpc.call(node1, CabOrders, :get_order_map, [])[node1]
 
     %{version: node2_version, orders: node2_orders} =
-      :rpc.call(node2, CabOrders, :get_state, [])[node2]
+      :rpc.call(node2, CabOrders, :get_order_map, [])[node2]
 
     %{version: node3_version, orders: node3_orders} =
-      :rpc.call(node3, CabOrders, :get_state, [])[node3]
+      :rpc.call(node3, CabOrders, :get_order_map, [])[node3]
 
     assert node1_version == 0 and node2_version == 0 and node3_version == 0
 
@@ -112,14 +112,14 @@ defmodule Test.Multi.CabOrdersTest do
 
     # Ensure that node1's version and order map has propagated across all nodes
     %{version: node1_version, orders: node1_orders} =
-      :rpc.call(node1, CabOrders, :get_state, [])[node1]
+      :rpc.call(node1, CabOrders, :get_order_map, [])[node1]
 
     assert node1_version == 1
     assert MapSet.member?(node1_orders, 1)
 
-    node1_state = :rpc.call(node1, CabOrders, :get_state, [])
-    node2_state = :rpc.call(node2, CabOrders, :get_state, [])
-    node3_state = :rpc.call(node3, CabOrders, :get_state, [])
+    node1_state = :rpc.call(node1, CabOrders, :get_order_map, [])
+    node2_state = :rpc.call(node2, CabOrders, :get_order_map, [])
+    node3_state = :rpc.call(node3, CabOrders, :get_order_map, [])
 
     assert Map.equal?(node1_state, node2_state)
     assert Map.equal?(node2_state, node3_state)

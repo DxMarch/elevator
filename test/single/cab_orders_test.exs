@@ -1,5 +1,4 @@
 defmodule Test.Single.CabOrdersTest do
-  alias Elevator.Communicator
   alias Elevator.CabOrders
   use ExUnit.Case, async: false
 

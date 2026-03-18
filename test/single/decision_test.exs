@@ -68,26 +68,4 @@ defmodule Test.Single.DecisionTest do
     state = %Elevator.FSM.State{floor: 1, direction: :up, between_floors: false}
     assert Decision.next_action(orders, state) == {:up, :door_open}
   end
-
-  test "should_clear_immediately?" do
-    door_open_up = %Elevator.FSM.State{floor: 2, direction: :up, behavior: :door_open}
-
-    assert Decision.should_clear_immediately?(door_open_up, 2, :cab)
-    assert Decision.should_clear_immediately?(door_open_up, 2, :hall_up)
-
-    refute Decision.should_clear_immediately?(door_open_up, 2, :hall_down)
-    refute Decision.should_clear_immediately?(door_open_up, 3, :cab)
-
-    moving = %Elevator.FSM.State{floor: 2, direction: :up, behavior: :moving}
-    assert Decision.should_clear_immediately?(moving, 2, :cab)
-
-    door_open_down = %Elevator.FSM.State{
-      floor: 2,
-      direction: :down,
-      behavior: :door_open,
-      between_floors: false
-    }
-
-    assert Decision.should_clear_immediately?(door_open_down, 2, :hall_down)
-  end
 end

@@ -25,12 +25,12 @@ defmodule Test.Multi.HallOrdersTest do
   test "button convergence to confirmed", %{nodes: [node1, node2, node3]} do
     # Node 1 gets a button call
     :rpc.call(node1, HallOrders, :button_press, [0, :hall_up])
-    node1_state = :rpc.call(node1, HallOrders, :get_state, [])
+    node1_state = :rpc.call(node1, HallOrders, :get_order_map, [])
     assert {:pending, _} = node1_state[{0, :hall_up}]
 
     # Node 1 sends their orders to node 2
-    assert :rpc.call(node2, HallOrders, :receive_state, [node1_state]) == :ok
-    node2_state = :rpc.call(node2, HallOrders, :get_state, [])
+    assert :rpc.call(node2, HallOrders, :receive_external, [node1_state]) == :ok
+    node2_state = :rpc.call(node2, HallOrders, :get_order_map, [])
     assert {:pending, barrier2} = node2_state[{0, :hall_up}]
 
     assert MapSet.member?(barrier2, node1)
@@ -38,8 +38,8 @@ defmodule Test.Multi.HallOrdersTest do
     assert not MapSet.member?(barrier2, node3)
 
     # Node 1 sends their orders to node 3
-    assert :rpc.call(node3, HallOrders, :receive_state, [node1_state]) == :ok
-    node3_state = :rpc.call(node3, HallOrders, :get_state, [])
+    assert :rpc.call(node3, HallOrders, :receive_external, [node1_state]) == :ok
+    node3_state = :rpc.call(node3, HallOrders, :get_order_map, [])
     assert {:pending, barrier3} = node3_state[{0, :hall_up}]
 
     assert MapSet.member?(barrier3, node1)
@@ -47,17 +47,17 @@ defmodule Test.Multi.HallOrdersTest do
     assert not MapSet.member?(barrier3, node2)
 
     # Node 1 receives orders from both 2 and 3
-    assert :rpc.call(node1, HallOrders, :receive_state, [node2_state]) == :ok
-    assert :rpc.call(node1, HallOrders, :receive_state, [node3_state]) == :ok
+    assert :rpc.call(node1, HallOrders, :receive_external, [node2_state]) == :ok
+    assert :rpc.call(node1, HallOrders, :receive_external, [node3_state]) == :ok
 
-    node1_state = :rpc.call(node1, HallOrders, :get_state, [])
+    node1_state = :rpc.call(node1, HallOrders, :get_order_map, [])
     assert {:handling, _} = node1_state[{0, :hall_up}]
 
     clique_exchange_states([node1, node2, node3])
 
-    node1_state = :rpc.call(node1, HallOrders, :get_state, [])
-    node2_state = :rpc.call(node2, HallOrders, :get_state, [])
-    node3_state = :rpc.call(node3, HallOrders, :get_state, [])
+    node1_state = :rpc.call(node1, HallOrders, :get_order_map, [])
+    node2_state = :rpc.call(node2, HallOrders, :get_order_map, [])
+    node3_state = :rpc.call(node3, HallOrders, :get_order_map, [])
 
     # All should have converged on the alive set
     assert node1_state == node2_state and node2_state == node3_state
@@ -67,9 +67,9 @@ defmodule Test.Multi.HallOrdersTest do
     # ... so another exchange run should not affect the result
     clique_exchange_states([node1, node2, node3])
 
-    node1_state = :rpc.call(node1, HallOrders, :get_state, [])
-    node2_state = :rpc.call(node2, HallOrders, :get_state, [])
-    node3_state = :rpc.call(node3, HallOrders, :get_state, [])
+    node1_state = :rpc.call(node1, HallOrders, :get_order_map, [])
+    node2_state = :rpc.call(node2, HallOrders, :get_order_map, [])
+    node3_state = :rpc.call(node3, HallOrders, :get_order_map, [])
 
     assert node1_state == converged_state and node1_state == node2_state and
              node2_state == node3_state
@@ -81,7 +81,7 @@ defmodule Test.Multi.HallOrdersTest do
     clique_exchange_states(nodes)
     clique_exchange_states(nodes)
 
-    node1_state = :rpc.call(node1, HallOrders, :get_state, [])
+    node1_state = :rpc.call(node1, HallOrders, :get_order_map, [])
     assert {:handling, _} = node1_state[{1, :hall_down}]
 
     # Assume node3 arrives at the floor
@@ -89,9 +89,9 @@ defmodule Test.Multi.HallOrdersTest do
 
     clique_exchange_states(nodes)
 
-    node1_state = :rpc.call(node1, HallOrders, :get_state, [])
-    node2_state = :rpc.call(node2, HallOrders, :get_state, [])
-    node3_state = :rpc.call(node3, HallOrders, :get_state, [])
+    node1_state = :rpc.call(node1, HallOrders, :get_order_map, [])
+    node2_state = :rpc.call(node2, HallOrders, :get_order_map, [])
+    node3_state = :rpc.call(node3, HallOrders, :get_order_map, [])
 
     assert :idle = node1_state[{1, :hall_down}]
     assert :idle = node2_state[{1, :hall_down}]
@@ -138,9 +138,9 @@ defmodule Test.Multi.HallOrdersTest do
 
     Process.sleep(TestUtils.convergence_wait_ms())
 
-    node1_state = :rpc.call(node1, HallOrders, :get_state, [])
-    node2_state = :rpc.call(node2, HallOrders, :get_state, [])
-    node3_state = :rpc.call(node3, HallOrders, :get_state, [])
+    node1_state = :rpc.call(node1, HallOrders, :get_order_map, [])
+    node2_state = :rpc.call(node2, HallOrders, :get_order_map, [])
+    node3_state = :rpc.call(node3, HallOrders, :get_order_map, [])
 
     assert node1_state == node2_state and node2_state == node3_state
     assert :idle = node1_state[{2, :hall_up}]
@@ -148,31 +148,31 @@ defmodule Test.Multi.HallOrdersTest do
 
   defp clique_exchange_states([node1, node2, node3]) do
     # 1 -> 2
-    node1_state = :rpc.call(node1, HallOrders, :get_state, [])
-    assert :rpc.call(node2, HallOrders, :receive_state, [node1_state])
+    node1_state = :rpc.call(node1, HallOrders, :get_order_map, [])
+    assert :rpc.call(node2, HallOrders, :receive_external, [node1_state])
 
     # 2 -> 3
-    node2_state = :rpc.call(node2, HallOrders, :get_state, [])
-    assert :rpc.call(node3, HallOrders, :receive_state, [node2_state])
+    node2_state = :rpc.call(node2, HallOrders, :get_order_map, [])
+    assert :rpc.call(node3, HallOrders, :receive_external, [node2_state])
 
     # 3 -> 1
-    node3_state = :rpc.call(node3, HallOrders, :get_state, [])
-    assert :rpc.call(node1, HallOrders, :receive_state, [node3_state])
+    node3_state = :rpc.call(node3, HallOrders, :get_order_map, [])
+    assert :rpc.call(node1, HallOrders, :receive_external, [node3_state])
 
     # 1 -> 2, 3
-    node1_state = :rpc.call(node1, HallOrders, :get_state, [])
-    assert :rpc.call(node2, HallOrders, :receive_state, [node1_state])
-    assert :rpc.call(node3, HallOrders, :receive_state, [node1_state])
+    node1_state = :rpc.call(node1, HallOrders, :get_order_map, [])
+    assert :rpc.call(node2, HallOrders, :receive_external, [node1_state])
+    assert :rpc.call(node3, HallOrders, :receive_external, [node1_state])
 
     # 2 -> 1, 3
-    node2_state = :rpc.call(node2, HallOrders, :get_state, [])
-    assert :rpc.call(node1, HallOrders, :receive_state, [node2_state])
-    assert :rpc.call(node3, HallOrders, :receive_state, [node2_state])
+    node2_state = :rpc.call(node2, HallOrders, :get_order_map, [])
+    assert :rpc.call(node1, HallOrders, :receive_external, [node2_state])
+    assert :rpc.call(node3, HallOrders, :receive_external, [node2_state])
 
     # 3 -> 1, 2
-    node3_state = :rpc.call(node3, HallOrders, :get_state, [])
-    assert :rpc.call(node1, HallOrders, :receive_state, [node3_state])
-    assert :rpc.call(node2, HallOrders, :receive_state, [node3_state])
+    node3_state = :rpc.call(node3, HallOrders, :get_order_map, [])
+    assert :rpc.call(node1, HallOrders, :receive_external, [node3_state])
+    assert :rpc.call(node2, HallOrders, :receive_external, [node3_state])
 
     # Yay!
   end
