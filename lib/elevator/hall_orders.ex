@@ -207,10 +207,23 @@ defmodule Elevator.HallOrders do
     alive = Communicator.who_can_serve()
     my_orders = my_orders_from_order_map(order_map, alive)
 
+    elev_state = Elevator.FSM.State.get_state()
+
     {any_did_change, new_order_map} =
       Enum.reduce(order_map, {false, %{}}, fn {key, button_state},
                                               {acc_did_change, acc_order_map} ->
         {did_change, new_button_state} = Order.update_hall_order(key, button_state, my_orders)
+
+        new_button_state =
+          case new_button_state do
+            {:handling, cost_map} ->
+              new_cost_map = Cost.update_obstructed_cost(cost_map, elev_state)
+              {:handling, new_cost_map}
+
+            _ ->
+              new_button_state
+          end
+
         {acc_did_change or did_change, Map.put(acc_order_map, key, new_button_state)}
       end)
 

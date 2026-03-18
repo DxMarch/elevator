@@ -12,7 +12,7 @@ defmodule Elevator.FSM.State do
             obstructed: false,
             motor_timed_out: false,
             door_open_time_ms: Time.utc_now(),
-            last_floor_time: nil
+            last_floor_time: Time.utc_now()
 
   @type t :: %__MODULE__{
           direction: Types.elev_dir(),
@@ -22,7 +22,7 @@ defmodule Elevator.FSM.State do
           obstructed: boolean(),
           motor_timed_out: boolean(),
           door_open_time_ms: Time.t(),
-          last_floor_time: Time.t() | nil
+          last_floor_time: Time.t()
         }
 
   use GenServer

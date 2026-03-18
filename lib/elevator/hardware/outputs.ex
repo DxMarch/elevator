@@ -21,8 +21,7 @@ defmodule Elevator.Hardware.Outputs do
     set_motors(state)
     set_floor_light(state)
 
-    door_blocked = state.behavior == :door_open and state.obstructed
-    operational = not (door_blocked or state.motor_timed_out)
+    operational = not state.motor_timed_out
     Communicator.update_operation_status(operational)
 
     set_order_lights(light_orders)

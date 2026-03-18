@@ -84,29 +84,26 @@ defmodule Elevator.FSM.Transition do
   defp decide_and_update_state(_state, _orders), do: :ok
 
   defp check_motor_timeout(state) do
-    timed_out =
-      case state.last_floor_time do
-        nil ->
-          false
-
-        last_floor_time ->
-          Time.diff(Time.utc_now(), last_floor_time, :millisecond) > @motor_timeout_ms
-      end
-
+    timed_out = Time.diff(Time.utc_now(), state.last_floor_time, :millisecond) > @motor_timeout_ms
     State.set_motor_timed_out(timed_out)
   end
 
-  defp check_door_timer(state) do
-    if state.behavior == :door_open and
-         Time.after?(
-           Time.utc_now(),
-           Time.add(state.door_open_time_ms, Elevator.door_open_duration_ms(), :millisecond)
-         ) do
-      if state.obstructed do
+  defp check_door_timer(state) when state.behavior == :door_open do
+    timed_out =
+      Time.diff(Time.utc_now(), state.door_open_time_ms, :millisecond) >
+        Elevator.door_open_duration_ms()
+
+    cond do
+      timed_out and state.obstructed ->
         State.open_door()
-      else
+
+      timed_out ->
         State.set_behavior(:idle)
-      end
+
+      true ->
+        :ok
     end
   end
+
+  defp check_door_timer(_state), do: :ok
 end
