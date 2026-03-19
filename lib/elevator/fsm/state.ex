@@ -79,6 +79,9 @@ defmodule Elevator.FSM.State do
   @spec get_state() :: t()
   def get_state(), do: GenServer.call(__MODULE__, :get_state)
 
+  @spec operational?() :: boolean()
+  def operational?(), do: GenServer.call(__MODULE__, :operational?)
+
   # Casts --------------------------------------------------
 
   @impl true
@@ -134,5 +137,10 @@ defmodule Elevator.FSM.State do
   @impl true
   def handle_call(:get_state, _from, state) do
     {:reply, state, state}
+  end
+
+  @impl true
+  def handle_call(:operational?, _from, state) do
+    {:reply, not (state.motor_timed_out or state.obstructed), state}
   end
 end

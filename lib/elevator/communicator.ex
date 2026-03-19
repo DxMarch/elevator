@@ -3,6 +3,7 @@ defmodule Elevator.Communicator do
   Module responsible for all communication with other elevators.
   """
 
+  alias Elevator.FSM.State
   alias Elevator
   alias Elevator.CabOrders
   alias Elevator.HallOrders
@@ -13,9 +14,8 @@ defmodule Elevator.Communicator do
   @type hall_order_map :: Elevator.HallOrders.hall_order_map()
   @type cab_order_map :: Elevator.CabOrders.cab_order_map()
 
-  @type state_map :: %{
-          operational: boolean(),
-          connected_nodes: %{Node.t() => %{operational: boolean(), timestamp: Time.t()}}
+  @type peer_status_map :: %{
+          Node.t() => %{operational: boolean(), timestamp: Time.t()}
         }
 
   @type communicator_message :: %{
@@ -43,13 +43,10 @@ defmodule Elevator.Communicator do
 
     :net_kernel.monitor_nodes(true)
 
-    state = %{
-      operational: true,
-      connected_nodes:
-        Map.from_keys(Node.list(:connected), %{operational: true, timestamp: Time.utc_now()})
-    }
+    peer_status_map =
+      Map.from_keys(Node.list(:connected), %{operational: true, timestamp: Time.utc_now()})
 
-    {:ok, state}
+    {:ok, peer_status_map}
   end
 
   @doc """
@@ -69,21 +66,13 @@ defmodule Elevator.Communicator do
   @spec who_is_alive() :: MapSet.t(Node.t())
   def who_is_alive(), do: GenServer.call(__MODULE__, :who_is_alive)
 
-  @doc """
-  Updates the `operational` part of the state.
-  Signals to peers whether this node can serve orders.
-  """
-  @spec update_operation_status(boolean()) :: :ok
-  def update_operation_status(status),
-    do: GenServer.cast(__MODULE__, {:update_operation_status, status})
-
   # Infos --------------------------------------------------
 
   @doc """
   Sends the cab and hall state to all connected nodes.
   """
   @impl true
-  def handle_info(:broadcast_orders, state) do
+  def handle_info(:broadcast_orders, peer_status_map) do
     schedule_broadcast_orders()
 
     if Process.whereis(CabOrders) && Process.whereis(HallOrders) do
@@ -91,7 +80,7 @@ defmodule Elevator.Communicator do
       Task.start(fn ->
         message = %{
           from: Node.self(),
-          operational: state.operational,
+          operational: State.operational?(),
           hall_order_map: HallOrders.get_order_map(),
           cab_order_map: CabOrders.get_order_map()
         }
@@ -101,43 +90,43 @@ defmodule Elevator.Communicator do
       end)
     end
 
-    {:noreply, state}
+    {:noreply, peer_status_map}
   end
 
-  # Update the state map when a new node connects
+  # Update the status map when a new node connects
   @impl true
-  def handle_info({:nodeup, node}, state) do
-    {:noreply, update_node_timestamp(state, node, true)}
+  def handle_info({:nodeup, node}, peer_status_map) do
+    {:noreply, update_node_timestamp(peer_status_map, node, true)}
   end
 
-  # Delete node from state map on disconnect
+  # Delete node from status map on disconnect
   @impl true
-  def handle_info({:nodedown, node}, state) do
-    {:noreply, %{state | connected_nodes: Map.delete(state.connected_nodes, node)}}
+  def handle_info({:nodedown, node}, peer_status_map) do
+    {:noreply, %{peer_status_map | connected_nodes: Map.delete(peer_status_map, node)}}
   end
 
   # Calls --------------------------------------------------
 
   @impl true
-  def handle_call(:who_can_serve, _from, state) do
+  def handle_call(:who_can_serve, _from, peer_status_map) do
     operational_nodes =
-      get_communicating_nodes(state)
-      |> Enum.filter(fn node -> state.connected_nodes[node].operational end)
+      get_communicating_nodes(peer_status_map)
+      |> Enum.filter(fn node -> peer_status_map[node].operational end)
       |> MapSet.new()
 
     operational_nodes =
-      if state.operational,
+      if State.operational?(),
         do: MapSet.put(operational_nodes, Node.self()),
         else: operational_nodes
 
-    {:reply, operational_nodes, state}
+    {:reply, operational_nodes, peer_status_map}
   end
 
   @impl true
-  def handle_call(:who_is_alive, _from, state) do
-    communicating_nodes = get_communicating_nodes(state)
+  def handle_call(:who_is_alive, _from, peer_status_map) do
+    communicating_nodes = get_communicating_nodes(peer_status_map)
     communicating_nodes = MapSet.put(communicating_nodes, Node.self())
-    {:reply, communicating_nodes, state}
+    {:reply, communicating_nodes, peer_status_map}
   end
 
   # Casts --------------------------------------------------
@@ -146,28 +135,21 @@ defmodule Elevator.Communicator do
   Sends received hall and cab orders to respective modules, and updates timestamps for when the connected nodes last sent something.
   """
   @impl true
-  @spec handle_cast({:receive_external_message, communicator_message()}, state_map()) ::
-          {:noreply, state_map()}
-  def handle_cast({:receive_external_message, msg}, state) do
+  @spec handle_cast({:receive_external_message, communicator_message()}, peer_status_map()) ::
+          {:noreply, peer_status_map()}
+  def handle_cast({:receive_external_message, msg}, peer_status_map) do
     HallOrders.receive_external(msg.hall_order_map)
     CabOrders.receive_external(msg.cab_order_map)
 
-    new_state = update_node_timestamp(state, msg.from, msg.operational)
-
-    {:noreply, new_state}
-  end
-
-  @impl true
-  @spec handle_cast({:update_operation_status, boolean()}, state_map()) :: {:noreply, state_map()}
-  def handle_cast({:update_operation_status, status}, state) do
-    {:noreply, %{state | operational: status}}
+    new_peer_status_map = update_node_timestamp(peer_status_map, msg.from, msg.operational)
+    {:noreply, new_peer_status_map}
   end
 
   # Helpers --------------------------------------------------
 
-  @spec get_communicating_nodes(state_map()) :: MapSet.t(Node.t())
-  defp get_communicating_nodes(state) do
-    state.connected_nodes
+  @spec get_communicating_nodes(peer_status_map()) :: MapSet.t(Node.t())
+  defp get_communicating_nodes(peer_status_map) do
+    peer_status_map
     |> Map.filter(fn {_k, %{timestamp: timestamp}} ->
       Time.diff(Time.utc_now(), timestamp, :millisecond) < @msg_cutoff_ms
     end)
@@ -176,10 +158,10 @@ defmodule Elevator.Communicator do
   end
 
   # Updates the timestamp when a message is received from a node
-  @spec update_node_timestamp(state_map(), Node.t(), boolean()) :: state_map()
-  defp update_node_timestamp(state, from_node, operational) do
-    from_node_map = %{operational: operational, timestamp: Time.utc_now()}
-    %{state | connected_nodes: Map.put(state.connected_nodes, from_node, from_node_map)}
+  @spec update_node_timestamp(peer_status_map(), Node.t(), boolean()) :: peer_status_map()
+  defp update_node_timestamp(peer_status_map, from_node, operational) do
+    new_peer_status = %{operational: operational, timestamp: Time.utc_now()}
+    Map.put(peer_status_map, from_node, new_peer_status)
   end
 
   defp schedule_broadcast_orders,

@@ -4,7 +4,6 @@ defmodule Elevator.Hardware.Outputs do
   """
 
   require Logger
-  alias Elevator.Communicator
   alias Elevator.Hardware.Driver
   alias Elevator.FSM
 
@@ -20,10 +19,6 @@ defmodule Elevator.Hardware.Outputs do
     set_door_light(state)
     set_motors(state)
     set_floor_light(state)
-
-    operational = not (state.motor_timed_out or state.obstructed)
-    Communicator.update_operation_status(operational)
-
     set_order_lights(light_orders)
   end
 
