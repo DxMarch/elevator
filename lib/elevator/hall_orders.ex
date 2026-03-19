@@ -1,7 +1,10 @@
 defmodule Elevator.HallOrders do
   @moduledoc """
-  Module responsible for all changes occuring to the hall_order part of the state.
-  The events that can change hall orders are:
+  Module responsible for all changes occurring to the hall orders.
+  This is a stateful module storing our current view on the hall order states.
+  See `m:Elevator.HallOrders.Order` for information about single hall order states.
+
+  This module handles the following events that can change hall orders:
   - Button is pressed.
   - Arrived at floor.
   - Received hall orders from another node.
@@ -10,7 +13,6 @@ defmodule Elevator.HallOrders do
   alias Elevator.HallOrders.Order
   alias Elevator.HallOrders.Cost
   alias Elevator.Communicator
-  require Logger
   use GenServer
 
   @type hall_button_type :: :hall_down | :hall_up

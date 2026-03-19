@@ -1,6 +1,14 @@
 defmodule Elevator.CabOrders do
   @moduledoc """
-  Module responsible for all changes occuring to the cab_order part of the state.
+  Module responsible for all changes occurring to cab orders.
+  This is a stateful module, storing our current view of the cab order states.
+
+  This module handles the following events that can change cab orders:
+  - Button is pressed.
+  - Arrived at floor.
+  - Received cab orders from another node *with a higher version number*.
+
+  Only increments our own version number; peer's version numbers are kept as is.
   """
   use GenServer
 

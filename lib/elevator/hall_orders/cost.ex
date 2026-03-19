@@ -11,7 +11,6 @@ defmodule Elevator.HallOrders.Cost do
   alias Elevator.FSM.State
   alias Elevator.OrderUtils
   alias Elevator.HallOrders.Simulation
-  require Logger
 
   @doc """
   Compute the cost (time to serve) of a candidate hall order by simulating single elevator logic.

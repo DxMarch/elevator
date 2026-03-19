@@ -5,7 +5,6 @@ defmodule Elevator.FSM.State do
   Acts as the single source of truth for what the elevator *is* right now -
   its floor, direction, behavior, and fault conditions. 
   """
-  require Logger
 
   defstruct behavior: :moving,
             between_floors: true,

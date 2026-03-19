@@ -1,12 +1,11 @@
 defmodule Elevator.FSM.Transition do
   @moduledoc """
-  Loop handling FSM transitions.
+  Loop driving FSM transitions at a fixed interval.
   One iteration of the loop does the following:
   - Checks door and motor timeouts
   - Reads and updates state and orders 
   - Sets hardware outputs
   """
-  require Logger
 
   alias Elevator.CabOrders
   alias Elevator.FSM.State

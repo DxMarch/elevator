@@ -1,6 +1,8 @@
 defmodule Elevator.Communicator do
   @moduledoc """
   Module responsible for all communication with other elevators.
+  For each peer, their status and last message time is stored.
+  Runs a loop broadcasting our hall- and cab orders periodically.
   """
 
   alias Elevator.FSM.State
@@ -8,7 +10,6 @@ defmodule Elevator.Communicator do
   alias Elevator.CabOrders
   alias Elevator.HallOrders
 
-  require Logger
   use GenServer
 
   @type peer_status_map :: %{
