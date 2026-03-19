@@ -108,12 +108,7 @@ defmodule Elevator.HallOrders do
   @impl true
   def handle_call(:get_confirmed_orders, _from, order_map) do
     confirmed_orders =
-      Enum.filter(order_map, fn {_, order_state} ->
-        case order_state do
-          {:handling, _} -> true
-          _ -> false
-        end
-      end)
+      Enum.filter(order_map, &match?({_, {:handling, _}}, &1))
       |> orders_by_floor()
 
     {:reply, confirmed_orders, order_map}
