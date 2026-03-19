@@ -149,7 +149,10 @@ defmodule Elevator.FSM.Transition do
   defp decide_and_update_state(_state, _orders), do: :ok
 
   defp check_motor_timeout(state) do
-    timed_out = Time.diff(Time.utc_now(), state.last_floor_time, :millisecond) > @motor_timeout_ms
+    timed_out =
+      state.behavior == :moving and
+        Time.diff(Time.utc_now(), state.last_floor_time, :millisecond) > @motor_timeout_ms
+
     State.set_motor_timed_out(timed_out)
   end
 
