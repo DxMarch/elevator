@@ -50,6 +50,26 @@ defmodule Test.Single.CostTest do
     assert Cost.compute_cost({1, :hall_up}, %{}) == Simulation.unreachable_cost()
   end
 
+  test "merge_cost keeps higher cost for overlapping nodes" do
+    merged =
+      Cost.merge_cost(
+        %{node1: 100, node2: 200},
+        %{node1: 150, node3: 50}
+      )
+
+    assert merged == %{node1: 150, node2: 200, node3: 50}
+  end
+
+  test "merge_cost includes all non-overlapping nodes" do
+    merged =
+      Cost.merge_cost(
+        %{node1: 10},
+        %{node2: 20}
+      )
+
+    assert merged == %{node1: 10, node2: 20}
+  end
+
   defp set_state(opts) do
     State.set_direction(Keyword.fetch!(opts, :direction))
     State.set_behavior(Keyword.fetch!(opts, :behavior))

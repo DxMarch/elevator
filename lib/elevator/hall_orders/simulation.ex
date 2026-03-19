@@ -49,10 +49,10 @@ defmodule Elevator.HallOrders.Simulation do
 
   @spec simulate_time_until_served(combined_order_map(), State.t(), {floor(), hall_button_type()}) ::
           non_neg_integer()
-  def simulate_time_until_served(_orders, %{floor: :unknown}, _target),
+  def simulate_time_until_served(_orders, %{floor: :unknown} = _elevator_state, _target),
     do: @unreachable_cost
 
-  def simulate_time_until_served(_orders, %{obstructed: true}, _target),
+  def simulate_time_until_served(_orders, %{obstructed: true} = _elevator_state, _target),
     do: @unreachable_cost
 
   def simulate_time_until_served(orders, elevator_state, target) do
@@ -148,16 +148,13 @@ defmodule Elevator.HallOrders.Simulation do
   end
 
   defp clear_requests_at_floor_in_direction(orders, floor, direction) do
-    floor_orders_after_cab_clear =
+    hall_button_to_clear = if(direction == :up, do: :hall_up, else: :hall_down)
+
+    remaining_floor_orders =
       orders
       |> Map.get(floor, MapSet.new())
       |> MapSet.delete(:cab)
-
-    remaining_floor_orders =
-      case direction do
-        :up -> MapSet.delete(floor_orders_after_cab_clear, :hall_up)
-        :down -> MapSet.delete(floor_orders_after_cab_clear, :hall_down)
-      end
+      |> MapSet.delete(hall_button_to_clear)
 
     if MapSet.size(remaining_floor_orders) == 0,
       do: Map.delete(orders, floor),

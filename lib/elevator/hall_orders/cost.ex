@@ -15,13 +15,17 @@ defmodule Elevator.HallOrders.Cost do
   @type hall_button_type :: Elevator.HallOrders.hall_button_type()
   @type cost_map :: Elevator.HallOrders.hall_order_cost_map()
 
+  @doc """
+  Comupte the cost (time to serve) of a canditate hall order by simulating single elevator logic.
+  """
   @spec compute_cost({floor(), hall_button_type()}, %{floor() => MapSet.t(hall_button_type())}) ::
           non_neg_integer()
   def compute_cost({floor, hall_button_type}, my_hall_orders) do
     state = State.get_state()
     cab_orders = CabOrders.get_my_orders()
 
-    hall_orders_with_target =
+    # Include the candidate hall request in our local hall-order snapshot before simulating.
+    hall_orders_with_candidate =
       Map.update(
         my_hall_orders,
         floor,
@@ -29,7 +33,7 @@ defmodule Elevator.HallOrders.Cost do
         &MapSet.put(&1, hall_button_type)
       )
 
-    combined_orders = Decision.combine_hall_and_cab(hall_orders_with_target, cab_orders)
+    combined_orders = Decision.combine_hall_and_cab(hall_orders_with_candidate, cab_orders)
 
     result =
       Simulation.simulate_time_until_served(combined_orders, state, {floor, hall_button_type})
@@ -47,22 +51,9 @@ defmodule Elevator.HallOrders.Cost do
   """
   @spec merge_cost(cost_map(), cost_map()) :: cost_map()
   def merge_cost(cost_map, other_cost_map) do
-    MapSet.new(Map.keys(cost_map) ++ Map.keys(other_cost_map))
-    |> Enum.map(fn node ->
-      cond do
-        Map.has_key?(cost_map, node) and Map.has_key?(other_cost_map, node) ->
-          cost = cost_map[node]
-          other_cost = other_cost_map[node]
-          {node, max(cost, other_cost)}
-
-        Map.has_key?(cost_map, node) ->
-          {node, cost_map[node]}
-
-        true ->
-          {node, other_cost_map[node]}
-      end
+    Map.merge(cost_map, other_cost_map, fn _node, cost, other_cost ->
+      max(cost, other_cost)
     end)
-    |> Enum.into(%{})
   end
 
   @doc """
