@@ -8,44 +8,37 @@ defmodule Elevator.HallOrders.Cost do
   alias Elevator.CabOrders
   alias Elevator.Decision
   alias Elevator.FSM.State
+  alias Elevator.HallOrders.Simulation
   require Logger
-
-  @travel_duration_ms 2500
-  @max_simulation_steps 256
-  @unreachable_cost 30000
 
   @type floor :: Elevator.floor()
   @type hall_button_type :: Elevator.HallOrders.hall_button_type()
-  @type combined_order_map :: Elevator.combined_order_map()
   @type cost_map :: Elevator.HallOrders.hall_order_cost_map()
 
   @spec compute_cost({floor(), hall_button_type()}, %{floor() => MapSet.t(hall_button_type())}) ::
           non_neg_integer()
-  def compute_cost({floor, btn_dir}, my_hall_orders) do
-    try do
-      state = State.get_state()
-      cab_orders = CabOrders.get_my_orders()
+  def compute_cost({floor, hall_button_type}, my_hall_orders) do
+    state = State.get_state()
+    cab_orders = CabOrders.get_my_orders()
 
-      hall_orders_with_target =
-        Map.update(my_hall_orders, floor, MapSet.new([btn_dir]), &MapSet.put(&1, btn_dir))
+    hall_orders_with_target =
+      Map.update(
+        my_hall_orders,
+        floor,
+        MapSet.new([hall_button_type]),
+        &MapSet.put(&1, hall_button_type)
+      )
 
-      combined_orders = Decision.combine_hall_and_cab(hall_orders_with_target, cab_orders)
+    combined_orders = Decision.combine_hall_and_cab(hall_orders_with_target, cab_orders)
 
-      result = simulate_cost_until_served(combined_orders, state, {floor, btn_dir})
+    result =
+      Simulation.simulate_time_until_served(combined_orders, state, {floor, hall_button_type})
 
-      Logger.debug(fn ->
-        "hall_cost request=#{inspect({floor, btn_dir})} state=#{state.behavior}@#{inspect(state.floor)} dir=#{state.direction} result=#{result}"
-      end)
+    Logger.debug(fn ->
+      "hall_cost request=#{inspect({floor, hall_button_type})} state=#{state.behavior}@#{inspect(state.floor)} dir=#{state.direction} result=#{result}"
+    end)
 
-      result
-    rescue
-      error ->
-        Logger.warning(
-          "Failed to compute hall cost for #{inspect({floor, btn_dir})}: #{inspect(error)}"
-        )
-
-        @unreachable_cost
-    end
+    result
   end
 
   @doc """
@@ -53,20 +46,20 @@ defmodule Elevator.HallOrders.Cost do
   Uses pessimistic merge: If two conflicting costs for the same node are found, keep the higher one.
   """
   @spec merge_cost(cost_map(), cost_map()) :: cost_map()
-  def merge_cost(cost_map_1, cost_map_2) do
-    MapSet.new(Map.keys(cost_map_1) ++ Map.keys(cost_map_2))
+  def merge_cost(cost_map, other_cost_map) do
+    MapSet.new(Map.keys(cost_map) ++ Map.keys(other_cost_map))
     |> Enum.map(fn node ->
       cond do
-        Map.has_key?(cost_map_1, node) and Map.has_key?(cost_map_2, node) ->
-          cost_1 = cost_map_1[node]
-          cost_2 = cost_map_2[node]
-          {node, max(cost_1, cost_2)}
+        Map.has_key?(cost_map, node) and Map.has_key?(other_cost_map, node) ->
+          cost = cost_map[node]
+          other_cost = other_cost_map[node]
+          {node, max(cost, other_cost)}
 
-        Map.has_key?(cost_map_1, node) ->
-          {node, cost_map_1[node]}
+        Map.has_key?(cost_map, node) ->
+          {node, cost_map[node]}
 
         true ->
-          {node, cost_map_2[node]}
+          {node, other_cost_map[node]}
       end
     end)
     |> Enum.into(%{})
@@ -93,168 +86,6 @@ defmodule Elevator.HallOrders.Cost do
         )
 
       min_node
-    end
-  end
-
-  @spec simulate_cost_until_served(combined_order_map(), State.t(), {floor(), hall_button_type()}) ::
-          non_neg_integer()
-  defp simulate_cost_until_served(_orders, %{floor: :unknown}, _target), do: @unreachable_cost
-
-  defp simulate_cost_until_served(_orders, %{obstructed: true}, _target),
-    do: @unreachable_cost
-
-  defp simulate_cost_until_served(orders, state, target) do
-    normalized_state =
-      if state.direction in [:up, :down], do: state, else: %{state | direction: :down}
-
-    initial_time_ms =
-      if normalized_state.behavior == :door_open and elem(target, 0) != normalized_state.floor do
-        Elevator.door_open_duration_ms()
-      else
-        0
-      end
-
-    if target_cleared?(orders, target) do
-      0
-    else
-      do_simulate(orders, normalized_state, target, initial_time_ms, @max_simulation_steps)
-    end
-  end
-
-  defp do_simulate(_orders, _state, _target, _time_ms, 0), do: @unreachable_cost
-
-  defp do_simulate(orders, state, target, time_ms, steps_left) do
-    if target_cleared?(orders, target) do
-      time_ms
-    else
-      {direction, behavior} = Decision.next_action(orders, state)
-
-      case behavior do
-        :idle ->
-          @unreachable_cost
-
-        :moving ->
-          case move_one_floor(state.floor, direction) do
-            {:ok, next_floor} ->
-              next_state = %{
-                state
-                | floor: next_floor,
-                  between_floors: false,
-                  direction: direction,
-                  behavior: :moving
-              }
-
-              do_simulate(
-                orders,
-                next_state,
-                target,
-                time_ms + @travel_duration_ms,
-                steps_left - 1
-              )
-
-            :error ->
-              @unreachable_cost
-          end
-
-        :door_open ->
-          next_orders = clear_requests_at_floor_in_direction(orders, state.floor, direction)
-
-          next_state = %{
-            state
-            | direction: direction,
-              behavior: :idle,
-              between_floors: false
-          }
-
-          do_simulate(
-            next_orders,
-            next_state,
-            target,
-            time_ms + Elevator.door_open_duration_ms(),
-            steps_left - 1
-          )
-      end
-    end
-  end
-
-  defp target_cleared?(orders, {floor, btn_dir}) do
-    orders
-    |> Map.get(floor, MapSet.new())
-    |> MapSet.member?(btn_dir)
-    |> Kernel.not()
-  end
-
-  defp move_one_floor(floor, :up) when is_integer(floor) do
-    if floor < Elevator.num_floors() - 1, do: {:ok, floor + 1}, else: :error
-  end
-
-  defp move_one_floor(floor, :down) when is_integer(floor) do
-    if floor > 0, do: {:ok, floor - 1}, else: :error
-  end
-
-  defp move_one_floor(_, _), do: :error
-
-  defp clear_requests_at_floor_in_direction(orders, floor, direction) do
-    orders
-    |> clear_button(floor, :cab)
-    |> clear_hall_for_direction(floor, direction)
-    |> prune_empty_floor(floor)
-  end
-
-  defp clear_hall_for_direction(orders, floor, :up) do
-    cond do
-      button_present?(orders, floor, :hall_up) ->
-        clear_button(orders, floor, :hall_up)
-
-      Decision.requests_above?(orders, floor) ->
-        orders
-
-      true ->
-        # No reason to continue up: clear hall down when turning around
-        clear_button(orders, floor, :hall_down)
-    end
-  end
-
-  defp clear_hall_for_direction(orders, floor, :down) do
-    cond do
-      button_present?(orders, floor, :hall_down) ->
-        clear_button(orders, floor, :hall_down)
-
-      Decision.requests_below?(orders, floor) ->
-        orders
-
-      true ->
-        clear_button(orders, floor, :hall_up)
-    end
-  end
-
-  defp button_present?(orders, floor, btn) do
-    orders
-    |> Map.get(floor, MapSet.new())
-    |> MapSet.member?(btn)
-  end
-
-  defp clear_button(orders, floor, btn) do
-    case Map.get(orders, floor) do
-      nil ->
-        orders
-
-      buttons ->
-        Map.put(orders, floor, MapSet.delete(buttons, btn))
-    end
-  end
-
-  defp prune_empty_floor(orders, floor) do
-    case Map.get(orders, floor) do
-      nil ->
-        orders
-
-      buttons ->
-        if MapSet.size(buttons) == 0 do
-          Map.delete(orders, floor)
-        else
-          orders
-        end
     end
   end
 end

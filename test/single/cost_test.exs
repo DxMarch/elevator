@@ -4,9 +4,8 @@ defmodule Test.Single.CostTest do
   alias Elevator.CabOrders
   alias Elevator.FSM.State
   alias Elevator.HallOrders.Cost
+  alias Elevator.HallOrders.Simulation
 
-  @travel_duration_ms 2500
-  @unreachable_cost 30000
   @state_settle_ms 10
 
   setup do
@@ -33,20 +32,22 @@ defmodule Test.Single.CostTest do
     set_state(floor: 0, direction: :up, behavior: :idle)
 
     assert Cost.compute_cost({1, :hall_up}, %{}) ==
-             @travel_duration_ms + Elevator.door_open_duration_ms()
+             Simulation.travel_duration_ms() + Elevator.door_open_duration_ms()
   end
 
-  test "one floor away request includes current open-door delay" do
+  test "one floor away request includes half current open-door delay" do
     set_state(floor: 0, direction: :up, behavior: :door_open)
+    state = State.get_state()
 
     assert Cost.compute_cost({1, :hall_up}, %{}) ==
-             2 * Elevator.door_open_duration_ms() + @travel_duration_ms
+             Simulation.initial_time_ms(state, 1) +
+               Elevator.door_open_duration_ms() + Simulation.travel_duration_ms()
   end
 
   test "unknown floor yields unreachable cost" do
     set_state(floor: :unknown, direction: :down, behavior: :idle)
 
-    assert Cost.compute_cost({1, :hall_up}, %{}) == @unreachable_cost
+    assert Cost.compute_cost({1, :hall_up}, %{}) == Simulation.unreachable_cost()
   end
 
   defp set_state(opts) do
