@@ -6,8 +6,8 @@ defmodule Elevator.FSM.State do
   its floor, direction, behavior, and fault conditions. 
   """
 
-  defstruct behavior: :moving,
-            between_floors: true,
+  defstruct behavior: :idle,
+            between_floors: false,
             direction: :down,
             door_open_time: Time.utc_now(),
             floor: :unknown,
