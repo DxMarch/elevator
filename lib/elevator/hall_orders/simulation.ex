@@ -37,10 +37,10 @@ defmodule Elevator.HallOrders.Simulation do
   def initial_time_ms(elevator_state, target_floor) do
     cond do
       elevator_state.behavior == :door_open and target_floor != elevator_state.floor ->
-        Elevator.door_open_duration_ms() / 2
+        div(Elevator.door_open_duration_ms(), 2)
 
       elevator_state.behavior == :moving ->
-        @travel_duration_ms / 2
+        div(@travel_duration_ms, 2)
 
       true ->
         0
