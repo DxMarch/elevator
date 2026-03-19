@@ -1,6 +1,8 @@
 defmodule Elevator.Communicator do
   @moduledoc """
   Module responsible for all communication with other elevators.
+  For each peer, their status and last message time is stored.
+  Runs a loop broadcasting our hall- and cab orders periodically.
   """
 
   alias Elevator.FSM.State
@@ -8,11 +10,7 @@ defmodule Elevator.Communicator do
   alias Elevator.CabOrders
   alias Elevator.HallOrders
 
-  require Logger
   use GenServer
-
-  @type hall_order_map :: Elevator.HallOrders.hall_order_map()
-  @type cab_order_map :: Elevator.CabOrders.cab_order_map()
 
   @type peer_status_map :: %{
           Node.t() => %{operational: boolean(), timestamp: Time.t()}
@@ -21,8 +19,8 @@ defmodule Elevator.Communicator do
   @type communicator_message :: %{
           from: Node.t(),
           operational: boolean(),
-          hall_order_map: hall_order_map(),
-          cab_order_map: cab_order_map()
+          hall_order_map: HallOrders.hall_order_map(),
+          cab_order_map: CabOrders.cab_order_map()
         }
 
   @type communicator_options :: [do_resend: boolean()]

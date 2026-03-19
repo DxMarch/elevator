@@ -5,10 +5,9 @@ defmodule Elevator.FSM.State do
   Acts as the single source of truth for what the elevator *is* right now -
   its floor, direction, behavior, and fault conditions. 
   """
-  require Logger
 
-  defstruct behavior: :moving,
-            between_floors: true,
+  defstruct behavior: :idle,
+            between_floors: false,
             direction: :down,
             door_open_time: Time.utc_now(),
             floor: :unknown,
@@ -16,7 +15,6 @@ defmodule Elevator.FSM.State do
             motor_timed_out: false,
             obstructed: false
 
-  @type floor :: Elevator.floor()
   @type elev_behavior :: :moving | :idle | :door_open
 
   @type t :: %__MODULE__{
@@ -48,7 +46,7 @@ defmodule Elevator.FSM.State do
   @doc """
   Updates floor and between_floors status.
   """
-  @spec set_floor(:between_floors | floor()) :: :ok
+  @spec set_floor(:between_floors | Elevator.floor()) :: :ok
   def set_floor(floor), do: GenServer.cast(__MODULE__, {:set_floor, floor})
 
   @doc """

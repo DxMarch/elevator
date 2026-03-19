@@ -5,7 +5,6 @@ defmodule Elevator.Hardware.InputPoller do
   """
 
   use GenServer
-  require Logger
 
   alias Elevator.CabOrders
   alias Elevator.HallOrders

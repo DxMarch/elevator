@@ -1,9 +1,9 @@
 defmodule Elevator.Hardware.Outputs do
   @moduledoc """
   Sets driver outputs given state and orders. 
+  The `Outputs.set_outputs/2` function is called by `m:Elevator.FSM.Transition` after each transition.
   """
 
-  require Logger
   alias Elevator.Hardware.Driver
   alias Elevator.FSM
 
