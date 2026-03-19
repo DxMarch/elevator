@@ -2,8 +2,6 @@ defmodule Test.Single.HallOrdersTest do
   use ExUnit.Case, async: false
   # TODO: Maybe doctest
 
-  @max_continue_iterations 100
-
   setup_all do
     start_supervised!(Elevator.Communicator)
     start_supervised!(Elevator.CabOrders)
@@ -89,22 +87,7 @@ defmodule Test.Single.HallOrdersTest do
 
     case ret do
       {:noreply, new_state, {:continue, continue_arg}} ->
-        hallorder_continue_full(continue_arg, new_state)
-
-      _ ->
-        ret
-    end
-  end
-
-  defp hallorder_continue_full(continue_arg, state, continue_counter \\ 0) do
-    # Prevent infinite continue loop
-    assert continue_counter < @max_continue_iterations
-
-    ret = Elevator.HallOrders.handle_continue(continue_arg, state)
-
-    case ret do
-      {:noreply, new_state, {:continue, continue_arg}} ->
-        hallorder_continue_full(continue_arg, new_state, continue_counter + 1)
+        Elevator.HallOrders.handle_continue(continue_arg, new_state)
 
       _ ->
         ret
