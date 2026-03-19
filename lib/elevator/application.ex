@@ -1,6 +1,7 @@
 defmodule Elevator.Application do
   use Application
 
+  @spec start(Application.start_type(), term()) :: {:ok, pid()} | {:error, term()}
   def start(_start_type, _start_args) do
     topologies = Application.fetch_env!(:libcluster, :topologies)
     driver_port = Application.fetch_env!(:elevator, :driver_port)
@@ -11,7 +12,7 @@ defmodule Elevator.Application do
       {Elevator.HallOrders, Elevator.num_floors()},
       Elevator.CabOrders,
       Elevator.FSM.State,
-      Elevator.FSM.Action,
+      Elevator.FSM.Transition,
       {Elevator.Hardware.Driver, [{127, 0, 0, 1}, driver_port]},
       Elevator.Hardware.InputPoller
     ]
