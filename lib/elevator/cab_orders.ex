@@ -4,11 +4,9 @@ defmodule Elevator.CabOrders do
   """
   use GenServer
 
-  @type floor :: Elevator.floor()
-
   @type cab_orders_snapshot :: %{
           version: non_neg_integer(),
-          orders: MapSet.t(floor())
+          orders: MapSet.t(Elevator.floor())
         }
 
   @type cab_order_map :: %{Node.t() => cab_orders_snapshot()}
@@ -33,7 +31,7 @@ defmodule Elevator.CabOrders do
   @doc """
   Retrieve *this* node's current cab orders.
   """
-  @spec get_my_orders() :: MapSet.t(floor())
+  @spec get_my_orders() :: MapSet.t(Elevator.floor())
   def get_my_orders(), do: GenServer.call(__MODULE__, :get_my_orders)
 
   @doc """
@@ -47,13 +45,13 @@ defmodule Elevator.CabOrders do
   @doc """
   Add a cab order and increment our own version number.
   """
-  @spec button_press(floor()) :: :ok
+  @spec button_press(Elevator.floor()) :: :ok
   def button_press(floor), do: GenServer.cast(__MODULE__, {:button_press, floor})
 
   @doc """
   Remove a cab order and increment our own version number.
   """
-  @spec arrived_at_floor(floor()) :: :ok
+  @spec arrived_at_floor(Elevator.floor()) :: :ok
   def arrived_at_floor(floor), do: GenServer.cast(__MODULE__, {:arrived_at_floor, floor})
 
   # Calls --------------------------------------------------
@@ -85,7 +83,8 @@ defmodule Elevator.CabOrders do
   end
 
   @impl true
-  @spec handle_cast({:button_press, floor()}, cab_order_map()) :: {:noreply, cab_order_map()}
+  @spec handle_cast({:button_press, Elevator.floor()}, cab_order_map()) ::
+          {:noreply, cab_order_map()}
   def handle_cast({:button_press, floor}, order_map) do
     new_order_map =
       Map.update!(order_map, Node.self(), fn %{version: old_version, orders: old_orders} ->
@@ -96,7 +95,8 @@ defmodule Elevator.CabOrders do
   end
 
   @impl true
-  @spec handle_cast({:arrived_at_floor, floor()}, cab_order_map()) :: {:noreply, cab_order_map()}
+  @spec handle_cast({:arrived_at_floor, Elevator.floor()}, cab_order_map()) ::
+          {:noreply, cab_order_map()}
   def handle_cast({:arrived_at_floor, floor}, order_map) do
     new_order_map =
       Map.update!(order_map, Node.self(), fn %{version: old_version, orders: old_orders} ->

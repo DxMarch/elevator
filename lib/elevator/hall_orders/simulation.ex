@@ -3,6 +3,8 @@ defmodule Elevator.HallOrders.Simulation do
   Pure hall-order cost simulation.
   """
 
+  alias Elevator.HallOrders
+  alias Elevator.OrderUtils
   alias Elevator.FSM.State
   alias Elevator.FSM.Transition
 
@@ -10,19 +12,15 @@ defmodule Elevator.HallOrders.Simulation do
   @max_simulation_steps 256
   @unreachable_cost 30000
 
-  @type floor :: Elevator.floor()
-  @type hall_button_type :: Elevator.HallOrders.hall_button_type()
-  @type combined_order_map :: Elevator.OrderUtils.combined_order_map()
-
   defmodule SimState do
     @enforce_keys [:orders, :elevator_state, :target, :time_ms, :steps_left]
     defstruct [:orders, :elevator_state, :target, :time_ms, :steps_left]
   end
 
   @type simulation :: %SimState{
-          orders: combined_order_map(),
+          orders: OrderUtils.combined_order_map(),
           elevator_state: State.t(),
-          target: {floor(), hall_button_type()},
+          target: {Elevator.floor(), HallOrders.hall_button_type()},
           time_ms: non_neg_integer(),
           steps_left: non_neg_integer()
         }
@@ -33,7 +31,7 @@ defmodule Elevator.HallOrders.Simulation do
   @spec unreachable_cost() :: non_neg_integer()
   def unreachable_cost, do: @unreachable_cost
 
-  @spec initial_time_ms(State.t(), floor()) :: number()
+  @spec initial_time_ms(State.t(), Elevator.floor()) :: non_neg_integer()
   def initial_time_ms(elevator_state, target_floor) do
     cond do
       elevator_state.behavior == :door_open and target_floor != elevator_state.floor ->
@@ -47,7 +45,11 @@ defmodule Elevator.HallOrders.Simulation do
     end
   end
 
-  @spec simulate_time_until_served(combined_order_map(), State.t(), {floor(), hall_button_type()}) ::
+  @spec simulate_time_until_served(
+          OrderUtils.combined_order_map(),
+          State.t(),
+          {Elevator.floor(), HallOrders.hall_button_type()}
+        ) ::
           non_neg_integer()
   def simulate_time_until_served(_orders, %{floor: :unknown} = _elevator_state, _target),
     do: @unreachable_cost

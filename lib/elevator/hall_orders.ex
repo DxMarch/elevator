@@ -13,16 +13,14 @@ defmodule Elevator.HallOrders do
   require Logger
   use GenServer
 
-  @type floor :: Elevator.floor()
-
   @type hall_button_type :: :hall_down | :hall_up
-  @type hall_button :: {floor(), hall_button_type()}
+  @type hall_button :: {Elevator.floor(), hall_button_type()}
 
-  @type hall_order_cost_map :: %{Node.t() => non_neg_integer()}
+  @type cost_map :: %{Node.t() => non_neg_integer()}
   @type hall_order_state ::
           :idle
           | {:pending, MapSet.t()}
-          | {:handling, hall_order_map()}
+          | {:handling, cost_map()}
           | {:arrived, MapSet.t()}
 
   @type hall_order_map :: %{hall_button() => hall_order_state()}
@@ -66,14 +64,14 @@ defmodule Elevator.HallOrders do
   @doc """
   Places the corresponding order in pending state if it is in idle.
   """
-  @spec button_press(floor(), hall_button_type()) :: :ok
+  @spec button_press(Elevator.floor(), hall_button_type()) :: :ok
   def button_press(floor, button_type),
     do: GenServer.cast(__MODULE__, {:button_press, floor, button_type})
 
   @doc """
   Advances the order to arrived if it is in handling.
   """
-  @spec arrived_at_floor(floor(), :up | :down) :: :ok
+  @spec arrived_at_floor(Elevator.floor(), :up | :down) :: :ok
   def arrived_at_floor(floor, direction),
     do: GenServer.cast(__MODULE__, {:arrived_at_floor, floor, direction})
 
@@ -86,14 +84,14 @@ defmodule Elevator.HallOrders do
   @doc """
   Retrieve only the orders we are going to take.
   """
-  @spec get_my_orders() :: %{floor() => MapSet.t(hall_button_type())}
+  @spec get_my_orders() :: %{Elevator.floor() => MapSet.t(hall_button_type())}
   def get_my_orders(), do: GenServer.call(__MODULE__, :get_my_orders)
 
   @doc """
   Get all orders in handling state, in the same format as get_my_orders.
   These are the orders we turn the light on for.
   """
-  @spec get_handling_orders() :: %{floor() => MapSet.t(hall_button_type())}
+  @spec get_handling_orders() :: %{Elevator.floor() => MapSet.t(hall_button_type())}
   def get_handling_orders(), do: GenServer.call(__MODULE__, :get_handling_orders)
 
   # Calls --------------------------------------------------
@@ -184,7 +182,9 @@ defmodule Elevator.HallOrders do
 
   # Return the orders where we have the lowest cost among serving nodes.
   # Only consider orders where all serving nodes have a cost.
-  @spec my_orders_from_order_map(hall_order_map()) :: %{floor() => MapSet.t(hall_button_type())}
+  @spec my_orders_from_order_map(hall_order_map()) :: %{
+          Elevator.floor() => MapSet.t(hall_button_type())
+        }
   defp my_orders_from_order_map(order_map) do
     who_can_serve = Communicator.who_can_serve()
 
@@ -202,7 +202,7 @@ defmodule Elevator.HallOrders do
   @type enum_orders ::
           hall_order_map()
           | Enumerable.t({hall_button(), any()})
-  @spec orders_by_floor(enum_orders()) :: %{floor() => MapSet.t(hall_button())}
+  @spec orders_by_floor(enum_orders()) :: %{Elevator.floor() => MapSet.t(hall_button_type())}
   defp orders_by_floor(orders) do
     # Restructure order map to the format floor => MapSet(button_type)
     orders

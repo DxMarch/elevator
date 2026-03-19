@@ -9,24 +9,22 @@ defmodule Elevator.HallOrders.Order do
   - pending: Someone pressed a button, but everyone does not know it. Light: off
   - handling: All alive nodes know about the order and has indicated their cost to serve it. Light: on.
   - arrived: A node is signalling that the order has been served. Light: off
+
+  This module contains functions for transitioning between states.
   """
+  alias Elevator.HallOrders
   alias Elevator.HallOrders.Cost
   alias Elevator.Communicator
-
-  @type floor :: Elevator.floor()
-  @type hall_button :: Elevator.HallOrders.hall_button()
-  @type hall_button_type :: Elevator.HallOrders.hall_button_type()
-  @type hall_order_state :: Elevator.HallOrders.hall_order_state()
 
   @doc """
   Update a hall order based on an incoming hall order from another node.
   """
   @spec update_from_incoming(
-          hall_button(),
-          hall_order_state(),
-          hall_order_state(),
-          %{floor() => MapSet.t(hall_button_type())}
-        ) :: hall_order_state()
+          HallOrders.hall_button(),
+          HallOrders.hall_order_state(),
+          HallOrders.hall_order_state(),
+          %{Elevator.floor() => MapSet.t(HallOrders.hall_button_type())}
+        ) :: HallOrders.hall_order_state()
   def update_from_incoming(order_key, order_state, incoming_order_state, my_hall_orders) do
     order_state
     |> merge_with_incoming(incoming_order_state)
@@ -39,10 +37,10 @@ defmodule Elevator.HallOrders.Order do
   Returns `{true, new_value}` if the state changed, `{false, old_value}` otherwise.
   """
   @spec update_from_barrier_state(
-          hall_button(),
-          hall_order_state(),
-          %{floor() => MapSet.t(hall_button_type())}
-        ) :: hall_order_state()
+          HallOrders.hall_button(),
+          HallOrders.hall_order_state(),
+          %{Elevator.floor() => MapSet.t(HallOrders.hall_button_type())}
+        ) :: HallOrders.hall_order_state()
   def update_from_barrier_state(order_key, order_state, my_hall_orders) do
     order_state
     |> transition_from_barrier_state(Communicator.who_is_alive())
@@ -50,14 +48,15 @@ defmodule Elevator.HallOrders.Order do
     |> ensure_self_in_cost_map(order_key, my_hall_orders)
   end
 
-  @spec update_from_button_press(hall_order_state()) :: hall_order_state()
+  @spec update_from_button_press(HallOrders.hall_order_state()) :: HallOrders.hall_order_state()
   def update_from_button_press(:idle) do
     ensure_self_in_barriers({:pending, MapSet.new()})
   end
 
   def update_from_button_press(order_state), do: order_state
 
-  @spec update_from_button_press(hall_order_state()) :: hall_order_state()
+  @spec update_from_arrived_at_floor(HallOrders.hall_order_state()) ::
+          HallOrders.hall_order_state()
   def update_from_arrived_at_floor({:handling, _}) do
     ensure_self_in_barriers({:arrived, MapSet.new()})
   end
