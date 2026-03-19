@@ -3,10 +3,6 @@ defmodule Elevator do
 
   @type button_type :: :cab | Elevator.HallOrders.hall_button_type()
 
-  @type combined_order_map :: %{
-          floor() => MapSet.t(button_type())
-        }
-
   @num_floors 4
   @door_open_duration_ms 1000
 

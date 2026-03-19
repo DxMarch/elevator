@@ -2,12 +2,12 @@ defmodule Elevator.HallOrders.Cost do
   @moduledoc """
   Hall order cost utilities.
 
-  Cost is estimated by simulating the local elevator with current requests plus the candidate hall request.
+  Cost is estimated by simulating the local elevator with current orders plus the candidate hall order.
   """
 
   alias Elevator.CabOrders
-  alias Elevator.Decision
   alias Elevator.FSM.State
+  alias Elevator.OrderUtils
   alias Elevator.HallOrders.Simulation
   require Logger
 
@@ -16,7 +16,7 @@ defmodule Elevator.HallOrders.Cost do
   @type cost_map :: Elevator.HallOrders.hall_order_cost_map()
 
   @doc """
-  Comupte the cost (time to serve) of a canditate hall order by simulating single elevator logic.
+  Comupte the cost (time to serve) of a candidate hall order by simulating single elevator logic.
   """
   @spec compute_cost({floor(), hall_button_type()}, %{floor() => MapSet.t(hall_button_type())}) ::
           non_neg_integer()
@@ -24,7 +24,7 @@ defmodule Elevator.HallOrders.Cost do
     state = State.get_state()
     cab_orders = CabOrders.get_my_orders()
 
-    # Include the candidate hall request in our local hall-order snapshot before simulating.
+    # Include the candidate hall order in our local hall-order snapshot before simulating.
     hall_orders_with_candidate =
       Map.update(
         my_hall_orders,
@@ -33,16 +33,9 @@ defmodule Elevator.HallOrders.Cost do
         &MapSet.put(&1, hall_button_type)
       )
 
-    combined_orders = Decision.combine_hall_and_cab(hall_orders_with_candidate, cab_orders)
+    combined_orders = OrderUtils.combine_hall_and_cab(hall_orders_with_candidate, cab_orders)
 
-    result =
-      Simulation.simulate_time_until_served(combined_orders, state, {floor, hall_button_type})
-
-    Logger.debug(fn ->
-      "hall_cost request=#{inspect({floor, hall_button_type})} state=#{state.behavior}@#{inspect(state.floor)} dir=#{state.direction} result=#{result}"
-    end)
-
-    result
+    Simulation.simulate_time_until_served(combined_orders, state, {floor, hall_button_type})
   end
 
   @doc """

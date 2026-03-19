@@ -14,7 +14,7 @@ defmodule Elevator.Hardware.Outputs do
     Driver.set_motor_direction(:stop)
   end
 
-  @spec set_outputs(FSM.State.t(), Elevator.combined_order_map()) :: any()
+  @spec set_outputs(FSM.State.t(), Elevator.OrderUtils.combined_order_map()) :: any()
   def set_outputs(state, light_orders) do
     set_door_light(state)
     set_motors(state)

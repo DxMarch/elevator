@@ -3,8 +3,8 @@ defmodule Elevator.HallOrders.Simulation do
   Pure hall-order cost simulation.
   """
 
-  alias Elevator.Decision
   alias Elevator.FSM.State
+  alias Elevator.FSM.Transition
 
   @travel_duration_ms 2500
   @max_simulation_steps 256
@@ -12,7 +12,7 @@ defmodule Elevator.HallOrders.Simulation do
 
   @type floor :: Elevator.floor()
   @type hall_button_type :: Elevator.HallOrders.hall_button_type()
-  @type combined_order_map :: Elevator.combined_order_map()
+  @type combined_order_map :: Elevator.OrderUtils.combined_order_map()
 
   defmodule SimState do
     @enforce_keys [:orders, :elevator_state, :target, :time_ms, :steps_left]
@@ -80,7 +80,7 @@ defmodule Elevator.HallOrders.Simulation do
 
   @spec do_simulate_step(simulation()) :: non_neg_integer()
   defp do_simulate_step(%SimState{orders: orders, elevator_state: elevator_state} = sim_state) do
-    {direction, behavior} = Decision.next_action(orders, elevator_state)
+    {direction, behavior} = Transition.next_action(orders, elevator_state)
 
     {next_orders, next_elevator_state, delta_ms} =
       case behavior do
@@ -98,7 +98,7 @@ defmodule Elevator.HallOrders.Simulation do
            }, @travel_duration_ms}
 
         :door_open ->
-          {clear_requests_at_floor_in_direction(orders, elevator_state.floor, direction),
+          {clear_orders_at_floor_in_direction(orders, elevator_state.floor, direction),
            %{
              elevator_state
              | behavior: :idle,
@@ -125,7 +125,7 @@ defmodule Elevator.HallOrders.Simulation do
     |> Kernel.not()
   end
 
-  defp clear_requests_at_floor_in_direction(orders, floor, direction) do
+  defp clear_orders_at_floor_in_direction(orders, floor, direction) do
     hall_button_to_clear = [up: :hall_up, down: :hall_down][direction]
 
     Map.update(orders, floor, MapSet.new(), fn floor_orders ->

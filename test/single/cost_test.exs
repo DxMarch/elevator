@@ -16,26 +16,26 @@ defmodule Test.Single.CostTest do
     :ok
   end
 
-  test "same-floor request in current direction costs one door cycle" do
+  test "same-floor order in current direction costs one door cycle" do
     set_state(floor: 1, direction: :up, behavior: :idle)
 
     assert Cost.compute_cost({1, :hall_up}, %{}) == Elevator.door_open_duration_ms()
   end
 
-  test "same-floor opposite request is served immediately when no further requests" do
+  test "same-floor opposite order is served immediately when no further orders" do
     set_state(floor: 1, direction: :up, behavior: :idle)
 
     assert Cost.compute_cost({1, :hall_down}, %{}) == Elevator.door_open_duration_ms()
   end
 
-  test "one floor away request costs travel plus door time" do
+  test "one floor away order costs travel plus door time" do
     set_state(floor: 0, direction: :up, behavior: :idle)
 
     assert Cost.compute_cost({1, :hall_up}, %{}) ==
              Simulation.travel_duration_ms() + Elevator.door_open_duration_ms()
   end
 
-  test "one floor away request includes half current open-door delay" do
+  test "one floor away order includes half current open-door delay" do
     set_state(floor: 0, direction: :up, behavior: :door_open)
     state = State.get_state()
 

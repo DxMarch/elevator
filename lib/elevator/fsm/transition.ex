@@ -11,8 +11,8 @@ defmodule Elevator.FSM.Transition do
   alias Elevator.CabOrders
   alias Elevator.FSM.State
   alias Elevator.HallOrders
-  alias Elevator.Decision
   alias Elevator.Hardware.Outputs
+  alias Elevator.OrderUtils
 
   @motor_timeout_ms 3500
   @transition_interval_ms 100
@@ -35,6 +35,69 @@ defmodule Elevator.FSM.Transition do
     }
   end
 
+  @doc """
+  Computes the elevator's next `{direction, behavior}` pair 
+  from current orders and elevator state.
+
+  Tries to keep moving in the same direction.
+  """
+  @spec next_action(Elevator.OrderUtils.combined_order_map(), Elevator.FSM.State.t()) ::
+          {:up | :down, :moving | :door_open | :idle}
+  def next_action(
+        orders,
+        %Elevator.FSM.State{
+          direction: direction,
+          floor: floor,
+          between_floors: between_floors
+        }
+      ) do
+    btns_at_floor = Map.get(orders, floor, MapSet.new())
+
+    cond do
+      between_floors ->
+        {direction, :moving}
+
+      map_size(orders) == 0 ->
+        {direction, :idle}
+
+      direction == :up ->
+        cond do
+          MapSet.member?(btns_at_floor, :hall_up) or MapSet.member?(btns_at_floor, :cab) ->
+            {:up, :door_open}
+
+          OrderUtils.orders_above?(orders, floor) ->
+            {:up, :moving}
+
+          MapSet.member?(btns_at_floor, :hall_down) ->
+            {:down, :door_open}
+
+          OrderUtils.orders_below?(orders, floor) ->
+            {:down, :moving}
+
+          true ->
+            {:up, :idle}
+        end
+
+      direction == :down ->
+        cond do
+          MapSet.member?(btns_at_floor, :hall_down) or MapSet.member?(btns_at_floor, :cab) ->
+            {:down, :door_open}
+
+          OrderUtils.orders_below?(orders, floor) ->
+            {:down, :moving}
+
+          MapSet.member?(btns_at_floor, :hall_up) ->
+            {:up, :door_open}
+
+          OrderUtils.orders_above?(orders, floor) ->
+            {:up, :moving}
+
+          true ->
+            {:down, :idle}
+        end
+    end
+  end
+
   defp loop() do
     check_door_timer(State.get_state())
     check_motor_timeout(State.get_state())
@@ -49,19 +112,20 @@ defmodule Elevator.FSM.Transition do
 
   defp get_my_orders() do
     hall_orders = HallOrders.get_my_orders()
-    pressed_cab_floors = CabOrders.get_my_orders()
-    Decision.combine_hall_and_cab(hall_orders, pressed_cab_floors)
+    cab_orders = CabOrders.get_my_orders()
+    OrderUtils.combine_hall_and_cab(hall_orders, cab_orders)
   end
 
   defp get_light_orders() do
     hall_orders = HallOrders.get_handling_orders()
-    pressed_cab_floors = CabOrders.get_my_orders()
-    Decision.combine_hall_and_cab(hall_orders, pressed_cab_floors)
+    cab_orders = CabOrders.get_my_orders()
+    OrderUtils.combine_hall_and_cab(hall_orders, cab_orders)
   end
 
-  @spec decide_and_update_state(Elevator.FSM.State.t(), Elevator.combined_order_map()) :: any()
+  @spec decide_and_update_state(Elevator.FSM.State.t(), Elevator.OrderUtils.combined_order_map()) ::
+          any()
   defp decide_and_update_state(state, orders) when not state.motor_timed_out do
-    {new_direction, new_behavior} = Decision.next_action(orders, state)
+    {new_direction, new_behavior} = next_action(orders, state)
 
     cond do
       state.behavior == :door_open ->
