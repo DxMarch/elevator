@@ -28,13 +28,13 @@ defmodule Elevator.CabOrders do
   # User API --------------------------------------------------
 
   @spec get_order_map() :: cab_order_map()
-  def get_order_map, do: GenServer.call(__MODULE__, :get_order_map)
+  def get_order_map(), do: GenServer.call(__MODULE__, :get_order_map)
 
   @doc """
   Retrieve *this* node's current cab orders.
   """
   @spec get_my_orders() :: MapSet.t(floor())
-  def get_my_orders, do: GenServer.call(__MODULE__, :get_my_orders)
+  def get_my_orders(), do: GenServer.call(__MODULE__, :get_my_orders)
 
   @doc """
   Receive cab order information from another node.

@@ -59,7 +59,7 @@ defmodule Elevator.Communicator do
   c) Have operational == true
   """
   @spec who_can_serve() :: MapSet.t(Node.t())
-  def who_can_serve, do: GenServer.call(__MODULE__, :who_can_serve)
+  def who_can_serve(), do: GenServer.call(__MODULE__, :who_can_serve)
 
   @doc """
   Returns a set of alive nodes that are both:
@@ -67,7 +67,7 @@ defmodule Elevator.Communicator do
   b) Have sent a message within the cutoff period
   """
   @spec who_is_alive() :: MapSet.t(Node.t())
-  def who_is_alive, do: GenServer.call(__MODULE__, :who_is_alive)
+  def who_is_alive(), do: GenServer.call(__MODULE__, :who_is_alive)
 
   @doc """
   Updates the `operational` part of the state.
