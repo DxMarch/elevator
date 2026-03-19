@@ -5,6 +5,7 @@ defmodule Elevator.HallOrders do
   - Button is pressed.
   - Arrived at floor.
   - Received hall orders from another node.
+  - A barrier set gets full, which advances the state.
   """
   alias Elevator.HallOrders.Order
   alias Elevator.HallOrders.Cost
@@ -70,7 +71,7 @@ defmodule Elevator.HallOrders do
     do: GenServer.cast(__MODULE__, {:button_press, floor, button_type})
 
   @doc """
-  Goes back to idle if the order is in handling.
+  Advances the order to arrived if it is in handling.
   """
   @spec arrived_at_floor(floor(), :up | :down) :: :ok
   def arrived_at_floor(floor, direction),
@@ -99,9 +100,7 @@ defmodule Elevator.HallOrders do
 
   @impl true
   def handle_call(:get_my_orders, _from, order_map) do
-    alive = Communicator.who_can_serve()
-
-    my_orders = my_orders_from_order_map(order_map, alive)
+    my_orders = my_orders_from_order_map(order_map)
     {:reply, my_orders, order_map}
   end
 
@@ -122,28 +121,26 @@ defmodule Elevator.HallOrders do
   # Casts --------------------------------------------------
 
   @impl true
-  @spec handle_cast({:receive_external, hall_order_map()}, hall_order_map()) ::
-          {:noreply, hall_order_map(), {:continue, :hall_update_state}}
   def handle_cast({:receive_external, other_order_map}, order_map) do
-    who_can_serve = Communicator.who_can_serve()
-    my_orders = my_orders_from_order_map(order_map, who_can_serve)
+    my_orders = my_orders_from_order_map(order_map)
 
     new_order_map =
-      Map.keys(order_map)
-      |> Enum.map(fn key ->
+      Map.new(order_map, fn {hall_button, order_state} ->
         new_value =
-          Order.update_from_incoming(key, order_map[key], other_order_map[key], my_orders)
+          Order.update_from_incoming(
+            hall_button,
+            order_state,
+            other_order_map[hall_button],
+            my_orders
+          )
 
-        {key, new_value}
+        {hall_button, new_value}
       end)
-      |> Enum.into(%{})
 
     {:noreply, new_order_map, {:continue, :hall_update_state}}
   end
 
   @impl true
-  @spec handle_cast({:button_press, floor(), hall_button()}, hall_order_map()) ::
-          {:noreply, hall_order_map(), {:continue, :hall_update_state}}
   def handle_cast({:button_press, floor, direction}, order_map) do
     new_order_map = Map.update!(order_map, {floor, direction}, &Order.update_from_button_press/1)
     {:noreply, new_order_map, {:continue, :hall_update_state}}
@@ -151,7 +148,6 @@ defmodule Elevator.HallOrders do
 
   @impl true
   def handle_cast({:arrived_at_floor, floor, direction}, order_map) do
-    # TODO: Find out if barrier set should be full as well?
     button_type = [up: :hall_up, down: :hall_down][direction]
 
     new_order_map =
@@ -172,12 +168,8 @@ defmodule Elevator.HallOrders do
   May advance some states, in which case continue is called until convergence.
   """
   @impl true
-  @spec handle_continue(:hall_update_state, hall_order_map()) ::
-          {:noreply, hall_order_map()}
-          | {:noreply, hall_order_map(), {:continue, :hall_update_state}}
   def handle_continue(:hall_update_state, order_map) do
-    alive = Communicator.who_can_serve()
-    my_orders = my_orders_from_order_map(order_map, alive)
+    my_orders = my_orders_from_order_map(order_map)
 
     new_order_map =
       Map.new(order_map, fn {key, order_state} ->
@@ -187,11 +179,14 @@ defmodule Elevator.HallOrders do
     {:noreply, new_order_map}
   end
 
-  defp my_orders_from_order_map(order_map, alive) do
+  @spec my_orders_from_order_map(hall_order_map()) :: %{floor() => MapSet.t(hall_button())}
+  defp my_orders_from_order_map(order_map) do
+    who_can_serve = Communicator.who_can_serve()
+
     Enum.filter(order_map, fn {_, order_state} ->
       case order_state do
         {:handling, cost_map} ->
-          Cost.min_alive_cost(cost_map, alive) == Node.self()
+          Cost.min_alive_cost(cost_map, who_can_serve) == Node.self()
 
         _ ->
           false
