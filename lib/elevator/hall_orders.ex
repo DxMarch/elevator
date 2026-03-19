@@ -29,15 +29,14 @@ defmodule Elevator.HallOrders do
   @hall_order_refresh_period_ms 1000
 
   @spec start_link(any()) :: GenServer.on_start()
-  def start_link(arg) do
-    GenServer.start_link(__MODULE__, arg, name: __MODULE__)
-  end
+  def start_link(arg), do: GenServer.start_link(__MODULE__, arg, name: __MODULE__)
 
   @impl true
   @spec init(any()) :: {:ok, hall_order_map()}
   def init(num_floors) do
     top_floor = num_floors - 1
 
+    # Initialize all orders to :idle
     state =
       Range.new(0, top_floor)
       |> Enum.flat_map(fn floor ->
@@ -64,19 +63,18 @@ defmodule Elevator.HallOrders do
     do: GenServer.cast(__MODULE__, {:receive_external, other_order_map})
 
   @doc """
-  Places the corresponding order in pending state if it is in idle. 
+  Places the corresponding order in pending state if it is in idle.
   """
   @spec button_press(floor(), hall_button_type()) :: :ok
   def button_press(floor, button_type),
     do: GenServer.cast(__MODULE__, {:button_press, floor, button_type})
 
   @doc """
-  Goes back to idle if the order is confirmed.
+  Goes back to idle if the order is in handling.
   """
   @spec arrived_at_floor(floor(), :up | :down) :: :ok
-  def arrived_at_floor(floor, direction) do
-    GenServer.cast(__MODULE__, {:arrived_at_floor, floor, direction})
-  end
+  def arrived_at_floor(floor, direction),
+    do: GenServer.cast(__MODULE__, {:arrived_at_floor, floor, direction})
 
   @doc """
   Retrieve the full hall order state map
@@ -88,18 +86,14 @@ defmodule Elevator.HallOrders do
   Retrieve only the orders we are going to take.
   """
   @spec get_my_orders() :: %{floor() => MapSet.t(hall_button_type())}
-  def get_my_orders do
-    GenServer.call(__MODULE__, :get_my_orders)
-  end
+  def get_my_orders(), do: GenServer.call(__MODULE__, :get_my_orders)
 
   @doc """
   Get all confirmed orders in same format as get_my_orders.
   These are the orders we turn the light on for.
   """
   @spec get_confirmed_orders() :: %{floor() => MapSet.t(hall_button_type())}
-  def get_confirmed_orders do
-    GenServer.call(__MODULE__, :get_confirmed_orders)
-  end
+  def get_confirmed_orders, do: GenServer.call(__MODULE__, :get_confirmed_orders)
 
   # Calls --------------------------------------------------
 
@@ -171,9 +165,9 @@ defmodule Elevator.HallOrders do
     new_order_state = new_order_map[key]
 
     if old_order_state != new_order_state do
-      Logger.debug(fn ->
+      Logger.debug(
         "hall_button_press floor=#{floor} button=#{direction} from=#{inspect(old_order_state)} to=#{inspect(new_order_state)}"
-      end)
+      )
     end
 
     {:noreply, new_order_map, {:continue, :hall_update_state}}

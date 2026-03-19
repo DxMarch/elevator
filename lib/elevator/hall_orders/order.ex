@@ -27,15 +27,13 @@ defmodule Elevator.HallOrders.Order do
           hall_order_state()
   def merge_hall_orders(order_key, order_state, other_order_state, my_hall_orders) do
     new_order_state = merge_orders(order_state, other_order_state)
+    my_id = Node.self()
 
     # Ensure self is in any barrier set.
     new_order_state =
       case new_order_state do
-        {:pending, barrier_set} ->
-          {:pending, MapSet.put(barrier_set, Node.self())}
-
-        {:arrived, barrier_set} ->
-          {:arrived, MapSet.put(barrier_set, Node.self())}
+        {state, barrier_set} when state in [:pending, :arrived] ->
+          {state, MapSet.put(barrier_set, my_id)}
 
         _ ->
           new_order_state
@@ -45,8 +43,6 @@ defmodule Elevator.HallOrders.Order do
     new_order_state =
       case new_order_state do
         {:handling, cost_map} ->
-          my_id = Node.self()
-
           if not Map.has_key?(cost_map, my_id) do
             {:handling, Map.put(cost_map, my_id, Cost.compute_cost(order_key, my_hall_orders))}
           else
