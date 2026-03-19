@@ -103,5 +103,5 @@ sudo ./scripts/packetloss.sh <percentage> -ie
 
 ## LOC stats (Elixir)
 
-**Lib:** <!-- LIB_COUNT -->1063<!-- END_LIB_COUNT -->\
+**Lib:** <!-- LIB_COUNT -->1074<!-- END_LIB_COUNT -->\
 **Test:** <!-- TEST_COUNT -->585<!-- END_TEST_COUNT -->
