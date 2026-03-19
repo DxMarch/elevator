@@ -1,8 +1,11 @@
 # TTK4145 Elevator
 
-### LOC stats (Elixir)
-**Lib:** <!-- LIB_COUNT -->1063<!-- END_LIB_COUNT -->\
-**Test:** <!-- TEST_COUNT -->585<!-- END_TEST_COUNT -->
+Elevator application for controlling `n` elevators across `m` floors 
+in a distributed fashion, implemented in Elixir.
+
+## Documentation
+
+See `doc/index.html` for module documentation.
 
 
 ## Running nodes
@@ -97,3 +100,8 @@ sudo ./scripts/packetloss.sh <percentage> -ie
 - `-i` is incomming traffic
 - `-o`is outgoing
 - `-e`is Elixir/Erlang and autodetects Beam ports
+
+## LOC stats (Elixir)
+
+**Lib:** <!-- LIB_COUNT -->1063<!-- END_LIB_COUNT -->\
+**Test:** <!-- TEST_COUNT -->585<!-- END_TEST_COUNT -->
