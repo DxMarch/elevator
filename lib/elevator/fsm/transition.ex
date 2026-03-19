@@ -54,7 +54,7 @@ defmodule Elevator.FSM.Transition do
   end
 
   defp get_light_orders() do
-    hall_orders = HallOrders.get_confirmed_orders()
+    hall_orders = HallOrders.get_handling_orders()
     pressed_cab_floors = CabOrders.get_my_orders()
     Decision.combine_hall_and_cab(hall_orders, pressed_cab_floors)
   end

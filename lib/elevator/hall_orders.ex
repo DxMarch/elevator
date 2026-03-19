@@ -89,11 +89,11 @@ defmodule Elevator.HallOrders do
   def get_my_orders(), do: GenServer.call(__MODULE__, :get_my_orders)
 
   @doc """
-  Get all confirmed orders in same format as get_my_orders.
+  Get all orders in handling state, in the same format as get_my_orders.
   These are the orders we turn the light on for.
   """
-  @spec get_confirmed_orders() :: %{floor() => MapSet.t(hall_button_type())}
-  def get_confirmed_orders, do: GenServer.call(__MODULE__, :get_confirmed_orders)
+  @spec get_handling_orders() :: %{floor() => MapSet.t(hall_button_type())}
+  def get_handling_orders(), do: GenServer.call(__MODULE__, :get_handling_orders)
 
   # Calls --------------------------------------------------
 
@@ -106,7 +106,7 @@ defmodule Elevator.HallOrders do
   end
 
   @impl true
-  def handle_call(:get_confirmed_orders, _from, order_map) do
+  def handle_call(:get_handling_orders, _from, order_map) do
     confirmed_orders =
       Enum.filter(order_map, &match?({_, {:handling, _}}, &1))
       |> orders_by_floor()
