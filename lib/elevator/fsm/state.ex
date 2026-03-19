@@ -10,7 +10,7 @@ defmodule Elevator.FSM.State do
   defstruct behavior: :moving,
             between_floors: true,
             direction: :down,
-            door_open_time_ms: Time.utc_now(),
+            door_open_time: Time.utc_now(),
             floor: :unknown,
             last_floor_time: Time.utc_now(),
             motor_timed_out: false,
@@ -26,7 +26,7 @@ defmodule Elevator.FSM.State do
           between_floors: boolean(),
           obstructed: boolean(),
           motor_timed_out: boolean(),
-          door_open_time_ms: Time.t(),
+          door_open_time: Time.t(),
           last_floor_time: Time.t()
         }
 
@@ -125,7 +125,7 @@ defmodule Elevator.FSM.State do
       if state.between_floors do
         state
       else
-        %{state | behavior: :door_open, door_open_time_ms: Time.utc_now()}
+        %{state | behavior: :door_open, door_open_time: Time.utc_now()}
       end
 
     {:noreply, new_state}
