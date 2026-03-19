@@ -106,11 +106,11 @@ defmodule Elevator.HallOrders do
 
   @impl true
   def handle_call(:get_handling_orders, _from, order_map) do
-    confirmed_orders =
+    handling_orders =
       Enum.filter(order_map, &match?({_, {:handling, _}}, &1))
       |> orders_by_floor()
 
-    {:reply, confirmed_orders, order_map}
+    {:reply, handling_orders, order_map}
   end
 
   @impl true
@@ -184,7 +184,7 @@ defmodule Elevator.HallOrders do
 
   # Return the orders where we have the lowest cost among serving nodes.
   # Only consider orders where all serving nodes have a cost.
-  @spec my_orders_from_order_map(hall_order_map()) :: %{floor() => MapSet.t(hall_button())}
+  @spec my_orders_from_order_map(hall_order_map()) :: %{floor() => MapSet.t(hall_button_type())}
   defp my_orders_from_order_map(order_map) do
     who_can_serve = Communicator.who_can_serve()
 
