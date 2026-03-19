@@ -34,7 +34,6 @@ defmodule Elevator.HallOrders.Order do
 
   @doc """
   Advances a pending or arrived order if the respective barrier set is full.
-  Returns `{true, new_value}` if the state changed, `{false, old_value}` otherwise.
   """
   @spec update_from_barrier_state(
           HallOrders.hall_button(),

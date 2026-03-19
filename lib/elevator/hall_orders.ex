@@ -159,6 +159,8 @@ defmodule Elevator.HallOrders do
     {:noreply, new_order_map, {:continue, :hall_update_state}}
   end
 
+  # Changes to who is alive can occur even if we receive no events.
+  # Therefore we periodically check if some barrier-set states should advance.
   @impl true
   def handle_info(:refresh_hall_orders, order_map) do
     Process.send_after(self(), :refresh_hall_orders, @hall_order_refresh_period_ms)
@@ -167,9 +169,7 @@ defmodule Elevator.HallOrders do
 
   # Continues --------------------------------------------------
 
-  @doc """
-  May advance some states, in which case continue is called until convergence.
-  """
+  # Some states may be advanced if their barrier sets are full.
   @impl true
   def handle_continue(:hall_update_state, order_map) do
     my_orders = my_orders_from_order_map(order_map)
