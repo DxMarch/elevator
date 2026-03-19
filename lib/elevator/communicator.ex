@@ -102,7 +102,7 @@ defmodule Elevator.Communicator do
   # Delete node from status map on disconnect
   @impl true
   def handle_info({:nodedown, node}, peer_status_map) do
-    {:noreply, %{peer_status_map | connected_nodes: Map.delete(peer_status_map, node)}}
+    {:noreply, Map.delete(peer_status_map, node)}
   end
 
   # Calls --------------------------------------------------
