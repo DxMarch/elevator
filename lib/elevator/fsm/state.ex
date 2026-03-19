@@ -10,7 +10,7 @@ defmodule Elevator.FSM.State do
   defstruct behavior: :moving,
             between_floors: true,
             direction: :down,
-            door_open_time_ms: Time.utc_now(),
+            door_open_time: Time.utc_now(),
             floor: :unknown,
             last_floor_time: Time.utc_now(),
             motor_timed_out: false,
@@ -26,7 +26,7 @@ defmodule Elevator.FSM.State do
           between_floors: boolean(),
           obstructed: boolean(),
           motor_timed_out: boolean(),
-          door_open_time_ms: Time.t(),
+          door_open_time: Time.t(),
           last_floor_time: Time.t()
         }
 
@@ -85,15 +85,16 @@ defmodule Elevator.FSM.State do
   # Casts --------------------------------------------------
 
   @impl true
-  def handle_cast({:set_floor, floor}, state) do
+  def handle_cast({:set_floor, new_floor}, state) do
     new_state =
-      case floor do
+      case new_floor do
         :between_floors ->
           %{state | between_floors: true}
 
-        _ ->
-          %{state | between_floors: false, floor: floor, last_floor_time: Time.utc_now()}
+        floor ->
+          %{state | between_floors: false, floor: floor}
       end
+      |> detect_and_update_last_floor_time(state)
 
     {:noreply, new_state}
   end
@@ -111,7 +112,11 @@ defmodule Elevator.FSM.State do
 
   @impl true
   def handle_cast({:set_behavior, behavior}, state) do
-    {:noreply, %{state | behavior: behavior}}
+    new_state =
+      %{state | behavior: behavior}
+      |> detect_and_update_last_floor_time(state)
+
+    {:noreply, new_state}
   end
 
   @impl true
@@ -120,7 +125,7 @@ defmodule Elevator.FSM.State do
       if state.between_floors do
         state
       else
-        %{state | behavior: :door_open, door_open_time_ms: Time.utc_now()}
+        %{state | behavior: :door_open, door_open_time: Time.utc_now()}
       end
 
     {:noreply, new_state}
@@ -142,5 +147,15 @@ defmodule Elevator.FSM.State do
   @impl true
   def handle_call(:operational?, _from, state) do
     {:reply, not (state.motor_timed_out or state.obstructed), state}
+  end
+
+  @spec detect_and_update_last_floor_time(t(), t()) :: t()
+  defp detect_and_update_last_floor_time(new_state, old_state) do
+    if old_state.between_floors != new_state.between_floors or
+         (old_state.behavior != :moving and new_state.behavior == :moving) do
+      %{new_state | last_floor_time: Time.utc_now()}
+    else
+      new_state
+    end
   end
 end

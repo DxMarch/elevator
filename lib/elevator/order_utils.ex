@@ -10,13 +10,13 @@ defmodule Elevator.OrderUtils do
         }
 
   @spec orders_above?(combined_order_map(), Elevator.floor()) :: boolean()
-  def orders_above?(reqs, floor) do
-    Enum.any?(reqs, fn {f, _} -> f > floor end)
+  def orders_above?(orders, floor) do
+    Enum.any?(orders, fn {f, _} -> f > floor end)
   end
 
   @spec orders_below?(combined_order_map(), Elevator.floor()) :: boolean()
-  def orders_below?(reqs, floor) do
-    Enum.any?(reqs, fn {f, _} -> f < floor end)
+  def orders_below?(orders, floor) do
+    Enum.any?(orders, fn {f, _} -> f < floor end)
   end
 
   @spec combine_hall_and_cab(

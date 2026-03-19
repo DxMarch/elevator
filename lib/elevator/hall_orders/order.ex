@@ -57,6 +57,7 @@ defmodule Elevator.HallOrders.Order do
 
   def update_from_button_press(order_state), do: order_state
 
+  @spec update_from_button_press(hall_order_state()) :: hall_order_state()
   def update_from_arrived_at_floor({:handling, _}) do
     ensure_self_in_barriers({:arrived, MapSet.new()})
   end

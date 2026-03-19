@@ -16,7 +16,7 @@ defmodule Elevator.HallOrders.Cost do
   @type cost_map :: Elevator.HallOrders.hall_order_cost_map()
 
   @doc """
-  Comupte the cost (time to serve) of a candidate hall order by simulating single elevator logic.
+  Compute the cost (time to serve) of a candidate hall order by simulating single elevator logic.
   """
   @spec compute_cost({floor(), hall_button_type()}, %{floor() => MapSet.t(hall_button_type())}) ::
           non_neg_integer()
@@ -53,7 +53,7 @@ defmodule Elevator.HallOrders.Cost do
   Returns if we are supposed to take the order given the cost map.
   Assumes who_can_serve is a subset of cost_map keys.
   """
-  @spec assigned_to_me?(cost_map(), MapSet.t(node())) :: node()
+  @spec assigned_to_me?(cost_map(), MapSet.t(node())) :: boolean()
   def assigned_to_me?(cost_map, who_can_serve) do
     {min_node, _} =
       Enum.filter(cost_map, fn {node, _} -> MapSet.member?(who_can_serve, node) end)
