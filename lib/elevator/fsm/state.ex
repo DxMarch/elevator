@@ -7,14 +7,14 @@ defmodule Elevator.FSM.State do
   """
   require Logger
 
-  defstruct direction: :down,
-            behavior: :moving,
-            floor: :unknown,
+  defstruct behavior: :moving,
             between_floors: true,
-            obstructed: false,
-            motor_timed_out: false,
+            direction: :down,
             door_open_time_ms: Time.utc_now(),
-            last_floor_time: Time.utc_now()
+            floor: :unknown,
+            last_floor_time: Time.utc_now(),
+            motor_timed_out: false,
+            obstructed: false
 
   @type floor :: Elevator.floor()
   @type elev_behavior :: :moving | :idle | :door_open

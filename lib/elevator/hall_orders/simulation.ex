@@ -58,30 +58,24 @@ defmodule Elevator.HallOrders.Simulation do
   def simulate_time_until_served(orders, elevator_state, target) do
     initial_time_ms = initial_time_ms(elevator_state, elem(target, 0))
 
-    if target_cleared?(orders, target) do
-      0
-    else
-      sim_state = %SimState{
-        orders: orders,
-        elevator_state: elevator_state,
-        target: target,
-        time_ms: initial_time_ms,
-        steps_left: @max_simulation_steps
-      }
+    sim_state = %SimState{
+      orders: orders,
+      elevator_state: elevator_state,
+      target: target,
+      time_ms: initial_time_ms,
+      steps_left: @max_simulation_steps
+    }
 
-      do_simulate(sim_state)
-    end
+    do_simulate(sim_state)
   end
 
   @spec do_simulate(simulation()) :: non_neg_integer()
   defp do_simulate(%SimState{steps_left: 0}), do: @unreachable_cost
 
   defp do_simulate(%SimState{orders: orders, target: target, time_ms: time_ms} = sim_state) do
-    if target_cleared?(orders, target) do
-      time_ms
-    else
-      do_simulate_step(sim_state)
-    end
+    if target_cleared?(orders, target),
+      do: time_ms,
+      else: do_simulate_step(sim_state)
   end
 
   @spec do_simulate_step(simulation()) :: non_neg_integer()
@@ -90,30 +84,26 @@ defmodule Elevator.HallOrders.Simulation do
 
     {next_orders, next_elevator_state, delta_ms} =
       case behavior do
-        :idle ->
-          raise(
-            "Invalid simulation transition: got :idle while target still pending. sim_state=#{inspect(sim_state)}"
-          )
-
         :moving ->
-          {:ok, next_floor} = move_one_floor(elevator_state.floor, direction)
+          step = [up: 1, down: -1][direction]
+          next_floor = elevator_state.floor + step
 
           {orders,
            %{
              elevator_state
-             | floor: next_floor,
+             | behavior: :moving,
                between_floors: false,
                direction: direction,
-               behavior: :moving
+               floor: next_floor
            }, @travel_duration_ms}
 
         :door_open ->
           {clear_requests_at_floor_in_direction(orders, elevator_state.floor, direction),
            %{
              elevator_state
-             | direction: direction,
-               behavior: :idle,
-               between_floors: false
+             | behavior: :idle,
+               between_floors: false,
+               direction: direction
            }, Elevator.door_open_duration_ms()}
       end
 
@@ -135,29 +125,13 @@ defmodule Elevator.HallOrders.Simulation do
     |> Kernel.not()
   end
 
-  defp move_one_floor(floor, :up) do
-    if floor < Elevator.num_floors() - 1,
-      do: {:ok, floor + 1},
-      else: raise("Invalid simulation transition: cannot move up from floor #{inspect(floor)}")
-  end
-
-  defp move_one_floor(floor, :down) do
-    if floor > 0,
-      do: {:ok, floor - 1},
-      else: raise("Invalid simulation transition: cannot move down from floor #{inspect(floor)}")
-  end
-
   defp clear_requests_at_floor_in_direction(orders, floor, direction) do
-    hall_button_to_clear = if(direction == :up, do: :hall_up, else: :hall_down)
+    hall_button_to_clear = [up: :hall_up, down: :hall_down][direction]
 
-    remaining_floor_orders =
-      orders
-      |> Map.get(floor, MapSet.new())
+    Map.update(orders, floor, MapSet.new(), fn floor_orders ->
+      floor_orders
       |> MapSet.delete(:cab)
       |> MapSet.delete(hall_button_to_clear)
-
-    if MapSet.size(remaining_floor_orders) == 0,
-      do: Map.delete(orders, floor),
-      else: Map.put(orders, floor, remaining_floor_orders)
+    end)
   end
 end

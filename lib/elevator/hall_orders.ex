@@ -149,9 +149,12 @@ defmodule Elevator.HallOrders do
   @impl true
   def handle_cast({:arrived_at_floor, floor, direction}, order_map) do
     button_type = [up: :hall_up, down: :hall_down][direction]
+    hall_button = {floor, button_type}
 
     new_order_map =
-      Map.update!(order_map, {floor, button_type}, &Order.update_from_arrived_at_floor/1)
+      if Map.has_key?(order_map, hall_button),
+        do: Map.update!(order_map, {floor, button_type}, &Order.update_from_arrived_at_floor/1),
+        else: order_map
 
     {:noreply, new_order_map, {:continue, :hall_update_state}}
   end
@@ -179,17 +182,18 @@ defmodule Elevator.HallOrders do
     {:noreply, new_order_map}
   end
 
+  # Return the orders where we have the lowest cost among serving nodes.
+  # Only consider orders where all serving nodes have a cost.
   @spec my_orders_from_order_map(hall_order_map()) :: %{floor() => MapSet.t(hall_button())}
   defp my_orders_from_order_map(order_map) do
     who_can_serve = Communicator.who_can_serve()
 
     Enum.filter(order_map, fn {_, order_state} ->
-      case order_state do
-        {:handling, cost_map} ->
-          Cost.min_alive_cost(cost_map, who_can_serve) == Node.self()
-
-        _ ->
-          false
+      with {:handling, cost_map} <- order_state do
+        MapSet.subset?(who_can_serve, MapSet.new(Map.keys(cost_map))) and
+          Cost.assigned_to_me?(cost_map, who_can_serve)
+      else
+        _ -> false
       end
     end)
     |> orders_by_floor()
@@ -197,7 +201,7 @@ defmodule Elevator.HallOrders do
 
   @type enum_orders ::
           hall_order_map()
-          | Enumerable.t({hall_button(), hall_order_state()})
+          | Enumerable.t({hall_button(), any()})
   @spec orders_by_floor(enum_orders()) :: %{floor() => MapSet.t(hall_button())}
   defp orders_by_floor(orders) do
     # Restructure order map to the format floor => MapSet(button_type)

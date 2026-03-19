@@ -57,26 +57,15 @@ defmodule Elevator.HallOrders.Cost do
   end
 
   @doc """
-  Returns the node with the lowest cost for a given cost map and alive set.
+  Returns if we are supposed to take the order given the cost map.
+  Assumes who_can_serve is a subset of cost_map keys.
   """
-  @spec min_alive_cost(cost_map(), MapSet.t(node())) :: node()
-  def min_alive_cost(cost_map, alive_set) do
-    alive_costs = Enum.filter(cost_map, fn {node, _} -> MapSet.member?(alive_set, node) end)
+  @spec assigned_to_me?(cost_map(), MapSet.t(node())) :: node()
+  def assigned_to_me?(cost_map, who_can_serve) do
+    {min_node, _} =
+      Enum.filter(cost_map, fn {node, _} -> MapSet.member?(who_can_serve, node) end)
+      |> Enum.min_by(fn {node, cost} -> {cost, node} end, fn -> {:infinity, :nonode@nohost} end)
 
-    if Enum.count(alive_costs) != MapSet.size(alive_set) do
-      nil
-    else
-      {min_node, _} =
-        Enum.min(
-          alive_costs,
-          fn {node1, cost1}, {node2, cost2} ->
-            cost1 < cost2 or (cost1 == cost2 and node1 < node2)
-          end,
-          # Fallback when no alive costs exist
-          fn -> {:nonode@nohost, :infinity} end
-        )
-
-      min_node
-    end
+    min_node == Node.self()
   end
 end
