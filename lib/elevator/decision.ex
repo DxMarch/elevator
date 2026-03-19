@@ -38,7 +38,6 @@ defmodule Elevator.Decision do
         }
       ) do
     btns_at_floor = Map.get(orders, floor, MapSet.new())
-    direction = if direction in [:up, :down], do: direction, else: :down
 
     cond do
       between_floors ->
@@ -82,9 +81,6 @@ defmodule Elevator.Decision do
           true ->
             {:down, :idle}
         end
-
-      true ->
-        {:down, :idle}
     end
   end
 end
