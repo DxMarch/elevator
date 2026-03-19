@@ -53,13 +53,13 @@ defmodule Elevator.Hardware.InputPoller do
     schedule_button_poll()
     # Polls button and notifies Cab- and HallOrders if any are pressed
 
-    for floor <- 0..(Elevator.num_floors() - 1), btn <- get_pressed_buttons_at_floor(floor) do
-      case btn do
+    for floor <- 0..(Elevator.num_floors() - 1), button <- get_pressed_buttons_at_floor(floor) do
+      case button do
         :cab ->
           CabOrders.button_press(floor)
 
-        hall_btn ->
-          HallOrders.button_press(floor, hall_btn)
+        hall_button ->
+          HallOrders.button_press(floor, hall_button)
       end
     end
 
@@ -70,8 +70,8 @@ defmodule Elevator.Hardware.InputPoller do
 
   defp get_pressed_buttons_at_floor(floor) do
     Elevator.button_types()
-    |> Enum.filter(fn btn ->
-      Driver.get_order_button_state(floor, btn) == :active
+    |> Enum.filter(fn button ->
+      Driver.get_order_button_state(floor, button) == :active
     end)
   end
 

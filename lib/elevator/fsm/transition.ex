@@ -51,7 +51,7 @@ defmodule Elevator.FSM.Transition do
           between_floors: between_floors
         }
       ) do
-    btns_at_floor = Map.get(orders, floor, MapSet.new())
+    buttons_at_floor = Map.get(orders, floor, MapSet.new())
 
     cond do
       between_floors ->
@@ -62,13 +62,13 @@ defmodule Elevator.FSM.Transition do
 
       direction == :up ->
         cond do
-          MapSet.member?(btns_at_floor, :hall_up) or MapSet.member?(btns_at_floor, :cab) ->
+          MapSet.member?(buttons_at_floor, :hall_up) or MapSet.member?(buttons_at_floor, :cab) ->
             {:up, :door_open}
 
           OrderUtils.orders_above?(orders, floor) ->
             {:up, :moving}
 
-          MapSet.member?(btns_at_floor, :hall_down) ->
+          MapSet.member?(buttons_at_floor, :hall_down) ->
             {:down, :door_open}
 
           OrderUtils.orders_below?(orders, floor) ->
@@ -80,13 +80,13 @@ defmodule Elevator.FSM.Transition do
 
       direction == :down ->
         cond do
-          MapSet.member?(btns_at_floor, :hall_down) or MapSet.member?(btns_at_floor, :cab) ->
+          MapSet.member?(buttons_at_floor, :hall_down) or MapSet.member?(buttons_at_floor, :cab) ->
             {:down, :door_open}
 
           OrderUtils.orders_below?(orders, floor) ->
             {:down, :moving}
 
-          MapSet.member?(btns_at_floor, :hall_up) ->
+          MapSet.member?(buttons_at_floor, :hall_up) ->
             {:up, :door_open}
 
           OrderUtils.orders_above?(orders, floor) ->
