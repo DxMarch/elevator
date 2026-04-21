@@ -1,0 +1,68 @@
+@startuml modules_detailed
+title Modules (Detailed)
+' Detailed module interactions from architecture description
+
+skinparam componentStyle rectangle
+left to right direction
+
+package "Controller" as Controller {
+  package "Hardware" as HW {
+    component "InputPoller" as InputPoller
+    component "Outputs" as Outputs
+    component "Driver" as Driver
+  }
+
+  package "FSM" as FSM {
+    component "State" as State
+    component "Transition" as Transition
+    component "Decision" as Decision
+  }
+}
+
+package "Orders" as Orders {
+  package "HallOrders" as HallPkg {
+    component "hall_orders.ex" as HallOrders
+    component "order.ex" as HallOrderLogic
+    component "cost.ex" as HallCost
+    component "simulation.ex" as HallSim
+  }
+
+  package "CabOrders" as CabPkg {
+    component "cab_orders.ex" as CabOrders
+  }
+}
+
+package "Network" as Net {
+  component "Communicator" as Communicator
+}
+
+InputPoller ..> Driver
+InputPoller --> State
+InputPoller --> HallOrders
+InputPoller --> CabOrders
+
+Transition ..> State
+Transition ..> HallOrders
+Transition ..> CabOrders
+Transition --> Decision
+Transition --> Outputs
+
+Outputs --> Driver
+
+HallOrders --> HallOrderLogic
+HallOrderLogic --> HallCost
+HallCost ..> State
+HallCost ..> HallOrders
+HallCost ..> CabOrders
+HallCost --> HallSim
+HallSim ..> Decision
+
+Communicator --> HallOrders
+Communicator --> CabOrders
+HallOrders ..> Communicator
+
+legend right
+solid line  : updates/signals
+dotted line : reads
+endlegend
+@enduml
