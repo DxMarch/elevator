@@ -1,34 +1,36 @@
 @startuml modules
 title Modules
-' Module-level component architecture
+' high-level module architecture
 
 skinparam componentStyle rectangle
-skinparam linetype ortho
-' left to right direction
+' skinparam linetype ortho
+left to right direction
 
 package "Controller" as Controller {
-    component "FSM.State" as State
+    component "FSM" as FSM
     component "Hardware" as Hardware
-    component "Decision" as Decision
-    component "FSM.Action" as Action
 
-    Hardware --> State : update state
-    State --> Hardware : set outputs
-    Action --> State
-    Action --> Decision
+    Hardware --> FSM : sensor events
+    FSM --> Hardware : output commands
 }
 
 package "Orders" as Orders {
-    component "Communicator" as Communicator
     component "HallOrders" as HallOrders
     component "CabOrders" as CabOrders
+    component "Communicator" as Communicator
 
-    ' HallOrders <-[Hidden]- CabOrders
-    Communicator --> HallOrders
-    Communicator --> CabOrders
+    Communicator --> HallOrders : synced updates
+    Communicator --> CabOrders : synced updates
+    HallOrders ..> Communicator
+    CabOrders ..> Communicator
 }
 
-Action ..> Orders : get orders
-Hardware --> Orders : floor/button events
-HallOrders ..> Controller : simulate
+Hardware --> Orders : button events
+FSM --> Orders : floor arrival
+FSM ..> Orders
+
+legend right
+solid line  : updates/signals
+dotted line : reads
+endlegend
 @enduml
