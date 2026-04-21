@@ -1,84 +1,34 @@
 @startuml modules
 title Modules
-' Simple class diagram for the elevator modules
+' Module-level component architecture
 
-package SingleElevator {
-    interface Driver {
-        + motor
-        + lights
-        + buttons
-        + floor sensors
-    }
+skinparam componentStyle rectangle
+skinparam linetype ortho
+' left to right direction
 
-    class FSM {
-        - elev_state
-        - my_orders
-        + init()
-        + on_arrival(floor)
-        + on_door_timeout()feat: ping function and docs for each function
-        + on_request_button(button)
-    }
+package "Controller" as Controller {
+    component "FSM.State" as State
+    component "Hardware" as Hardware
+    component "Decision" as Decision
+    component "FSM.Action" as Action
 
-    class Controller {
-        - button_poller()
-        - order_poller()
-        + read_floor_sensor()
-        + read_all_buttons()
-        + clear_all_lights()
-        + clear_light(button)
-        + open_door()
-    }
-
-    class Requests {
-        + should_stop(elev_state, orders, floor)
-        + choose_direction(elev_state, orders)
-        + should_clear_immidiately(elev_state, floor)
-    }
-
-    FSM --> Requests
-    FSM --> Controller
-    Controller --> Driver
+    Hardware --> State : update state
+    State --> Hardware : set outputs
+    Action --> State
+    Action --> Decision
 }
 
-class Communicator {
-    - broadcast_state()
-    - receive_state()
-    + who_is_alive()
+package "Orders" as Orders {
+    component "Communicator" as Communicator
+    component "HallOrders" as HallOrders
+    component "CabOrders" as CabOrders
+
+    ' HallOrders <-[Hidden]- CabOrders
+    Communicator --> HallOrders
+    Communicator --> CabOrders
 }
 
-class CabOrders {
-    - orders: map
-    - version: uint64
-    + cast: receive_state()
-    + cast: update_orders(newOrders, version)
-    + cast: clear_floor(floor)
-    + call: button_press(floor)
-    + call: get_orders()
-}
-
-class HallOrders {
-    - orders: map
-    - count: uint
-    - others
-    + cast: arrived_floor(floor, dir)
-    + cast: receive_state(orders)
-    + cast: btn_press(floor, dir)
-    + call: get_orders()
-    + call: get_my_orders()
-}
-
-class Scoring {
-    + score_request(elevator_state, orders, new_request)
-}
-
-Controller --> HallOrders
-Controller --> CabOrders
-
-Communicator <--> CabOrders
-
-HallOrders --> Scoring
-HallOrders --> CabOrders
-HallOrders <--> Communicator
-
-
+Action ..> Orders : get orders
+Hardware --> Orders : floor/button events
+HallOrders ..> Controller : simulate
 @enduml

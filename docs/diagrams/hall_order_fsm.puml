@@ -1,0 +1,24 @@
+@startuml HallOrderFSM
+title Hall Order FSM
+
+[*] --> Idle
+Idle --> Pending : button_press
+Pending --> Handling : barrier full /\n calculate cost
+Handling --> Arrived : arrived
+Arrived --> Idle : barrier full
+
+state Idle : no known order\nlight OFF
+state Pending : barrier: nodes that know\nlight OFF
+state Handling : cost map by node\nlight ON
+state Arrived : barrier: nodes that know served\nlight OFF
+
+' note as n1
+' receive_external merge rules:
+' - resolve by cyclic precedence
+' - pending/arrived: union barrier sets
+' - handling: merge cost map (min per node)
+' - ensure self in barrier/cost map
+' - barrier-full check may advance state
+' end note
+
+@enduml
