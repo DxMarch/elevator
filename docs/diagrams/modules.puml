@@ -1,84 +1,29 @@
 @startuml modules
-title Modules
-' Simple class diagram for the elevator modules
+' title Modules
+' high-level module architecture
 
-package SingleElevator {
-    interface Driver {
-        + motor
-        + lights
-        + buttons
-        + floor sensors
+skinparam componentStyle rectangle
+' skinparam linetype ortho
+left to right direction
+
+package Stateful {
+    component FSM.State
+    component Orders {
+        component HallOrders
+        component CabOrders
     }
-
-    class FSM {
-        - elev_state
-        - my_orders
-        + init()
-        + on_arrival(floor)
-        + on_door_timeout()feat: ping function and docs for each function
-        + on_request_button(button)
-    }
-
-    class Controller {
-        - button_poller()
-        - order_poller()
-        + read_floor_sensor()
-        + read_all_buttons()
-        + clear_all_lights()
-        + clear_light(button)
-        + open_door()
-    }
-
-    class Requests {
-        + should_stop(elev_state, orders, floor)
-        + choose_direction(elev_state, orders)
-        + should_clear_immidiately(elev_state, floor)
-    }
-
-    FSM --> Requests
-    FSM --> Controller
-    Controller --> Driver
 }
 
-class Communicator {
-    - broadcast_state()
-    - receive_state()
-    + who_is_alive()
+package Stateless {
+    component FSM.Transition
+    component Communicator
+    component Hardware
 }
 
-class CabOrders {
-    - orders: map
-    - version: uint64
-    + cast: receive_state()
-    + cast: update_orders(newOrders, version)
-    + cast: clear_floor(floor)
-    + call: button_press(floor)
-    + call: get_orders()
-}
-
-class HallOrders {
-    - orders: map
-    - count: uint
-    - others
-    + cast: arrived_floor(floor, dir)
-    + cast: receive_state(orders)
-    + cast: btn_press(floor, dir)
-    + call: get_orders()
-    + call: get_my_orders()
-}
-
-class Scoring {
-    + score_request(elevator_state, orders, new_request)
-}
-
-Controller --> HallOrders
-Controller --> CabOrders
-
-Communicator <--> CabOrders
-
-HallOrders --> Scoring
-HallOrders --> CabOrders
-HallOrders <--> Communicator
-
+Hardware --> FSM.State : Sensor updates
+Hardware --> Orders : Button presses
+FSM.Transition --> FSM.State : State updates
+FSM.Transition --> Orders : Floor arrival
+Communicator --> Orders : External orders
 
 @enduml

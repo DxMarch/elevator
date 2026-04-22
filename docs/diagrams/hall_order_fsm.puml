@@ -1,0 +1,17 @@
+@startuml HallOrderFSM
+title Hall Order FSM
+
+[*] --> Idle
+Idle --> Pending : button_press
+Pending --> Handling : barrier full /\n calculate cost
+Handling --> Arrived : arrived
+Arrived --> Idle : barrier full
+
+state Idle : no known order\nlight OFF
+state Pending : barrier: nodes in pending\nlight OFF
+state Handling : cost map\nlight ON
+state Arrived : barrier: nodes in arrived\nlight OFF
+
+' receive_external needs to be described in some additionl text
+
+@enduml
